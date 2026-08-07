@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: ${IAM_DB_URL}
+    username: ${IAM_DB_USERNAME}
+    password: ${IAM_DB_PASSWORD}
+  data:
+    redis:
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD}
+      cluster:
+        nodes: ${REDIS_CLUSTER_NODES}
+        max-redirects: ${REDIS_CLUSTER_MAX_REDIRECTS:3}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:true}
+
+logging:
+  level:
+    root: ${ROOT_LOG_LEVEL:INFO}
+    com.canteen.smile: ${APPLICATION_LOG_LEVEL:INFO}
+
+application:
+  internal-hmac:
+    # 生产密钥只能由 Secret/密钥服务注入，禁止设置默认值。
+    secret: ${INTERNAL_HMAC_AUTH_TO_IAM_SECRET}

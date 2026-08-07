@@ -1,0 +1,29 @@
+{
+  "name": "@canteen-smile/platform-admin",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "typecheck": "vue-tsc -b",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@canteen-smile/contracts": "workspace:*",
+    "@canteen-smile/http-core": "workspace:*",
+    "@canteen-smile/shared": "workspace:*",
+    "@canteen-smile/ui": "workspace:*",
+    "element-plus": "^2.10.5",
+    "pinia": "^3.0.3",
+    "vue": "^3.5.18",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.6",
+    "vue-tsc": "^3.0.4"
+  }
+}

@@ -1,0 +1,13 @@
+spring:
+  data:
+    redis:
+      username: ${TEST_REDIS_USERNAME:}
+      password: ${TEST_REDIS_PASSWORD:}
+      cluster:
+        nodes: ${TEST_REDIS_CLUSTER_NODES:localhost:6379}
+        max-redirects: ${TEST_REDIS_CLUSTER_MAX_REDIRECTS:3}
+
+application:
+  services:
+    auth-service-uri: ${AUTH_SERVICE_URI:http://127.0.0.1:18081}
+    iam-service-uri: ${IAM_SERVICE_URI:http://127.0.0.1:18082}

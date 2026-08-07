@@ -1,0 +1,220 @@
+openapi: 3.1.0
+info:
+  title: Canteen Smile IAM API
+  version: 1.0.0
+  description: IAM 服务已经实现并冻结的外部 REST 契约；未实现接口不得提前写入本文件。
+servers:
+  - url: /api/iam/v1
+paths:
+  /platform/tenants:
+    get:
+      operationId: pagePlatformTenants
+      summary: 平台端分页查询租户
+      description: 仅独立平台身份可调用，并由 IAM 服务最终校验 platform:tenant:view 权限。
+      tags:
+        - PlatformTenant
+      parameters:
+        - name: pageNo
+          in: query
+          required: false
+          description: 页码，从 1 开始。
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          description: 每页数量，最大 100。
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          required: false
+          description: 租户生命周期状态过滤条件。
+          schema:
+            $ref: '#/components/schemas/TenantStatus'
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPageApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  responses:
+    BadRequest:
+      description: 分页或状态参数不符合约束。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorApiResponse'
+    Unauthorized:
+      description: 当前请求尚未登录。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorApiResponse'
+    Forbidden:
+      description: 当前平台身份没有查看租户权限。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorApiResponse'
+    InternalError:
+      description: 服务端未预期异常。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorApiResponse'
+  schemas:
+    TenantStatus:
+      type: string
+      description: 租户生命周期状态。
+      enum:
+        - INITIALIZING
+        - ACTIVE
+        - SUSPENDED
+        - EXPIRED
+        - CANCELLED
+    TenantProvisionStatus:
+      type: string
+      description: IAM 与 Auth 的租户初始化编排状态。
+      enum:
+        - INITIALIZING
+        - ACTIVE
+        - PROVISION_FAILED
+    TenantSummary:
+      type: object
+      description: 平台端租户分页摘要。
+      additionalProperties: false
+      required:
+        - id
+        - tenantCode
+        - name
+        - status
+        - securityVersion
+        - templateVersion
+        - provisionStatus
+        - createdTime
+        - version
+      properties:
+        id:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+          description: 租户 bigint 主键的十进制字符串。
+        tenantCode:
+          type: string
+          description: 永久唯一且原则上不可修改的租户业务编码。
+        name:
+          type: string
+          description: 租户名称。
+        status:
+          $ref: '#/components/schemas/TenantStatus'
+        rootOrganizationId:
+          type:
+            - string
+            - 'null'
+          pattern: '^[1-9][0-9]*$'
+          description: 根机构 bigint ID 的十进制字符串，初始化期间为空。
+        securityVersion:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 租户安全版本，提升后使租户全部会话失效。
+        templateVersion:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 初始化使用的机构类型模板版本。
+        provisionStatus:
+          $ref: '#/components/schemas/TenantProvisionStatus'
+        createdTime:
+          type: string
+          format: date-time
+          description: 租户创建时间，包含时区。
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 更新接口使用的乐观锁版本。
+    TenantPage:
+      type: object
+      description: 租户分页数据。
+      additionalProperties: false
+      required:
+        - items
+        - pageNo
+        - pageSize
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantSummary'
+        pageNo:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+    TenantPageApiResponse:
+      type: object
+      description: 统一租户分页成功响应。
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+        - timestamp
+      properties:
+        code:
+          type: string
+          const: '0'
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/TenantPage'
+        timestamp:
+          type: string
+          format: date-time
+        traceId:
+          type:
+            - string
+            - 'null'
+    ErrorApiResponse:
+      type: object
+      description: 统一失败响应，不返回业务数据。
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - timestamp
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        traceId:
+          type:
+            - string
+            - 'null'

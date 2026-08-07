@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.platform.mapper.PlatformIdentityMapper">
+
+    <resultMap id="platformIdentityResultMap"
+               type="com.canteen.smile.modules.platform.entity.PlatformIdentityEntity">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="normalizedUsername" column="normalized_username"/>
+        <result property="displayName" column="display_name"/>
+        <result property="status" column="status"/>
+        <result property="authzVersion" column="authz_version"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdTime" column="created_time"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="updatedTime" column="updated_time"/>
+        <result property="deleted" column="is_deleted"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <sql id="platformIdentityColumns">
+        id,
+        username,
+        normalized_username,
+        display_name,
+        status,
+        authz_version,
+        created_by,
+        created_time,
+        updated_by,
+        updated_time,
+        is_deleted,
+        version
+    </sql>
+
+    <select id="countPlatformIdentities" resultType="long">
+        SELECT COUNT(1)
+        FROM public.iam_platform_identity
+        WHERE is_deleted = false
+    </select>
+
+    <select id="selectByNormalizedUsername" resultMap="platformIdentityResultMap">
+        SELECT
+        <include refid="platformIdentityColumns"/>
+        FROM public.iam_platform_identity
+        WHERE normalized_username = #{normalizedUsername}
+          AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <select id="selectById" resultMap="platformIdentityResultMap">
+        SELECT
+        <include refid="platformIdentityColumns"/>
+        FROM public.iam_platform_identity
+        WHERE id = #{id}
+          AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <select id="countReservedUsername" resultType="long">
+        SELECT COUNT(1)
+        FROM public.iam_username_registry
+        WHERE normalized_username = #{normalizedUsername}
+    </select>
+
+    <insert id="insertPlatformIdentity"
+            parameterType="com.canteen.smile.modules.platform.entity.PlatformIdentityEntity"
+            useGeneratedKeys="true"
+            keyProperty="id"
+            keyColumn="id">
+        INSERT INTO public.iam_platform_identity (
+            username,
+            normalized_username,
+            display_name,
+            status,
+            authz_version,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{username},
+            #{normalizedUsername},
+            #{displayName},
+            #{status},
+            #{authzVersion},
+            NULL,
+            NULL
+        )
+    </insert>
+
+    <insert id="insertUsernameRegistry"
+            parameterType="com.canteen.smile.modules.platform.entity.UsernameRegistryEntity"
+            useGeneratedKeys="true"
+            keyProperty="id"
+            keyColumn="id">
+        INSERT INTO public.iam_username_registry (
+            normalized_username,
+            subject_type,
+            subject_id,
+            original_username,
+            login_enabled,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{normalizedUsername},
+            #{subjectType},
+            #{subjectId},
+            #{originalUsername},
+            #{loginEnabled},
+            NULL,
+            NULL
+        )
+    </insert>
+
+    <update id="activatePlatformIdentity">
+        UPDATE public.iam_platform_identity
+        SET status = 'ACTIVE',
+            updated_by = NULL,
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{id}
+          AND status = 'INITIALIZING'
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+</mapper>

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.auth.mapper.PlatformRecoveryCodeMapper">
+
+    <resultMap id="platformRecoveryCodeResultMap"
+               type="com.canteen.smile.modules.auth.entity.PlatformRecoveryCodeEntity">
+        <id property="id" column="id"/>
+        <result property="platformIdentityId" column="platform_identity_id"/>
+        <result property="batchId" column="batch_id"/>
+        <result property="codeHash" column="code_hash"/>
+        <result property="status" column="status"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <update id="supersedeActiveCodes">
+        UPDATE public.auth_platform_recovery_code
+        SET status = 'SUPERSEDED',
+            superseded_time = CURRENT_TIMESTAMP,
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE platform_identity_id = #{platformIdentityId}
+          AND status = 'ACTIVE'
+          AND is_deleted = false
+    </update>
+
+    <insert id="insertRecoveryCode"
+            parameterType="com.canteen.smile.modules.auth.entity.PlatformRecoveryCodeEntity"
+            useGeneratedKeys="true"
+            keyProperty="id"
+            keyColumn="id">
+        INSERT INTO public.auth_platform_recovery_code (
+            platform_identity_id,
+            batch_id,
+            code_hash,
+            status,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{platformIdentityId},
+            #{batchId},
+            #{codeHash},
+            #{status},
+            #{platformIdentityId},
+            #{platformIdentityId}
+        )
+    </insert>
+
+    <select id="selectActiveForUpdate" resultMap="platformRecoveryCodeResultMap">
+        SELECT
+            id,
+            platform_identity_id,
+            batch_id,
+            code_hash,
+            status,
+            version
+        FROM public.auth_platform_recovery_code
+        WHERE platform_identity_id = #{platformIdentityId}
+          AND code_hash = #{codeHash}
+          AND status = 'ACTIVE'
+          AND is_deleted = false
+        FOR UPDATE
+    </select>
+
+    <update id="consumeRecoveryCode">
+        UPDATE public.auth_platform_recovery_code
+        SET status = 'CONSUMED',
+            consumed_time = CURRENT_TIMESTAMP,
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{id}
+          AND status = 'ACTIVE'
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+</mapper>

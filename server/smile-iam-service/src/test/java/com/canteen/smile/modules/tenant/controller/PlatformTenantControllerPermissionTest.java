@@ -1,0 +1,26 @@
+package com.canteen.smile.modules.tenant.controller;
+
+import cn.dev33.satoken.annotation.SaCheckPermission;
+import com.canteen.smile.modules.permission.model.IamPermissionCodes;
+import com.canteen.smile.modules.tenant.dto.TenantPageQuery;
+import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Method;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** 平台租户接口权限注解契约测试。 */
+class PlatformTenantControllerPermissionTest {
+
+    /** 验证 Controller 使用集中权限常量声明最终权限校验。 */
+    @Test
+    void shouldDeclarePlatformTenantViewPermission() throws NoSuchMethodException {
+        /** 租户分页接口方法。 */
+        Method method = PlatformTenantController.class.getMethod("pageTenants", TenantPageQuery.class);
+        /** Sa-Token 接口权限注解。 */
+        SaCheckPermission permission = method.getAnnotation(SaCheckPermission.class);
+
+        assertThat(permission).isNotNull();
+        assertThat(permission.value()).containsExactly(IamPermissionCodes.PLATFORM_TENANT_VIEW);
+    }
+}

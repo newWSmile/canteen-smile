@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${TEST_DB_HOST:localhost}:${TEST_DB_PORT:5432}/${TEST_DB_NAME:canteen_smile_test}
+    username: ${TEST_DB_USERNAME:postgres}
+    password: ${TEST_DB_PASSWORD:}
+  data:
+    redis:
+      username: ${TEST_REDIS_USERNAME:}
+      password: ${TEST_REDIS_PASSWORD:}
+      cluster:
+        nodes: ${TEST_REDIS_CLUSTER_NODES:localhost:6379}
+        max-redirects: ${TEST_REDIS_CLUSTER_MAX_REDIRECTS:3}
+
+sa-token:
+  is-log: false
+
+application:
+  bootstrap:
+    # 自动化测试应注入隔离的临时密钥。
+    secret: ${PLATFORM_BOOTSTRAP_SECRET:}
+  internal-hmac:
+    # 必须与 IAM 测试实例的同名密钥完全一致。
+    secret: ${INTERNAL_HMAC_AUTH_TO_IAM_SECRET:}

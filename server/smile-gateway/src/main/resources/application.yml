@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: smile-gateway
+  profiles:
+    active: local
+  data:
+    redis:
+      timeout: ${REDIS_TIMEOUT:3s}
+      lettuce:
+        cluster:
+          refresh:
+            adaptive: true
+            dynamic-refresh-sources: true
+            period: ${REDIS_CLUSTER_REFRESH_PERIOD:30s}
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: auth-service
+              uri: ${application.services.auth-service-uri}
+              predicates:
+                - Path=/api/auth/v1/**
+            - id: iam-service
+              uri: ${application.services.iam-service-uri}
+              predicates:
+                - Path=/api/iam/v1/**
+
+server:
+  port: ${GATEWAY_PORT:8080}
+  shutdown: graceful
+
+sa-token:
+  token-name: satoken
+  timeout: ${SA_TOKEN_TIMEOUT_SECONDS:2592000}
+  active-timeout: ${SA_TOKEN_ACTIVE_TIMEOUT_SECONDS:-1}
+  is-concurrent: true
+  is-share: true
+  token-style: uuid
+  is-log: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+application:
+  services:
+    # 各环境必须提供认证服务地址；生产环境禁止回退到 localhost。
+    auth-service-uri: ${AUTH_SERVICE_URI}
+    # 本地默认使用 IAM 约定端口；生产环境配置会强制覆盖为真实地址。
+    iam-service-uri: ${IAM_SERVICE_URI:http://127.0.0.1:8082}
+
+logging:
+  level:
+    root: INFO
+    com.canteen.smile: INFO

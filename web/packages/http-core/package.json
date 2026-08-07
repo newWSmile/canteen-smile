@@ -1,0 +1,13 @@
+{
+  "name": "@canteen-smile/http-core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@canteen-smile/contracts": "workspace:*",
+    "axios": "^1.11.0"
+  }
+}

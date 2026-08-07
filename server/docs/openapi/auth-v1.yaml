@@ -1,0 +1,345 @@
+openapi: 3.1.0
+info:
+  title: Canteen Smile Auth API
+  version: 1.3.0
+  description: Auth 服务当前已经实现的首次引导、用户名密码登录、平台恢复能力和设备会话契约。
+servers:
+  - url: /api/auth/v1
+paths:
+  /password-encryption/challenges:
+    post:
+      operationId: createPasswordEncryptionChallenge
+      summary: 创建一次性密码加密挑战
+      description: 返回当前轮换 RSA 公钥、一次性 nonce 和服务端时间戳。RSA 密钥默认 30 天轮换；挑战默认 120 秒有效且只能原子消费一次。
+      tags: [PasswordEncryption]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordEncryptionChallengeRequest'
+      responses:
+        '201':
+          description: 一次性短期挑战创建成功。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordEncryptionChallengeApiResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '503': {$ref: '#/components/responses/RuntimeUnavailable'}
+  /platform/bootstrap:
+    post:
+      operationId: bootstrapPlatformIdentity
+      summary: 一次性创建首位平台超级管理员
+      description: 仅当 IAM 和 Auth 均不存在平台管理员时可调用；恢复码只在本次响应展示。
+      tags: [PlatformBootstrap]
+      parameters:
+        - name: X-Bootstrap-Secret
+          in: header
+          required: true
+          description: 仅由安全环境变量提供的高熵首次引导密钥。
+          schema:
+            type: string
+            minLength: 32
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformBootstrapRequest'
+      responses:
+        '201':
+          description: 首位平台身份、Argon2id 凭证和恢复码创建成功。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformBootstrapApiResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+  /login/password:
+    post:
+      operationId: passwordLogin
+      summary: 用户名密码登录
+      description: 当前平台管理端在用户名和密码验证通过后直接建立设备会话；未来仅在异常设备或高风险场景按策略返回二次验证步骤。
+      tags: [Login]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordLoginRequest'
+      responses:
+        '200':
+          description: 用户名和密码验证成功，当前设备会话建立完成。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResultApiResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '423': {$ref: '#/components/responses/Locked'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+  /login/platform-recovery-code:
+    post:
+      operationId: platformRecoveryCodeLogin
+      summary: 使用一次性恢复码完成受控验证
+      description: 为后续账号恢复或高风险登录流程保留；普通用户名密码登录不调用此接口，也不会消费恢复码。
+      tags: [Login]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformRecoveryLoginRequest'
+      responses:
+        '200':
+          description: 当前设备独立会话建立成功。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionApiResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/RuntimeUnavailable'}
+  /session:
+    get:
+      operationId: getCurrentSession
+      summary: 查询当前设备会话
+      tags: [Session]
+      security: [{SaToken: []}]
+      responses:
+        '200':
+          description: 当前设备会话有效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionApiResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /logout:
+    post:
+      operationId: logoutCurrentSession
+      summary: 退出当前设备会话
+      tags: [Session]
+      security: [{SaToken: []}]
+      responses:
+        '200':
+          description: 当前设备已退出。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoidApiResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+components:
+  securitySchemes:
+    SaToken:
+      type: apiKey
+      in: header
+      name: satoken
+  responses:
+    BadRequest:
+      description: 参数、密码、验证码门槛、恢复码或一次性票据不符合要求。
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorApiResponse'}
+    Unauthorized:
+      description: 未登录或会话已失效。
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorApiResponse'}
+    Forbidden:
+      description: 当前应用入口不匹配。
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorApiResponse'}
+    Locked:
+      description: 密码连续失败触发十五分钟临时锁定。
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorApiResponse'}
+    Conflict:
+      description: 首位平台管理员已经存在，引导永久关闭。
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorApiResponse'}
+    UpstreamUnavailable:
+      description: IAM 内部服务暂时不可用或返回无效响应。
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorApiResponse'}
+    RuntimeUnavailable:
+      description: Redis 认证运行态暂时不可用。
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorApiResponse'}
+  schemas:
+    DeviceRequest:
+      type: object
+      additionalProperties: false
+      required: [deviceId, deviceType, deviceName]
+      properties:
+        deviceId: {type: string, minLength: 1, maxLength: 128}
+        deviceType: {type: string, minLength: 1, maxLength: 64}
+        deviceName: {type: string, minLength: 1, maxLength: 128}
+        userAgentSummary: {type: [string, 'null'], maxLength: 256}
+    PasswordEncryptionChallengeRequest:
+      type: object
+      additionalProperties: false
+      required: [purpose]
+      properties:
+        purpose:
+          type: string
+          enum: [PLATFORM_BOOTSTRAP, PLATFORM_PASSWORD_LOGIN]
+    PasswordEncryptionChallenge:
+      type: object
+      additionalProperties: false
+      required: [purpose, keyId, publicKey, nonce, timestamp, expiresAt, keyAlgorithm, contentAlgorithm]
+      properties:
+        purpose:
+          type: string
+          enum: [PLATFORM_BOOTSTRAP, PLATFORM_PASSWORD_LOGIN]
+        keyId: {type: string, format: uuid}
+        publicKey:
+          type: string
+          description: Base64 编码的 X.509 SubjectPublicKeyInfo RSA 公钥。
+        nonce: {type: string, minLength: 32, maxLength: 128}
+        timestamp: {type: integer, format: int64, minimum: 1}
+        expiresAt: {type: string, format: date-time}
+        keyAlgorithm: {type: string, const: RSA-OAEP-256}
+        contentAlgorithm: {type: string, const: A256GCM}
+    PasswordEnvelopeRequest:
+      type: object
+      additionalProperties: false
+      required: [keyId, nonce, timestamp, encryptedKey, iv, ciphertext]
+      properties:
+        keyId: {type: string, maxLength: 64}
+        nonce: {type: string, maxLength: 128}
+        timestamp: {type: integer, format: int64, minimum: 1}
+        encryptedKey:
+          type: string
+          maxLength: 1024
+          description: RSA-OAEP-SHA256 加密的 AES-256 原始密钥，使用标准 Base64。
+        iv:
+          type: string
+          maxLength: 64
+          description: AES-GCM 96 位随机 IV，使用标准 Base64。
+        ciphertext:
+          type: string
+          maxLength: 2048
+          description: AES-GCM 密码密文和 128 位认证标签，使用标准 Base64。
+    PlatformBootstrapRequest:
+      type: object
+      additionalProperties: false
+      required: [username, passwordEnvelope]
+      properties:
+        username: {type: string, minLength: 1, maxLength: 128}
+        displayName: {type: [string, 'null'], maxLength: 128}
+        passwordEnvelope: {$ref: '#/components/schemas/PasswordEnvelopeRequest'}
+    PasswordLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [appCode, username, passwordEnvelope, device]
+      properties:
+        appCode:
+          type: string
+          const: PLATFORM_ADMIN
+        username: {type: string, minLength: 1, maxLength: 64}
+        passwordEnvelope: {$ref: '#/components/schemas/PasswordEnvelopeRequest'}
+        rememberMe: {type: boolean, default: false}
+        device: {$ref: '#/components/schemas/DeviceRequest'}
+        captchaTicket: {type: [string, 'null'], maxLength: 256, writeOnly: true}
+    PlatformRecoveryLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [secondFactorTicket, recoveryCode]
+      properties:
+        secondFactorTicket: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+        recoveryCode: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+    PlatformBootstrap:
+      type: object
+      additionalProperties: false
+      required: [platformIdentityId, username, recoveryCodes, nextStep]
+      properties:
+        platformIdentityId: {type: string, pattern: '^[1-9][0-9]*$'}
+        username: {type: string}
+        recoveryCodes:
+          type: array
+          minItems: 5
+          maxItems: 20
+          items: {type: string}
+        nextStep: {type: string}
+    LoginResult:
+      type: object
+      additionalProperties: false
+      required: [nextStep]
+      properties:
+        nextStep:
+          type: string
+          enum: [AUTHENTICATED, SECOND_FACTOR_REQUIRED]
+        session:
+          oneOf:
+            - {$ref: '#/components/schemas/Session'}
+            - {type: 'null'}
+        secondFactorTicket: {type: [string, 'null']}
+    Session:
+      type: object
+      additionalProperties: false
+      required: [tokenName, tokenValue, sessionId, appCode, identityType, accountId, idleExpiresAt, absoluteExpiresAt]
+      properties:
+        tokenName: {type: string}
+        tokenValue: {type: string, writeOnly: true}
+        sessionId: {type: string, format: uuid}
+        appCode: {type: string, const: PLATFORM_ADMIN}
+        identityType: {type: string, const: PLATFORM_IDENTITY}
+        accountId: {type: string, pattern: '^[1-9][0-9]*$'}
+        tenantId: {type: ['null']}
+        organizationId: {type: ['null']}
+        idleExpiresAt: {type: string, format: date-time}
+        absoluteExpiresAt: {type: string, format: date-time}
+    PlatformBootstrapApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/PlatformBootstrap'}
+    PasswordEncryptionChallengeApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/PasswordEncryptionChallenge'}
+    LoginResultApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/LoginResult'}
+    SessionApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/Session'}
+    VoidApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {type: ['null']}
+    SuccessEnvelope:
+      type: object
+      required: [code, message, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    ErrorApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, timestamp]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}

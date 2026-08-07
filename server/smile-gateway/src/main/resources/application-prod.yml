@@ -1,0 +1,15 @@
+spring:
+  data:
+    redis:
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD}
+      cluster:
+        nodes: ${REDIS_CLUSTER_NODES}
+        max-redirects: ${REDIS_CLUSTER_MAX_REDIRECTS:3}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:true}
+
+application:
+  services:
+    auth-service-uri: ${AUTH_SERVICE_URI}
+    iam-service-uri: ${IAM_SERVICE_URI}

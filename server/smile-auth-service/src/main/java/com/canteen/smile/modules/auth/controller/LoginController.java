@@ -1,0 +1,72 @@
+package com.canteen.smile.modules.auth.controller;
+
+import com.canteen.smile.api.AuthApiPaths;
+import com.canteen.smile.common.api.ApiResponse;
+import com.canteen.smile.modules.auth.dto.PasswordLoginRequest;
+import com.canteen.smile.modules.auth.dto.PlatformRecoveryLoginRequest;
+import com.canteen.smile.modules.auth.model.PasswordEnvelopePurpose;
+import com.canteen.smile.modules.auth.service.PasswordEnvelopeService;
+import com.canteen.smile.modules.auth.service.PlatformPasswordLoginService;
+import com.canteen.smile.modules.auth.service.PlatformRecoveryLoginService;
+import com.canteen.smile.modules.auth.vo.LoginResultVO;
+import com.canteen.smile.modules.auth.vo.SessionVO;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+/** 匿名登录流程接口。 */
+@Validated
+@RestController
+@RequiredArgsConstructor
+public class LoginController {
+
+    /** 平台密码登录服务。 */
+    private final PlatformPasswordLoginService platformPasswordLoginService;
+
+    /** 平台恢复码二次验证服务。 */
+    private final PlatformRecoveryLoginService platformRecoveryLoginService;
+
+    /** 一次性密码信封解密服务。 */
+    private final PasswordEnvelopeService passwordEnvelopeService;
+
+    /**
+     * 校验平台用户名和密码并直接建立设备会话。
+     *
+     * @param request 密码登录请求
+     * @param servletRequest 当前 HTTP 请求
+     * @return 已完成认证的登录结果
+     */
+    @PostMapping(AuthApiPaths.PASSWORD_LOGIN)
+    public ApiResponse<LoginResultVO> passwordLogin(
+            @Valid @RequestBody PasswordLoginRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        /** 仅在当前认证调用链中短暂存在的密码明文。 */
+        String password = passwordEnvelopeService.decrypt(
+                request.getPasswordEnvelope(),
+                PasswordEnvelopePurpose.PLATFORM_PASSWORD_LOGIN
+        );
+        return ApiResponse.success(
+                platformPasswordLoginService.login(request, password, servletRequest.getRemoteAddr())
+        );
+    }
+
+    /**
+     * 使用平台一次性恢复码完成二次验证。
+     *
+     * @param request 恢复码二次验证请求
+     * @param servletRequest 当前 HTTP 请求
+     * @return 已建立的设备会话
+     */
+    @PostMapping(AuthApiPaths.PLATFORM_RECOVERY_LOGIN)
+    public ApiResponse<SessionVO> platformRecoveryLogin(
+            @Valid @RequestBody PlatformRecoveryLoginRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        return ApiResponse.success(platformRecoveryLoginService.login(request, servletRequest.getRemoteAddr()));
+    }
+}

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.auth.mapper.DeviceSessionMapper">
+
+    <resultMap id="deviceSessionResultMap" type="com.canteen.smile.modules.auth.entity.DeviceSessionEntity">
+        <id property="id" column="id"/>
+        <result property="sessionId" column="session_id"/>
+        <result property="subjectType" column="subject_type"/>
+        <result property="subjectId" column="subject_id"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="organizationId" column="organization_id"/>
+        <result property="appCode" column="app_code"/>
+        <result property="tokenDigest" column="token_digest"/>
+        <result property="deviceIdHash" column="device_id_hash"/>
+        <result property="deviceType" column="device_type"/>
+        <result property="deviceName" column="device_name"/>
+        <result property="loginMethod" column="login_method"/>
+        <result property="loginIpMasked" column="login_ip_masked"/>
+        <result property="loginTime" column="login_time"/>
+        <result property="lastActiveTime" column="last_active_time"/>
+        <result property="idleExpiresAt" column="idle_expires_at"/>
+        <result property="absoluteExpiresAt" column="absolute_expires_at"/>
+        <result property="status" column="status"/>
+        <result property="snapshotVersion" column="snapshot_version"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <insert id="insertDeviceSession"
+            parameterType="com.canteen.smile.modules.auth.entity.DeviceSessionEntity"
+            useGeneratedKeys="true"
+            keyProperty="id"
+            keyColumn="id">
+        INSERT INTO public.auth_device_session (
+            session_id,
+            subject_type,
+            subject_id,
+            tenant_id,
+            organization_id,
+            app_code,
+            token_digest,
+            device_id_hash,
+            device_type,
+            device_name,
+            login_method,
+            login_ip_masked,
+            login_time,
+            last_active_time,
+            idle_expires_at,
+            absolute_expires_at,
+            status,
+            snapshot_version,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{sessionId},
+            #{subjectType},
+            #{subjectId},
+            #{tenantId},
+            #{organizationId},
+            #{appCode},
+            #{tokenDigest},
+            #{deviceIdHash},
+            #{deviceType},
+            #{deviceName},
+            #{loginMethod},
+            #{loginIpMasked},
+            #{loginTime},
+            #{lastActiveTime},
+            #{idleExpiresAt},
+            #{absoluteExpiresAt},
+            #{status},
+            #{snapshotVersion},
+            #{subjectId},
+            #{subjectId}
+        )
+    </insert>
+
+    <select id="selectActiveBySessionId" resultMap="deviceSessionResultMap">
+        SELECT
+            id,
+            session_id,
+            subject_type,
+            subject_id,
+            tenant_id,
+            organization_id,
+            app_code,
+            token_digest,
+            device_id_hash,
+            device_type,
+            device_name,
+            login_method,
+            login_ip_masked,
+            login_time,
+            last_active_time,
+            idle_expires_at,
+            absolute_expires_at,
+            status,
+            snapshot_version,
+            version
+        FROM public.auth_device_session
+        WHERE session_id = #{sessionId}
+          AND status = 'ACTIVE'
+          AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <update id="markLoggedOut">
+        UPDATE public.auth_device_session
+        SET status = 'LOGGED_OUT',
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE session_id = #{sessionId}
+          AND status = 'ACTIVE'
+          AND is_deleted = false
+    </update>
+</mapper>

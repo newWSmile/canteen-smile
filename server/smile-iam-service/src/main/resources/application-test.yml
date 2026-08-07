@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: ${TEST_IAM_DB_URL}
+    username: ${TEST_IAM_DB_USERNAME}
+    password: ${TEST_IAM_DB_PASSWORD}
+  data:
+    redis:
+      username: ${TEST_REDIS_USERNAME:}
+      password: ${TEST_REDIS_PASSWORD:}
+      cluster:
+        nodes: ${TEST_REDIS_CLUSTER_NODES}
+        max-redirects: ${TEST_REDIS_CLUSTER_MAX_REDIRECTS:3}
+
+sa-token:
+  is-log: false
+
+application:
+  internal-hmac:
+    # 必须与 Auth 测试实例的同名密钥完全一致。
+    secret: ${INTERNAL_HMAC_AUTH_TO_IAM_SECRET:}
