@@ -14,5 +14,8 @@ class IamApiPathsTest {
         assertThat(IamApiPaths.INTERNAL_V1).isEqualTo("/internal/iam/v1");
         assertThat(IamApiPaths.PLATFORM_TENANTS).startsWith(IamApiPaths.EXTERNAL_V1 + "/");
         assertThat(IamApiPaths.PLATFORM_TENANTS).doesNotStartWith(IamApiPaths.INTERNAL_V1);
+        assertThat(IamApiPaths.TENANT_CONTEXT).startsWith(IamApiPaths.EXTERNAL_V1 + "/tenant/");
+        assertThat(IamApiPaths.TENANT_ORGANIZATION_TYPES).startsWith(IamApiPaths.EXTERNAL_V1 + "/tenant/");
+        assertThat(IamApiPaths.TENANT_ORGANIZATIONS).startsWith(IamApiPaths.EXTERNAL_V1 + "/tenant/");
     }
 }

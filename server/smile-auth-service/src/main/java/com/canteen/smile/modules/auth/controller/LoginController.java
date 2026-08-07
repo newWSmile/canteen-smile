@@ -7,6 +7,8 @@ import com.canteen.smile.modules.auth.dto.PlatformRecoveryLoginRequest;
 import com.canteen.smile.modules.auth.model.PasswordEnvelopePurpose;
 import com.canteen.smile.modules.auth.service.PasswordEnvelopeService;
 import com.canteen.smile.modules.auth.service.PlatformPasswordLoginService;
+import com.canteen.smile.modules.auth.service.TenantPasswordLoginService;
+import com.canteen.smile.modules.auth.model.AuthConstants;
 import com.canteen.smile.modules.auth.service.PlatformRecoveryLoginService;
 import com.canteen.smile.modules.auth.vo.LoginResultVO;
 import com.canteen.smile.modules.auth.vo.SessionVO;
@@ -27,6 +29,9 @@ public class LoginController {
     /** 平台密码登录服务。 */
     private final PlatformPasswordLoginService platformPasswordLoginService;
 
+    /** 租户管理端密码登录服务。 */
+    private final TenantPasswordLoginService tenantPasswordLoginService;
+
     /** 平台恢复码二次验证服务。 */
     private final PlatformRecoveryLoginService platformRecoveryLoginService;
 
@@ -46,13 +51,16 @@ public class LoginController {
             HttpServletRequest servletRequest
     ) {
         /** 仅在当前认证调用链中短暂存在的密码明文。 */
+        boolean tenantAdmin = AuthConstants.TENANT_ADMIN_APP.equals(request.getAppCode());
         String password = passwordEnvelopeService.decrypt(
                 request.getPasswordEnvelope(),
-                PasswordEnvelopePurpose.PLATFORM_PASSWORD_LOGIN
+                tenantAdmin
+                        ? PasswordEnvelopePurpose.TENANT_PASSWORD_LOGIN
+                        : PasswordEnvelopePurpose.PLATFORM_PASSWORD_LOGIN
         );
-        return ApiResponse.success(
-                platformPasswordLoginService.login(request, password, servletRequest.getRemoteAddr())
-        );
+        return ApiResponse.success(tenantAdmin
+                ? tenantPasswordLoginService.login(request, password, servletRequest.getRemoteAddr())
+                : platformPasswordLoginService.login(request, password, servletRequest.getRemoteAddr()));
     }
 
     /**

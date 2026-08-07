@@ -2,6 +2,7 @@ package com.canteen.smile.modules.permission.service;
 
 import cn.dev33.satoken.stp.StpInterface;
 import com.canteen.smile.modules.permission.model.IamPermissionCodes;
+import com.canteen.smile.modules.account.mapper.AccountLifecycleMapper;
 import com.canteen.smile.modules.platform.entity.PlatformIdentityEntity;
 import com.canteen.smile.modules.platform.mapper.PlatformIdentityMapper;
 import com.canteen.smile.modules.platform.model.PlatformIdentityStatus;
@@ -21,8 +22,17 @@ public class IamStpInterface implements StpInterface {
     /** 平台超级管理员角色编码。 */
     private static final String PLATFORM_SUPER_ADMIN_ROLE = "PLATFORM_SUPER_ADMIN";
 
+    /** 租户账号登录 ID 前缀。 */
+    private static final String TENANT_LOGIN_PREFIX = "TENANT:";
+
+    /** 机构所有者受保护角色标识。 */
+    private static final String ORGANIZATION_OWNER_ROLE = "ORGANIZATION_OWNER";
+
     /** 平台身份数据访问接口。 */
     private final PlatformIdentityMapper platformIdentityMapper;
+
+    /** 租户账号权限上下文数据访问接口。 */
+    private final AccountLifecycleMapper accountLifecycleMapper;
 
     /**
      * 返回当前真实有效身份拥有的权限码。
@@ -33,9 +43,27 @@ public class IamStpInterface implements StpInterface {
      */
     @Override
     public List<String> getPermissionList(Object loginId, String loginType) {
-        return activePlatformIdentity(loginId) == null
+        if (activePlatformIdentity(loginId) != null) {
+            return List.of(
+                        IamPermissionCodes.PLATFORM_TENANT_VIEW,
+                        IamPermissionCodes.PLATFORM_TENANT_CREATE,
+                        IamPermissionCodes.PLATFORM_TENANT_OWNER_ACTIVATE,
+                        IamPermissionCodes.IAM_USER_PASSWORD_RESET,
+                        IamPermissionCodes.PLATFORM_ORG_TEMPLATE_MANAGE
+                );
+        }
+        return activeRootOwner(loginId) == null
                 ? List.of()
-                : List.of(IamPermissionCodes.PLATFORM_TENANT_VIEW);
+                : List.of(
+                        IamPermissionCodes.IAM_ORG_TYPE_VIEW,
+                        IamPermissionCodes.IAM_ORG_TYPE_MANAGE,
+                        IamPermissionCodes.IAM_ORG_VIEW,
+                        IamPermissionCodes.IAM_ORG_CREATE,
+                        IamPermissionCodes.IAM_ORG_UPDATE,
+                        IamPermissionCodes.IAM_ORG_MOVE,
+                        IamPermissionCodes.IAM_ORG_STATUS,
+                        IamPermissionCodes.IAM_ORG_DELETE
+                );
     }
 
     /**
@@ -47,9 +75,10 @@ public class IamStpInterface implements StpInterface {
      */
     @Override
     public List<String> getRoleList(Object loginId, String loginType) {
-        return activePlatformIdentity(loginId) == null
-                ? List.of()
-                : List.of(PLATFORM_SUPER_ADMIN_ROLE);
+        if (activePlatformIdentity(loginId) != null) {
+            return List.of(PLATFORM_SUPER_ADMIN_ROLE);
+        }
+        return activeRootOwner(loginId) == null ? List.of() : List.of(ORGANIZATION_OWNER_ROLE);
     }
 
     /**
@@ -79,6 +108,36 @@ public class IamStpInterface implements StpInterface {
                 && !Boolean.TRUE.equals(identity.getDeleted())
                 && PlatformIdentityStatus.ACTIVE.name().equals(identity.getStatus())
                 ? identity
+                : null;
+    }
+
+    /**
+     * 查询当前有效租户根机构所有者。
+     *
+     * @param loginId Sa-Token 登录 ID
+     * @return 有效根机构所有者上下文，不匹配时为空
+     */
+    private AccountLifecycleMapper.TenantPermissionContextRow activeRootOwner(Object loginId) {
+        /** 租户登录 ID 文本。 */
+        String value = String.valueOf(loginId);
+        if (!value.startsWith(TENANT_LOGIN_PREFIX)) {
+            return null;
+        }
+        /** 租户账号 ID。 */
+        long accountId;
+        try {
+            accountId = Long.parseLong(value.substring(TENANT_LOGIN_PREFIX.length()));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+        AccountLifecycleMapper.TenantPermissionContextRow context =
+                accountLifecycleMapper.selectTenantPermissionContext(accountId);
+        return context != null
+                && context.rootOwner()
+                && "ACTIVE".equals(context.accountStatus())
+                && "ACTIVE".equals(context.tenantStatus())
+                && "ACTIVE".equals(context.organizationStatus())
+                ? context
                 : null;
     }
 }

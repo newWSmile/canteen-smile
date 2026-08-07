@@ -5,6 +5,7 @@ import com.canteen.smile.modules.platform.entity.PlatformIdentityEntity;
 import com.canteen.smile.modules.platform.mapper.PlatformIdentityMapper;
 import com.canteen.smile.modules.platform.model.PlatformIdentityStatus;
 import com.canteen.smile.modules.platform.vo.UsernameLoginResolutionVO;
+import com.canteen.smile.modules.account.mapper.AccountLifecycleMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,19 +18,25 @@ public class PlatformLoginResolutionService {
     /** 平台身份数据访问接口。 */
     private final PlatformIdentityMapper platformIdentityMapper;
 
+    /** 租户账号登录上下文数据访问接口。 */
+    private final AccountLifecycleMapper accountLifecycleMapper;
+
     /**
-     * 解析平台管理端用户名；其它入口暂不伪造租户账号解析。
+     * 按应用入口解析平台身份或租户账号。
      *
      * @param request 用户名和应用入口
      * @return 内部登录解析结果
      */
     @Transactional(readOnly = true)
     public UsernameLoginResolutionVO resolve(UsernameLoginResolutionRequest request) {
+        /** 按统一规则归一化后的用户名。 */
+        String normalizedUsername = UsernameNormalizer.normalize(request.username());
+        if ("TENANT_ADMIN".equals(request.appCode()) || "TENANT_PORTAL".equals(request.appCode())) {
+            return resolveTenantAccount(normalizedUsername);
+        }
         if (!"PLATFORM_ADMIN".equals(request.appCode())) {
             return UsernameLoginResolutionVO.unresolved();
         }
-        /** 按统一规则归一化后的用户名。 */
-        String normalizedUsername = UsernameNormalizer.normalize(request.username());
         /** IAM 平台身份。 */
         PlatformIdentityEntity identity = platformIdentityMapper.selectByNormalizedUsername(normalizedUsername);
         if (identity == null
@@ -44,7 +51,37 @@ public class PlatformLoginResolutionService {
                 identity.getUsername(),
                 identity.getDisplayName() == null ? identity.getUsername() : identity.getDisplayName(),
                 identity.getStatus(),
-                identity.getAuthzVersion()
+                identity.getAuthzVersion(),
+                null, null, null, null, null, null, null, null, null
+        );
+    }
+
+    /** @param normalizedUsername 归一化用户名 @return 可登录租户账号快照 */
+    private UsernameLoginResolutionVO resolveTenantAccount(String normalizedUsername) {
+        AccountLifecycleMapper.LoginContextRow account = accountLifecycleMapper.selectLoginContext(normalizedUsername);
+        if (account == null
+                || !"ACTIVE".equals(account.accountStatus())
+                || !"ACTIVE".equals(account.tenantStatus())
+                || !"ACTIVE".equals(account.organizationStatus())) {
+            return UsernameLoginResolutionVO.unresolved();
+        }
+        return new UsernameLoginResolutionVO(
+                true,
+                "TENANT_ACCOUNT",
+                Long.toString(account.accountId()),
+                account.username(),
+                account.displayName() == null ? account.username() : account.displayName(),
+                account.accountStatus(),
+                account.authzVersion(),
+                Long.toString(account.tenantId()),
+                Long.toString(account.organizationId()),
+                account.concurrentLoginEnabled(),
+                account.maxDevices(),
+                account.rememberMeEnabled(),
+                account.idleSeconds(),
+                account.absoluteSeconds(),
+                account.rememberIdleSeconds(),
+                account.rememberAbsoluteSeconds()
         );
     }
 }

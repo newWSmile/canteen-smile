@@ -171,8 +171,8 @@ public class PlatformSessionService {
                 entity.getAppCode(),
                 entity.getSubjectType(),
                 entity.getSubjectId().toString(),
-                null,
-                null,
+                entity.getTenantId() == null ? null : entity.getTenantId().toString(),
+                entity.getOrganizationId() == null ? null : entity.getOrganizationId().toString(),
                 entity.getIdleExpiresAt(),
                 entity.getAbsoluteExpiresAt()
         );

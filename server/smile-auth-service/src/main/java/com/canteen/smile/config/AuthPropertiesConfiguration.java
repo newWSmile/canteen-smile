@@ -2,6 +2,7 @@ package com.canteen.smile.config;
 
 import com.canteen.smile.internal.client.IamClientProperties;
 import com.canteen.smile.internal.client.InternalHmacClientProperties;
+import com.canteen.smile.internal.security.AuthInternalHmacProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -11,7 +12,8 @@ import org.springframework.context.annotation.Configuration;
         BootstrapProperties.class,
         PasswordEnvelopeProperties.class,
         IamClientProperties.class,
-        InternalHmacClientProperties.class
+        InternalHmacClientProperties.class,
+        AuthInternalHmacProperties.class
 })
 public class AuthPropertiesConfiguration {
 }

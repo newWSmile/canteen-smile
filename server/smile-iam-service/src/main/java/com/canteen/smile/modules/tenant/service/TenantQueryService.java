@@ -1,6 +1,8 @@
 package com.canteen.smile.modules.tenant.service;
 
 import com.canteen.smile.common.api.PageResult;
+import com.canteen.smile.modules.account.mapper.AccountLifecycleMapper;
+import com.canteen.smile.modules.account.model.AccountStatus;
 import com.canteen.smile.modules.tenant.converter.TenantConverter;
 import com.canteen.smile.modules.tenant.dto.TenantPageQuery;
 import com.canteen.smile.modules.tenant.entity.TenantEntity;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /** 平台端租户只读查询服务。 */
 @Service
@@ -19,6 +23,9 @@ public class TenantQueryService {
 
     /** 租户数据访问接口。 */
     private final TenantMapper tenantMapper;
+
+    /** 租户根机构所有者账号状态数据访问接口。 */
+    private final AccountLifecycleMapper accountLifecycleMapper;
 
     /** 租户对象转换器。 */
     private final TenantConverter tenantConverter;
@@ -45,8 +52,27 @@ public class TenantQueryService {
                 query.getPageSize(),
                 offset
         );
+        /** 当前页租户 ID，用于一次性批量查询所有者账号状态。 */
+        List<Long> tenantIds = entities.stream().map(TenantEntity::getId).toList();
+        /** 按租户 ID 索引的根机构所有者摘要。 */
+        Map<Long, AccountLifecycleMapper.TenantOwnerSummaryRow> owners =
+                accountLifecycleMapper.selectRootOwnerSummaries(tenantIds).stream()
+                .collect(Collectors.toMap(
+                        AccountLifecycleMapper.TenantOwnerSummaryRow::tenantId,
+                        row -> row
+                ));
         /** 当前页对外租户摘要。 */
-        List<TenantSummaryVO> items = entities.stream().map(tenantConverter::toSummary).toList();
+        List<TenantSummaryVO> items = entities.stream()
+                .map(entity -> {
+                    /** 当前租户根机构所有者摘要，不存在时返回空所有者字段以暴露数据异常。 */
+                    AccountLifecycleMapper.TenantOwnerSummaryRow owner = owners.get(entity.getId());
+                    return tenantConverter.toSummary(
+                            entity,
+                            owner == null ? null : owner.username(),
+                            owner == null ? null : AccountStatus.valueOf(owner.accountStatus())
+                    );
+                })
+                .toList();
         return new PageResult<>(items, query.getPageNo(), query.getPageSize(), total);
     }
 }

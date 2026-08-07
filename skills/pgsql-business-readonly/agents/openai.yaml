@@ -1,0 +1,4 @@
+interface:
+  display_name: "PostgreSQL 业务只读查询"
+  short_description: "安全读取 smile_auth 与 smile_iam 业务数据"
+  default_prompt: "Use $pgsql-business-readonly to inspect PostgreSQL business data with read-only queries."

@@ -18,6 +18,15 @@ public record UsernameLoginResolutionInternalResponse(
         String username,
         String displayName,
         String status,
-        Long authzVersion
+        Long authzVersion,
+        String tenantId,
+        String organizationId,
+        Boolean concurrentLoginEnabled,
+        Integer maxDevices,
+        Boolean rememberMeEnabled,
+        Integer idleSeconds,
+        Integer absoluteSeconds,
+        Integer rememberIdleSeconds,
+        Integer rememberAbsoluteSeconds
 ) {
 }

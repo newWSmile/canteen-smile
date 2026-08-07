@@ -7,7 +7,10 @@ export interface DeviceRequest {
 }
 
 /** 密码信封绑定的后端业务用途。 */
-export type PasswordEnvelopePurpose = 'PLATFORM_BOOTSTRAP' | 'PLATFORM_PASSWORD_LOGIN'
+export type PasswordEnvelopePurpose =
+  | 'PLATFORM_BOOTSTRAP'
+  | 'PLATFORM_PASSWORD_LOGIN'
+  | 'PLATFORM_REAUTH_PASSWORD'
 
 /** Auth 使用轮换公钥签发的一次性短期挑战。 */
 export interface PasswordEncryptionChallenge {
@@ -84,4 +87,19 @@ export interface PlatformBootstrapResult {
   username: string
   recoveryCodes: string[]
   nextStep: string
+}
+
+/** 平台敏感操作再认证允许的动作。 */
+export type ReauthAction = 'TENANT_OWNER_PASSWORD_RESET'
+
+/** 平台当前密码再认证请求。 */
+export interface PasswordReauthRequest {
+  passwordEnvelope: PasswordEnvelopeRequest
+  allowedAction: ReauthAction
+}
+
+/** 五分钟一次性敏感操作再认证票据。 */
+export interface ReauthTicket {
+  reauthTicket: string
+  expiresAt: string
 }

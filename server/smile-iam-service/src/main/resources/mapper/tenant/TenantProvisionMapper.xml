@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.tenant.mapper.TenantProvisionMapper">
+    <select id="nextTenantId" resultType="long">SELECT nextval('public.iam_tenant_seq')</select>
+    <select id="nextOrganizationId" resultType="long">SELECT nextval('public.iam_organization_seq')</select>
+    <select id="nextAccountId" resultType="long">SELECT nextval('public.iam_account_seq')</select>
+    <select id="nextRoleId" resultType="long">SELECT nextval('public.iam_role_seq')</select>
+    <select id="nextOutboxId" resultType="long">SELECT nextval('public.iam_outbox_event_seq')</select>
+
+    <select id="countPublishedTemplateTypes" resultType="long">
+        SELECT COUNT(1) FROM public.iam_org_type_template
+        WHERE template_version = #{templateVersion} AND status = 'PUBLISHED' AND is_deleted = false
+    </select>
+    <select id="countPublishedRootType" resultType="long">
+        SELECT COUNT(1) FROM public.iam_org_type_template
+        WHERE template_version = #{templateVersion} AND type_code = #{typeCode}
+          AND status = 'PUBLISHED' AND is_deleted = false
+    </select>
+    <select id="countActiveAdminRegion" resultType="long">
+        SELECT COUNT(1) FROM public.iam_admin_region
+        WHERE id = #{adminRegionId} AND status = 'ACTIVE' AND is_deleted = false
+    </select>
+
+    <insert id="insertIdempotency">
+        INSERT INTO public.iam_idempotency_record
+            (operator_type, operator_id, operation_code, idempotency_key_hash, request_hash,
+             expires_at, created_by, updated_by)
+        VALUES ('PLATFORM_IDENTITY', #{operatorId}, 'PLATFORM_TENANT_CREATE', #{keyHash}, #{requestHash},
+                CURRENT_TIMESTAMP + INTERVAL '24 hours', #{operatorId}, #{operatorId})
+        ON CONFLICT (operator_type, operator_id, operation_code, idempotency_key_hash) DO NOTHING
+    </insert>
+    <select id="selectIdempotencyForUpdate"
+            resultType="com.canteen.smile.modules.tenant.mapper.TenantProvisionMapper$IdempotencyRow">
+        SELECT request_hash, response_reference, status
+        FROM public.iam_idempotency_record
+        WHERE operator_type = 'PLATFORM_IDENTITY' AND operator_id = #{operatorId}
+          AND operation_code = 'PLATFORM_TENANT_CREATE' AND idempotency_key_hash = #{keyHash}
+          AND is_deleted = false
+        FOR UPDATE
+    </select>
+    <update id="completeIdempotency">
+        UPDATE public.iam_idempotency_record
+        SET status = 'COMPLETED', response_reference = #{responseReference}, updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE operator_type = 'PLATFORM_IDENTITY' AND operator_id = #{operatorId}
+          AND operation_code = 'PLATFORM_TENANT_CREATE' AND idempotency_key_hash = #{keyHash}
+          AND status = 'PROCESSING' AND is_deleted = false
+    </update>
+
+    <insert id="insertTenant">
+        INSERT INTO public.iam_tenant
+            (id, tenant_code, name, status, template_version, provision_status, created_by, updated_by)
+        VALUES (#{tenantId}, #{tenantCode}, #{name}, 'INITIALIZING', #{templateVersion},
+                'INITIALIZING', #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertTenantCodeRegistry">
+        INSERT INTO public.iam_tenant_code_registry (tenant_code, tenant_id, created_by, updated_by)
+        VALUES (#{tenantCode}, #{tenantId}, #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="copyOrganizationTypes">
+        INSERT INTO public.iam_org_type
+            (tenant_id, type_code, name, sort_order, status, source_template_version, created_by, updated_by)
+        SELECT #{tenantId}, type_code, name, sort_order, 'ACTIVE', template_version, #{operatorId}, #{operatorId}
+        FROM public.iam_org_type_template
+        WHERE template_version = #{templateVersion} AND status = 'PUBLISHED' AND is_deleted = false
+        ORDER BY sort_order, id
+    </insert>
+    <insert id="copyOrganizationTypeRelations">
+        INSERT INTO public.iam_org_type_relation
+            (tenant_id, parent_type_id, child_type_id, created_by, updated_by)
+        SELECT #{tenantId}, parent_type.id, child_type.id, #{operatorId}, #{operatorId}
+        FROM public.iam_org_type_template_relation template_relation
+        JOIN public.iam_org_type parent_type
+          ON parent_type.tenant_id = #{tenantId}
+         AND parent_type.type_code = template_relation.parent_type_code
+         AND parent_type.is_deleted = false
+        JOIN public.iam_org_type child_type
+          ON child_type.tenant_id = #{tenantId}
+         AND child_type.type_code = template_relation.child_type_code
+         AND child_type.is_deleted = false
+        WHERE template_relation.template_version = #{templateVersion}
+          AND template_relation.is_deleted = false
+    </insert>
+    <select id="selectOrganizationTypeId" resultType="long">
+        SELECT id FROM public.iam_org_type
+        WHERE tenant_id = #{tenantId} AND type_code = #{typeCode} AND status = 'ACTIVE' AND is_deleted = false
+        LIMIT 1
+    </select>
+    <insert id="insertRootOrganization">
+        INSERT INTO public.iam_organization
+            (id, tenant_id, parent_id, org_type_id, business_code, name, normalized_name,
+             admin_region_id, own_status, created_by, updated_by)
+        VALUES (#{organizationId}, #{tenantId}, NULL, #{organizationTypeId}, #{businessCode}, #{name},
+                #{normalizedName}, #{adminRegionId}, 'ACTIVE', #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertRootOrganizationClosure">
+        INSERT INTO public.iam_organization_closure
+            (tenant_id, ancestor_id, descendant_id, depth, created_by, updated_by)
+        VALUES (#{tenantId}, #{organizationId}, #{organizationId}, 0, #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertOrganizationCodeRegistry">
+        INSERT INTO public.iam_org_code_registry
+            (tenant_id, normalized_code, organization_id, created_by, updated_by)
+        VALUES (#{tenantId}, #{normalizedCode}, #{organizationId}, #{operatorId}, #{operatorId})
+    </insert>
+    <update id="bindRootOrganization">
+        UPDATE public.iam_tenant
+        SET root_organization_id = #{organizationId}, updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE id = #{tenantId} AND root_organization_id IS NULL AND is_deleted = false
+    </update>
+    <insert id="insertSecurityPolicy">
+        INSERT INTO public.iam_tenant_security_policy
+            (tenant_id, concurrent_login_enabled, max_devices, remember_me_enabled, idle_seconds,
+             absolute_seconds, remember_idle_seconds, remember_absolute_seconds,
+             password_expiry_enabled, password_expiry_days, audit_retention_days, created_by, updated_by)
+        VALUES (#{tenantId}, #{policy.concurrentLoginEnabled}, #{policy.maxDevices}, #{policy.rememberMeEnabled},
+                #{policy.idleSeconds}, #{policy.absoluteSeconds}, #{policy.rememberIdleSeconds},
+                #{policy.rememberAbsoluteSeconds}, #{policy.passwordExpiryEnabled}, #{policy.passwordExpiryDays},
+                #{policy.auditRetentionDays}, #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertOwnerAccount">
+        INSERT INTO public.iam_account
+            (id, tenant_id, organization_id, username, normalized_username, display_name, employee_number,
+             status, validity_mode, created_by, updated_by)
+        VALUES (#{accountId}, #{tenantId}, #{organizationId}, #{username}, #{normalizedUsername},
+                #{displayName}, #{employeeNumber}, 'PENDING_ACTIVATION', 'LONG_TERM', #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertUsernameRegistry">
+        INSERT INTO public.iam_username_registry
+            (normalized_username, subject_type, subject_id, original_username, login_enabled, created_by, updated_by)
+        VALUES (#{normalizedUsername}, 'TENANT_ACCOUNT', #{accountId}, #{username}, true, #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertEmployeeNumberRegistry">
+        INSERT INTO public.iam_employee_number_registry
+            (tenant_id, organization_id, normalized_employee_number, account_id, original_employee_number,
+             created_by, updated_by)
+        VALUES (#{tenantId}, #{organizationId}, #{normalizedEmployeeNumber}, #{accountId}, #{employeeNumber},
+                #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertOwnerRole">
+        INSERT INTO public.iam_role
+            (id, tenant_id, organization_id, role_code, name, normalized_name, description, role_type,
+             status, created_by, updated_by)
+        VALUES (#{roleId}, #{tenantId}, #{organizationId}, #{roleCode}, '机构所有者', '机构所有者',
+                '系统保护角色，不允许普通管理员修改', 'OWNER', 'ACTIVE', #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertOwnerDataPolicy">
+        INSERT INTO public.iam_role_data_policy
+            (tenant_id, organization_id, role_id, module_code, scope_type, created_by, updated_by)
+        VALUES (#{tenantId}, #{organizationId}, #{roleId}, '*', 'CURRENT_ORG_AND_DESCENDANTS',
+                #{accountId}, #{accountId})
+    </insert>
+    <insert id="insertAccountRole">
+        INSERT INTO public.iam_account_role
+            (tenant_id, organization_id, account_id, role_id, assigned_by, created_by, updated_by)
+        VALUES (#{tenantId}, #{organizationId}, #{accountId}, #{roleId}, #{accountId}, #{accountId}, #{accountId})
+    </insert>
+    <insert id="insertOrganizationOwner">
+        INSERT INTO public.iam_org_owner
+            (tenant_id, organization_id, account_id, protected_role_id, created_by, updated_by)
+        VALUES (#{tenantId}, #{organizationId}, #{accountId}, #{roleId}, #{accountId}, #{accountId})
+    </insert>
+    <insert id="initializeTenantFeatures">
+        INSERT INTO public.iam_tenant_feature
+            (tenant_id, feature_code, enabled, changed_by, created_by, updated_by)
+        SELECT #{tenantId}, feature_code, true, #{operatorId}, #{operatorId}, #{operatorId}
+        FROM public.iam_permission_resource
+        WHERE publish_status = 'PUBLISHED' AND feature_code IS NOT NULL AND is_deleted = false
+        GROUP BY feature_code
+    </insert>
+    <insert id="initializeTenantMenus">
+        INSERT INTO public.iam_tenant_menu_config
+            (tenant_id, menu_permission_id, hidden, changed_by, created_by, updated_by)
+        SELECT #{tenantId}, id, false, #{operatorId}, #{operatorId}, #{operatorId}
+        FROM public.iam_permission_resource
+        WHERE publish_status = 'PUBLISHED' AND resource_type = 'MENU'
+          AND app_code IN ('TENANT_ADMIN', 'TENANT_PORTAL') AND is_deleted = false
+    </insert>
+    <insert id="insertCreateAudit">
+        INSERT INTO public.iam_audit_log
+            (tenant_id, operator_type, operator_id, action_code, target_type, target_id, result,
+             masked_diff_json, created_by, updated_by)
+        VALUES (#{tenantId}, 'PLATFORM_IDENTITY', #{operatorId}, 'platform:tenant:create', 'TENANT',
+                CAST(#{tenantId} AS varchar), 'SUCCESS',
+                jsonb_build_object('tenantCode', #{tenantCode}), #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertProvisionOutbox">
+        INSERT INTO public.iam_outbox_event
+            (id, event_id, aggregate_type, aggregate_id, tenant_id, event_type, payload_json,
+             status, created_by, updated_by)
+        VALUES (#{outboxId}, #{eventId}, 'TENANT_ACCOUNT', CAST(#{accountId} AS varchar), #{tenantId},
+                'TENANT_ACCOUNT_PROVISION_REQUESTED',
+                jsonb_build_object('tenantId', CAST(#{tenantId} AS varchar),
+                                   'accountId', CAST(#{accountId} AS varchar),
+                                   'organizationId', CAST(#{organizationId} AS varchar)),
+                'PENDING', #{operatorId}, #{operatorId})
+    </insert>
+    <select id="selectOwnerAccountId" resultType="long">
+        SELECT owner.account_id
+        FROM public.iam_tenant tenant
+        JOIN public.iam_org_owner owner
+          ON owner.tenant_id = tenant.id AND owner.organization_id = tenant.root_organization_id
+         AND owner.is_deleted = false
+        WHERE tenant.id = #{tenantId} AND tenant.is_deleted = false
+        LIMIT 1
+    </select>
+    <select id="selectRootOrganizationId" resultType="long">
+        SELECT root_organization_id FROM public.iam_tenant
+        WHERE id = #{tenantId} AND is_deleted = false
+        LIMIT 1
+    </select>
+    <select id="selectProvisionOutboxId" resultType="long">
+        SELECT id FROM public.iam_outbox_event
+        WHERE tenant_id = #{tenantId} AND event_type = 'TENANT_ACCOUNT_PROVISION_REQUESTED'
+          AND is_deleted = false
+        ORDER BY id DESC LIMIT 1
+    </select>
+    <update id="markProvisionSucceeded">
+        WITH updated_tenant AS (
+            UPDATE public.iam_tenant
+            SET status = 'ACTIVE', provision_status = 'ACTIVE', updated_by = #{operatorId},
+                updated_time = CURRENT_TIMESTAMP, version = version + 1
+            WHERE id = #{tenantId} AND provision_status &lt;&gt; 'ACTIVE' AND is_deleted = false
+            RETURNING id
+        )
+        UPDATE public.iam_outbox_event
+        SET status = 'PUBLISHED', published_time = CURRENT_TIMESTAMP, last_error_code = NULL,
+            updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE id = #{outboxId} AND is_deleted = false
+    </update>
+    <update id="markProvisionFailed">
+        WITH updated_tenant AS (
+            UPDATE public.iam_tenant
+            SET provision_status = 'PROVISION_FAILED', updated_by = #{operatorId},
+                updated_time = CURRENT_TIMESTAMP, version = version + 1
+            WHERE id = #{tenantId} AND is_deleted = false
+            RETURNING id
+        )
+        UPDATE public.iam_outbox_event
+        SET status = 'RETRY', retry_count = retry_count + 1,
+            next_retry_time = CURRENT_TIMESTAMP + INTERVAL '1 minute', last_error_code = #{errorCode},
+            updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE id = #{outboxId} AND is_deleted = false
+    </update>
+</mapper>

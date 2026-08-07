@@ -24,4 +24,16 @@ public interface DeviceSessionMapper {
      * @return 影响行数
      */
     int markLoggedOut(@Param("sessionId") String sessionId);
+
+    /**
+     * 使指定认证主体的全部有效设备会话失效。
+     *
+     * @param subjectType 认证主体类型
+     * @param subjectId 认证主体 ID
+     * @return 失效会话数量
+     */
+    int invalidateActiveBySubject(
+            @Param("subjectType") String subjectType,
+            @Param("subjectId") long subjectId
+    );
 }

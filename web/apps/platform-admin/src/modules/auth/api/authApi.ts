@@ -9,6 +9,8 @@ import type {
   PlatformBootstrapResult,
   PlatformRecoveryLoginRequest,
   Session,
+  PasswordReauthRequest,
+  ReauthTicket,
 } from '../types'
 
 /** 后端已经实现的 Auth 外部路径。 */
@@ -19,6 +21,7 @@ const AUTH_PATHS = {
   recoveryLogin: '/auth/v1/login/platform-recovery-code',
   session: '/auth/v1/session',
   logout: '/auth/v1/logout',
+  passwordReauth: '/auth/v1/reauth/password',
 } as const
 
 /** 创建绑定用途且只能消费一次的短期密码加密挑战。 */
@@ -72,4 +75,12 @@ export async function getCurrentSession(): Promise<Session> {
 /** 退出当前设备。 */
 export async function logoutCurrentSession(): Promise<void> {
   await http.post<ApiResponse<null>>(AUTH_PATHS.logout)
+}
+
+/** 使用当前密码取得绑定单一敏感操作的五分钟一次性票据。 */
+export async function reauthenticatePassword(
+  request: PasswordReauthRequest,
+): Promise<ReauthTicket> {
+  const response = await http.post<ApiResponse<ReauthTicket>>(AUTH_PATHS.passwordReauth, request)
+  return requireData(response.data)
 }

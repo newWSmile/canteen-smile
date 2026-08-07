@@ -18,11 +18,23 @@ public record UsernameLoginResolutionVO(
         String username,
         String displayName,
         String status,
-        Long authzVersion
+        Long authzVersion,
+        String tenantId,
+        String organizationId,
+        Boolean concurrentLoginEnabled,
+        Integer maxDevices,
+        Boolean rememberMeEnabled,
+        Integer idleSeconds,
+        Integer absoluteSeconds,
+        Integer rememberIdleSeconds,
+        Integer rememberAbsoluteSeconds
 ) {
 
     /** @return 不泄露账号存在性细节的未解析结果 */
     public static UsernameLoginResolutionVO unresolved() {
-        return new UsernameLoginResolutionVO(false, null, null, null, null, null, null);
+        return new UsernameLoginResolutionVO(
+                false, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null
+        );
     }
 }

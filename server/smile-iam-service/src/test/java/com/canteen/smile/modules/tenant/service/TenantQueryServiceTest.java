@@ -1,6 +1,8 @@
 package com.canteen.smile.modules.tenant.service;
 
 import com.canteen.smile.common.api.PageResult;
+import com.canteen.smile.modules.account.mapper.AccountLifecycleMapper;
+import com.canteen.smile.modules.account.model.AccountStatus;
 import com.canteen.smile.modules.tenant.converter.TenantConverter;
 import com.canteen.smile.modules.tenant.dto.TenantPageQuery;
 import com.canteen.smile.modules.tenant.entity.TenantEntity;
@@ -28,13 +30,17 @@ class TenantQueryServiceTest {
     @Mock
     private TenantMapper tenantMapper;
 
+    /** 模拟租户账号生命周期 Mapper。 */
+    @Mock
+    private AccountLifecycleMapper accountLifecycleMapper;
+
     /** 被测试的租户查询服务。 */
     private TenantQueryService tenantQueryService;
 
     /** 创建每个测试使用的查询服务。 */
     @BeforeEach
     void setUp() {
-        tenantQueryService = new TenantQueryService(tenantMapper, new TenantConverter());
+        tenantQueryService = new TenantQueryService(tenantMapper, accountLifecycleMapper, new TenantConverter());
     }
 
     /** 验证状态过滤和分页偏移量直接下推 Mapper。 */
@@ -49,6 +55,12 @@ class TenantQueryServiceTest {
         TenantEntity entity = activeTenant();
         when(tenantMapper.countActiveTenants("ACTIVE")).thenReturn(51L);
         when(tenantMapper.selectActiveTenantPage("ACTIVE", 25, 50L)).thenReturn(List.of(entity));
+        when(accountLifecycleMapper.selectRootOwnerSummaries(List.of(1001L)))
+                .thenReturn(List.of(new AccountLifecycleMapper.TenantOwnerSummaryRow(
+                        1001L,
+                        "tenantOwner",
+                        "ACTIVE"
+                )));
 
         /** 服务返回的租户分页数据。 */
         PageResult<TenantSummaryVO> result = tenantQueryService.pageTenants(query);
@@ -59,9 +71,12 @@ class TenantQueryServiceTest {
         assertThat(result.items()).singleElement().satisfies(item -> {
             assertThat(item.id()).isEqualTo("1001");
             assertThat(item.tenantCode()).isEqualTo("TENANT-001");
+            assertThat(item.ownerUsername()).isEqualTo("tenantOwner");
+            assertThat(item.ownerAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
         });
         verify(tenantMapper).countActiveTenants("ACTIVE");
         verify(tenantMapper).selectActiveTenantPage("ACTIVE", 25, 50L);
+        verify(accountLifecycleMapper).selectRootOwnerSummaries(List.of(1001L));
     }
 
     /** 验证空结果不会额外执行分页数据查询。 */

@@ -38,6 +38,13 @@
         version
     </sql>
 
+    <select id="selectById" resultMap="tenantEntityResultMap">
+        SELECT <include refid="tenantColumns"/>
+        FROM public.iam_tenant
+        WHERE id = #{tenantId} AND is_deleted = false
+        LIMIT 1
+    </select>
+
     <select id="countActiveTenants" resultType="long">
         SELECT COUNT(1)
         FROM public.iam_tenant

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.auth.mapper.ReauthTicketMapper">
+
+    <resultMap id="reauthTicketResultMap" type="com.canteen.smile.modules.auth.entity.ReauthTicketEntity">
+        <id property="id" column="id"/>
+        <result property="subjectType" column="subject_type"/>
+        <result property="subjectId" column="subject_id"/>
+        <result property="ticketHash" column="ticket_hash"/>
+        <result property="allowedAction" column="allowed_action"/>
+        <result property="verifyMethod" column="verify_method"/>
+        <result property="status" column="status"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="consumedTime" column="consumed_time"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.canteen.smile.modules.auth.entity.ReauthTicketEntity"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO public.auth_reauth_ticket (
+            subject_type, subject_id, ticket_hash, allowed_action, verify_method,
+            status, expires_at, created_by, updated_by
+        ) VALUES (
+            #{subjectType}, #{subjectId}, #{ticketHash}, #{allowedAction}, #{verifyMethod},
+            'ACTIVE', #{expiresAt}, #{subjectId}, #{subjectId}
+        )
+    </insert>
+
+    <select id="selectByHash" resultMap="reauthTicketResultMap">
+        SELECT id, subject_type, subject_id, ticket_hash, allowed_action, verify_method,
+               status, expires_at, consumed_time, version
+        FROM public.auth_reauth_ticket
+        WHERE ticket_hash = #{ticketHash}
+          AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <update id="consume">
+        UPDATE public.auth_reauth_ticket
+        SET status = 'CONSUMED',
+            consumed_time = CURRENT_TIMESTAMP,
+            updated_by = #{subjectId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{ticketId}
+          AND subject_type = 'PLATFORM_IDENTITY'
+          AND subject_id = #{subjectId}
+          AND allowed_action = #{allowedAction}
+          AND status = 'ACTIVE'
+          AND expires_at > CURRENT_TIMESTAMP
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+</mapper>

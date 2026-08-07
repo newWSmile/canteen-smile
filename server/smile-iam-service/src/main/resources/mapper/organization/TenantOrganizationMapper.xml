@@ -1,0 +1,463 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.organization.mapper.TenantOrganizationMapper">
+
+    <select id="nextOrganizationId" resultType="long">
+        SELECT nextval('public.iam_organization_seq')
+    </select>
+
+    <select id="countOrganizationTypes" resultType="long">
+        SELECT COUNT(1)
+        FROM public.iam_org_type
+        WHERE tenant_id = #{tenantId}
+          AND is_deleted = false
+        <if test="status != null and status != ''">
+          AND status = #{status}
+        </if>
+    </select>
+
+    <select id="selectOrganizationTypes"
+            resultType="com.canteen.smile.modules.organization.mapper.TenantOrganizationMapper$OrganizationTypeRow">
+        SELECT id, type_code, name, sort_order, status, source_template_version, version
+        FROM public.iam_org_type
+        WHERE tenant_id = #{tenantId}
+          AND is_deleted = false
+        <if test="status != null and status != ''">
+          AND status = #{status}
+        </if>
+        ORDER BY sort_order, id
+        OFFSET #{offset} LIMIT #{limit}
+    </select>
+
+    <select id="selectActiveOrganizationTypes"
+            resultType="com.canteen.smile.modules.organization.mapper.TenantOrganizationMapper$OrganizationTypeRow">
+        SELECT id, type_code, name, sort_order, status, source_template_version, version
+        FROM public.iam_org_type
+        WHERE tenant_id = #{tenantId}
+          AND status = 'ACTIVE'
+          AND is_deleted = false
+        ORDER BY sort_order, id
+    </select>
+
+    <select id="selectOrganizationType"
+            resultType="com.canteen.smile.modules.organization.mapper.TenantOrganizationMapper$OrganizationTypeRow">
+        SELECT id, type_code, name, sort_order, status, source_template_version, version
+        FROM public.iam_org_type
+        WHERE tenant_id = #{tenantId}
+          AND id = #{typeId}
+          AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <insert id="insertOrganizationType"
+            parameterType="com.canteen.smile.modules.organization.entity.OrganizationTypeEntity"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO public.iam_org_type (
+            tenant_id, type_code, name, sort_order, status, source_template_version,
+            created_by, updated_by
+        ) VALUES (
+            #{tenantId}, #{typeCode}, #{name}, #{sortOrder}, #{status}, #{sourceTemplateVersion},
+            #{createdBy}, #{updatedBy}
+        )
+    </insert>
+
+    <update id="updateOrganizationType">
+        UPDATE public.iam_org_type
+        SET name = #{name},
+            sort_order = #{sortOrder},
+            updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND id = #{typeId}
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+
+    <update id="updateOrganizationTypeStatus">
+        UPDATE public.iam_org_type
+        SET status = #{status},
+            updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND id = #{typeId}
+          AND version = #{version}
+          AND status &lt;&gt; #{status}
+          AND is_deleted = false
+    </update>
+
+    <select id="selectOrganizationTypeRelations"
+            resultType="com.canteen.smile.modules.organization.mapper.TenantOrganizationMapper$OrganizationTypeRelationRow">
+        SELECT id, parent_type_id, child_type_id, version
+        FROM public.iam_org_type_relation
+        WHERE tenant_id = #{tenantId}
+          AND is_deleted = false
+        ORDER BY parent_type_id, child_type_id, id
+    </select>
+
+    <select id="selectUsedOrganizationTypeRelations"
+            resultType="com.canteen.smile.modules.organization.mapper.TenantOrganizationMapper$OrganizationTypePairRow">
+        SELECT DISTINCT parent.org_type_id AS parent_type_id,
+                        child.org_type_id AS child_type_id
+        FROM public.iam_organization child
+        JOIN public.iam_organization parent
+          ON parent.tenant_id = child.tenant_id
+         AND parent.id = child.parent_id
+         AND parent.is_deleted = false
+        WHERE child.tenant_id = #{tenantId}
+          AND child.parent_id IS NOT NULL
+          AND child.is_deleted = false
+    </select>
+
+    <update id="deactivateOrganizationTypeRelations">
+        UPDATE public.iam_org_type_relation
+        SET is_deleted = true,
+            updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND is_deleted = false
+    </update>
+
+    <insert id="upsertOrganizationTypeRelations">
+        INSERT INTO public.iam_org_type_relation (
+            tenant_id, parent_type_id, child_type_id, created_by, updated_by
+        ) VALUES
+        <foreach collection="relations" item="relation" separator=",">
+            (#{tenantId}, #{relation.parentTypeId}, #{relation.childTypeId}, #{operatorId}, #{operatorId})
+        </foreach>
+        ON CONFLICT (tenant_id, parent_type_id, child_type_id)
+        DO UPDATE SET is_deleted = false,
+                      updated_by = EXCLUDED.updated_by,
+                      updated_time = CURRENT_TIMESTAMP,
+                      version = public.iam_org_type_relation.version + 1
+    </insert>
+
+    <select id="countActiveTypeRelation" resultType="long">
+        SELECT COUNT(1)
+        FROM public.iam_org_type_relation relation
+        JOIN public.iam_org_type parent_type
+          ON parent_type.tenant_id = relation.tenant_id
+         AND parent_type.id = relation.parent_type_id
+         AND parent_type.status = 'ACTIVE'
+         AND parent_type.is_deleted = false
+        JOIN public.iam_org_type child_type
+          ON child_type.tenant_id = relation.tenant_id
+         AND child_type.id = relation.child_type_id
+         AND child_type.status = 'ACTIVE'
+         AND child_type.is_deleted = false
+        WHERE relation.tenant_id = #{tenantId}
+          AND relation.parent_type_id = #{parentTypeId}
+          AND relation.child_type_id = #{childTypeId}
+          AND relation.is_deleted = false
+    </select>
+
+    <select id="countOrganizationsUsingType" resultType="long">
+        SELECT COUNT(1)
+        FROM public.iam_organization
+        WHERE tenant_id = #{tenantId}
+          AND org_type_id = #{typeId}
+          AND is_deleted = false
+    </select>
+
+    <sql id="organizationColumns">
+        organization.id,
+        organization.parent_id,
+        organization.org_type_id AS organization_type_id,
+        organization_type.type_code,
+        organization_type.name AS type_name,
+        organization.business_code,
+        organization.name,
+        organization.admin_region_id,
+        organization.own_status,
+        CASE WHEN EXISTS (
+            SELECT 1
+            FROM public.iam_organization_closure effective_path
+            JOIN public.iam_organization ancestor
+              ON ancestor.tenant_id = effective_path.tenant_id
+             AND ancestor.id = effective_path.ancestor_id
+             AND ancestor.is_deleted = false
+            WHERE effective_path.tenant_id = organization.tenant_id
+              AND effective_path.descendant_id = organization.id
+              AND effective_path.is_deleted = false
+              AND ancestor.own_status = 'DISABLED'
+        ) THEN 'DISABLED' ELSE 'ACTIVE' END AS effective_status,
+        organization.path_version,
+        EXISTS (
+            SELECT 1 FROM public.iam_organization child
+            WHERE child.tenant_id = organization.tenant_id
+              AND child.parent_id = organization.id
+              AND child.is_deleted = false
+        ) AS has_children,
+        organization.version
+    </sql>
+
+    <select id="selectOrganization"
+            resultType="com.canteen.smile.modules.organization.mapper.TenantOrganizationMapper$OrganizationRow">
+        SELECT <include refid="organizationColumns"/>
+        FROM public.iam_organization organization
+        JOIN public.iam_org_type organization_type
+          ON organization_type.tenant_id = organization.tenant_id
+         AND organization_type.id = organization.org_type_id
+         AND organization_type.is_deleted = false
+        WHERE organization.tenant_id = #{tenantId}
+          AND organization.id = #{organizationId}
+          AND organization.is_deleted = false
+        LIMIT 1
+    </select>
+
+    <select id="countChildOrganizations" resultType="long">
+        SELECT COUNT(1)
+        FROM public.iam_organization
+        WHERE tenant_id = #{tenantId}
+          AND parent_id = #{parentId}
+          AND is_deleted = false
+    </select>
+
+    <select id="selectChildOrganizations"
+            resultType="com.canteen.smile.modules.organization.mapper.TenantOrganizationMapper$OrganizationRow">
+        SELECT <include refid="organizationColumns"/>
+        FROM public.iam_organization organization
+        JOIN public.iam_org_type organization_type
+          ON organization_type.tenant_id = organization.tenant_id
+         AND organization_type.id = organization.org_type_id
+         AND organization_type.is_deleted = false
+        WHERE organization.tenant_id = #{tenantId}
+          AND organization.parent_id = #{parentId}
+          AND organization.is_deleted = false
+        ORDER BY organization.name, organization.id
+        OFFSET #{offset} LIMIT #{limit}
+    </select>
+
+    <select id="searchOrganizations"
+            resultType="com.canteen.smile.modules.organization.mapper.TenantOrganizationMapper$OrganizationSearchRow">
+        SELECT organization.id,
+               organization.parent_id,
+               organization.org_type_id AS organization_type_id,
+               organization_type.name AS type_name,
+               organization.business_code,
+               organization.name,
+               CASE WHEN EXISTS (
+                   SELECT 1
+                   FROM public.iam_organization_closure effective_path
+                   JOIN public.iam_organization disabled_ancestor
+                     ON disabled_ancestor.tenant_id = effective_path.tenant_id
+                    AND disabled_ancestor.id = effective_path.ancestor_id
+                    AND disabled_ancestor.is_deleted = false
+                   WHERE effective_path.tenant_id = organization.tenant_id
+                     AND effective_path.descendant_id = organization.id
+                     AND effective_path.is_deleted = false
+                     AND disabled_ancestor.own_status = 'DISABLED'
+               ) THEN 'DISABLED' ELSE 'ACTIVE' END AS effective_status,
+               (
+                   SELECT string_agg(ancestor.name, ' / ' ORDER BY path.depth DESC)
+                   FROM public.iam_organization_closure path
+                   JOIN public.iam_organization ancestor
+                     ON ancestor.tenant_id = path.tenant_id
+                    AND ancestor.id = path.ancestor_id
+                    AND ancestor.is_deleted = false
+                   WHERE path.tenant_id = organization.tenant_id
+                     AND path.descendant_id = organization.id
+                     AND path.is_deleted = false
+               ) AS breadcrumb
+        FROM public.iam_organization organization
+        JOIN public.iam_org_type organization_type
+          ON organization_type.tenant_id = organization.tenant_id
+         AND organization_type.id = organization.org_type_id
+         AND organization_type.is_deleted = false
+        WHERE organization.tenant_id = #{tenantId}
+          AND organization.is_deleted = false
+          AND (
+              lower(organization.name) LIKE CONCAT('%', #{keyword}, '%')
+              OR lower(organization.business_code) LIKE CONCAT(#{keyword}, '%')
+          )
+        ORDER BY organization.name, organization.id
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insertOrganization"
+            parameterType="com.canteen.smile.modules.organization.entity.OrganizationEntity">
+        INSERT INTO public.iam_organization (
+            id, tenant_id, parent_id, org_type_id, business_code, name, normalized_name,
+            admin_region_id, own_status, created_by, updated_by
+        ) VALUES (
+            #{id}, #{tenantId}, #{parentId}, #{organizationTypeId}, #{businessCode}, #{name},
+            #{normalizedName}, #{adminRegionId}, #{ownStatus}, #{createdBy}, #{updatedBy}
+        )
+    </insert>
+
+    <insert id="insertOrganizationCodeRegistry">
+        INSERT INTO public.iam_org_code_registry (
+            tenant_id, normalized_code, organization_id, created_by, updated_by
+        ) VALUES (
+            #{tenantId}, #{normalizedCode}, #{organizationId}, #{operatorId}, #{operatorId}
+        )
+    </insert>
+
+    <insert id="insertOrganizationClosure">
+        INSERT INTO public.iam_organization_closure (
+            tenant_id, ancestor_id, descendant_id, depth, created_by, updated_by
+        )
+        SELECT #{tenantId}, ancestor_id, #{organizationId}, depth + 1, #{operatorId}, #{operatorId}
+        FROM public.iam_organization_closure
+        WHERE tenant_id = #{tenantId}
+          AND descendant_id = #{parentId}
+          AND is_deleted = false
+        UNION ALL
+        SELECT #{tenantId}, #{organizationId}, #{organizationId}, 0, #{operatorId}, #{operatorId}
+    </insert>
+
+    <update id="updateOrganization">
+        UPDATE public.iam_organization
+        SET org_type_id = #{organizationTypeId},
+            name = #{name},
+            normalized_name = #{normalizedName},
+            admin_region_id = #{adminRegionId},
+            updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND id = #{organizationId}
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+
+    <insert id="insertOrganizationNameHistory">
+        INSERT INTO public.iam_org_name_history (
+            tenant_id, organization_id, old_name, new_name, changed_by, created_by, updated_by
+        ) VALUES (
+            #{tenantId}, #{organizationId}, #{oldName}, #{newName}, #{operatorId}, #{operatorId}, #{operatorId}
+        )
+    </insert>
+
+    <select id="selectChildOrganizationTypeIds" resultType="long">
+        SELECT DISTINCT org_type_id
+        FROM public.iam_organization
+        WHERE tenant_id = #{tenantId}
+          AND parent_id = #{organizationId}
+          AND is_deleted = false
+        ORDER BY org_type_id
+    </select>
+
+    <select id="countOrganizationPath" resultType="long">
+        SELECT COUNT(1)
+        FROM public.iam_organization_closure
+        WHERE tenant_id = #{tenantId}
+          AND ancestor_id = #{ancestorId}
+          AND descendant_id = #{descendantId}
+          AND is_deleted = false
+    </select>
+
+    <update id="moveOrganization">
+        UPDATE public.iam_organization
+        SET parent_id = #{newParentId},
+            path_version = path_version + 1,
+            updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND id = #{organizationId}
+          AND parent_id IS NOT NULL
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+
+    <update id="deactivateOldOrganizationPaths">
+        WITH subtree AS (
+            SELECT descendant_id
+            FROM public.iam_organization_closure
+            WHERE tenant_id = #{tenantId}
+              AND ancestor_id = #{organizationId}
+              AND is_deleted = false
+        )
+        UPDATE public.iam_organization_closure
+        SET is_deleted = true,
+            updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND descendant_id IN (SELECT descendant_id FROM subtree)
+          AND ancestor_id NOT IN (SELECT descendant_id FROM subtree)
+          AND is_deleted = false
+    </update>
+
+    <insert id="insertMovedOrganizationPaths">
+        INSERT INTO public.iam_organization_closure (
+            tenant_id, ancestor_id, descendant_id, depth, created_by, updated_by
+        )
+        SELECT #{tenantId}, super_path.ancestor_id, subtree.descendant_id,
+               super_path.depth + subtree.depth + 1, #{operatorId}, #{operatorId}
+        FROM public.iam_organization_closure super_path
+        CROSS JOIN public.iam_organization_closure subtree
+        WHERE super_path.tenant_id = #{tenantId}
+          AND super_path.descendant_id = #{newParentId}
+          AND super_path.is_deleted = false
+          AND subtree.tenant_id = #{tenantId}
+          AND subtree.ancestor_id = #{organizationId}
+          AND subtree.is_deleted = false
+    </insert>
+
+    <update id="updateOrganizationStatus">
+        UPDATE public.iam_organization
+        SET own_status = #{status},
+            path_version = path_version + 1,
+            updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND id = #{organizationId}
+          AND parent_id IS NOT NULL
+          AND own_status &lt;&gt; #{status}
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+
+    <select id="countOrganizationDeleteDependencies" resultType="long">
+        SELECT
+            (SELECT COUNT(1) FROM public.iam_organization child
+             WHERE child.tenant_id = #{tenantId} AND child.parent_id = #{organizationId}
+               AND child.is_deleted = false)
+          + (SELECT COUNT(1) FROM public.iam_account account
+             WHERE account.tenant_id = #{tenantId} AND account.organization_id = #{organizationId}
+               AND account.is_deleted = false)
+          + (SELECT COUNT(1) FROM public.iam_role role
+             WHERE role.tenant_id = #{tenantId} AND role.organization_id = #{organizationId}
+               AND role.is_deleted = false)
+          + (SELECT COUNT(1) FROM public.iam_org_owner owner
+             WHERE owner.tenant_id = #{tenantId} AND owner.organization_id = #{organizationId}
+               AND owner.is_deleted = false)
+    </select>
+
+    <update id="deleteOrganizationClosures">
+        UPDATE public.iam_organization_closure
+        SET is_deleted = true,
+            updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND (ancestor_id = #{organizationId} OR descendant_id = #{organizationId})
+          AND is_deleted = false
+    </update>
+
+    <update id="deleteOrganization">
+        UPDATE public.iam_organization
+        SET is_deleted = true,
+            updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND id = #{organizationId}
+          AND parent_id IS NOT NULL
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+
+    <select id="countActiveAdminRegion" resultType="long">
+        SELECT COUNT(1)
+        FROM public.iam_admin_region
+        WHERE id = #{adminRegionId}
+          AND status = 'ACTIVE'
+          AND is_deleted = false
+    </select>
+</mapper>

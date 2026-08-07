@@ -1,5 +1,6 @@
 package com.canteen.smile.modules.tenant.vo;
 
+import com.canteen.smile.modules.account.model.AccountStatus;
 import com.canteen.smile.modules.tenant.model.TenantProvisionStatus;
 import com.canteen.smile.modules.tenant.model.TenantStatus;
 
@@ -16,6 +17,8 @@ import java.time.OffsetDateTime;
  * @param securityVersion 租户安全版本
  * @param templateVersion 机构类型模板版本
  * @param provisionStatus Auth 初始化编排状态
+ * @param ownerUsername 根机构所有者用户名，不存在所有者时为空
+ * @param ownerAccountStatus 根机构所有者账号状态，不存在所有者时为空
  * @param createdTime 租户创建时间
  * @param version 乐观锁版本
  */
@@ -28,6 +31,8 @@ public record TenantSummaryVO(
         long securityVersion,
         long templateVersion,
         TenantProvisionStatus provisionStatus,
+        String ownerUsername,
+        AccountStatus ownerAccountStatus,
         OffsetDateTime createdTime,
         long version
 ) {

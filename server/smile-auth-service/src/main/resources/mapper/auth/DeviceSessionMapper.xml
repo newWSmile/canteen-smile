@@ -115,4 +115,16 @@
           AND status = 'ACTIVE'
           AND is_deleted = false
     </update>
+
+    <update id="invalidateActiveBySubject">
+        UPDATE public.auth_device_session
+        SET status = 'INVALIDATED',
+            updated_by = #{subjectId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE subject_type = #{subjectType}
+          AND subject_id = #{subjectId}
+          AND status = 'ACTIVE'
+          AND is_deleted = false
+    </update>
 </mapper>

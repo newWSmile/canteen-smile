@@ -51,6 +51,15 @@ application:
     secret: ${INTERNAL_HMAC_AUTH_TO_IAM_SECRET:}
     allowed-clock-skew-seconds: ${INTERNAL_HMAC_CLOCK_SKEW_SECONDS:300}
     nonce-ttl-seconds: ${INTERNAL_HMAC_NONCE_TTL_SECONDS:600}
+  clients:
+    auth:
+      base-url: ${AUTH_SERVICE_URI:http://127.0.0.1:8081}
+      connect-timeout-millis: ${AUTH_CLIENT_CONNECT_TIMEOUT_MS:2000}
+      read-timeout-millis: ${AUTH_CLIENT_READ_TIMEOUT_MS:3000}
+  auth-client-hmac:
+    caller-id: ${INTERNAL_HMAC_IAM_CALLER_ID:smile-iam-service}
+    key-id: ${INTERNAL_HMAC_KEY_ID:v1}
+    secret: ${INTERNAL_HMAC_AUTH_TO_IAM_SECRET:${application.internal-hmac.secret:}}
   async:
     core-pool-size: ${IAM_ASYNC_CORE_POOL_SIZE:4}
     max-pool-size: ${IAM_ASYNC_MAX_POOL_SIZE:16}

@@ -6,6 +6,7 @@ import com.canteen.smile.internal.client.dto.BootstrapPlatformIdentityInternalRe
 import com.canteen.smile.internal.client.dto.PlatformIdentityInternalResponse;
 import com.canteen.smile.internal.client.dto.UsernameLoginResolutionInternalRequest;
 import com.canteen.smile.internal.client.dto.UsernameLoginResolutionInternalResponse;
+import com.canteen.smile.internal.client.dto.TenantAccountActivationContextInternalResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -109,6 +110,53 @@ public class IamPlatformIdentityClient {
             return response.data();
         } catch (RestClientException exception) {
             throw new BusinessException(IAM_UNAVAILABLE_CODE, "平台身份服务暂时不可用", 502);
+        }
+    }
+
+    /** @param accountId 租户账号 ID @return 可展示的激活上下文 */
+    public TenantAccountActivationContextInternalResponse activationContext(long accountId) {
+        return tenantActivationRequest(IamInternalApiPaths.TENANT_ACCOUNT_ACTIVATION_CONTEXT, accountId, false);
+    }
+
+    /** @param accountId 租户账号 ID @return IAM 激活后的账号上下文 */
+    public TenantAccountActivationContextInternalResponse activateTenantAccount(long accountId) {
+        return tenantActivationRequest(IamInternalApiPaths.TENANT_ACCOUNT_ACTIVATE, accountId, true);
+    }
+
+    /** @param accountId 租户账号 ID @return IAM 完成密码恢复后的账号上下文 */
+    public TenantAccountActivationContextInternalResponse completeTenantAccountPasswordReset(long accountId) {
+        return tenantActivationRequest(
+                IamInternalApiPaths.TENANT_ACCOUNT_COMPLETE_PASSWORD_RESET,
+                accountId,
+                true
+        );
+    }
+
+    /**
+     * 执行租户账号激活相关的 HMAC 内部请求。
+     *
+     * @param path 路径模板
+     * @param accountId 账号 ID
+     * @param post 是否使用 POST
+     * @return IAM 激活上下文
+     */
+    private TenantAccountActivationContextInternalResponse tenantActivationRequest(
+            String path,
+            long accountId,
+            boolean post
+    ) {
+        try {
+            ApiResponse<TenantAccountActivationContextInternalResponse> response = post
+                    ? iamRestClient.post().uri(path, accountId).retrieve()
+                            .body(new ParameterizedTypeReference<>() { })
+                    : iamRestClient.get().uri(path, accountId).retrieve()
+                            .body(new ParameterizedTypeReference<>() { });
+            if (response == null || !"0".equals(response.code()) || response.data() == null) {
+                throw new BusinessException(IAM_UNAVAILABLE_CODE, "租户身份服务返回无效响应", 502);
+            }
+            return response.data();
+        } catch (RestClientException exception) {
+            throw new BusinessException(IAM_UNAVAILABLE_CODE, "租户身份服务暂时不可用", 502);
         }
     }
 

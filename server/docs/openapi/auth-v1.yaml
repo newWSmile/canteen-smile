@@ -102,6 +102,62 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/RuntimeUnavailable'}
+  /reauth/password:
+    post:
+      operationId: reauthenticatePlatformPassword
+      summary: 平台敏感操作当前密码再认证
+      description: 当前已登录平台身份使用 RSA 密码信封验证当前密码，成功后获得绑定单一操作且五分钟有效的一次性票据。
+      tags: [Reauthentication]
+      security: [{SaToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PasswordReauthRequest'}
+      responses:
+        '200':
+          description: 再认证成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReauthTicketApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /password-resets/{ticket}/context:
+    get:
+      operationId: getPasswordResetContext
+      summary: 查询一次性密码恢复上下文
+      tags: [PasswordReset]
+      parameters:
+        - {$ref: '#/components/parameters/ResetTicket'}
+      responses:
+        '200':
+          description: 恢复票据有效。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PasswordResetContextApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /password-resets/{ticket}/complete:
+    post:
+      operationId: completePasswordReset
+      summary: 使用一次性票据设置新密码
+      description: 校验密码策略及最近五次历史，成功后消费票据并恢复账号；旧设备会话在票据签发时已经失效。
+      tags: [PasswordReset]
+      parameters:
+        - {$ref: '#/components/parameters/ResetTicket'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CompletePasswordResetRequest'}
+      responses:
+        '200':
+          description: 新密码设置成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PasswordResetCompleteApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /session:
     get:
       operationId: getCurrentSession
@@ -131,6 +187,14 @@ paths:
                 $ref: '#/components/schemas/VoidApiResponse'
         '401': {$ref: '#/components/responses/Unauthorized'}
 components:
+  parameters:
+    ResetTicket:
+      name: ticket
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]{43,128}$'
   securitySchemes:
     SaToken:
       type: apiKey
@@ -158,7 +222,7 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorApiResponse'}
     Conflict:
-      description: 首位平台管理员已经存在，引导永久关闭。
+      description: 首位平台管理员已经存在，或一次性密码恢复状态发生并发变化。
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorApiResponse'}
@@ -189,7 +253,7 @@ components:
       properties:
         purpose:
           type: string
-          enum: [PLATFORM_BOOTSTRAP, PLATFORM_PASSWORD_LOGIN]
+          enum: [PLATFORM_BOOTSTRAP, PLATFORM_PASSWORD_LOGIN, PLATFORM_REAUTH_PASSWORD, TENANT_ACCOUNT_ACTIVATION, TENANT_PASSWORD_LOGIN, TENANT_PASSWORD_RESET]
     PasswordEncryptionChallenge:
       type: object
       additionalProperties: false
@@ -197,7 +261,7 @@ components:
       properties:
         purpose:
           type: string
-          enum: [PLATFORM_BOOTSTRAP, PLATFORM_PASSWORD_LOGIN]
+          enum: [PLATFORM_BOOTSTRAP, PLATFORM_PASSWORD_LOGIN, PLATFORM_REAUTH_PASSWORD, TENANT_ACCOUNT_ACTIVATION, TENANT_PASSWORD_LOGIN, TENANT_PASSWORD_RESET]
         keyId: {type: string, format: uuid}
         publicKey:
           type: string
@@ -255,6 +319,43 @@ components:
       properties:
         secondFactorTicket: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
         recoveryCode: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+    PasswordReauthRequest:
+      type: object
+      additionalProperties: false
+      required: [passwordEnvelope, allowedAction]
+      properties:
+        passwordEnvelope: {$ref: '#/components/schemas/PasswordEnvelopeRequest'}
+        allowedAction: {type: string, const: TENANT_OWNER_PASSWORD_RESET}
+    CompletePasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [passwordEnvelope]
+      properties:
+        passwordEnvelope: {$ref: '#/components/schemas/PasswordEnvelopeRequest'}
+    ReauthTicket:
+      type: object
+      additionalProperties: false
+      required: [reauthTicket, expiresAt]
+      properties:
+        reauthTicket: {type: string, writeOnly: true, pattern: '^[A-Za-z0-9_-]{43,128}$'}
+        expiresAt: {type: string, format: date-time}
+    PasswordResetContext:
+      type: object
+      additionalProperties: false
+      required: [username, displayName, tenantName, organizationName, expiresAt]
+      properties:
+        username: {type: string}
+        displayName: {type: string}
+        tenantName: {type: string}
+        organizationName: {type: string}
+        expiresAt: {type: string, format: date-time}
+    PasswordResetComplete:
+      type: object
+      additionalProperties: false
+      required: [username, nextStep]
+      properties:
+        username: {type: string}
+        nextStep: {type: string, const: LOGIN}
     PlatformBootstrap:
       type: object
       additionalProperties: false
@@ -320,6 +421,24 @@ components:
         - type: object
           properties:
             data: {$ref: '#/components/schemas/Session'}
+    ReauthTicketApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/ReauthTicket'}
+    PasswordResetContextApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/PasswordResetContext'}
+    PasswordResetCompleteApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/PasswordResetComplete'}
     VoidApiResponse:
       allOf:
         - {$ref: '#/components/schemas/SuccessEnvelope'}

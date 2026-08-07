@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.audit.mapper.IamAuditLogMapper">
+
+    <insert id="insert" parameterType="com.canteen.smile.modules.audit.entity.IamAuditLogEntity">
+        INSERT INTO public.iam_audit_log (
+            tenant_id,
+            operator_type,
+            operator_id,
+            action_code,
+            target_type,
+            target_id,
+            reason,
+            result,
+            trace_id,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{tenantId},
+            #{operatorType},
+            #{operatorId},
+            #{actionCode},
+            #{targetType},
+            #{targetId},
+            #{reason},
+            #{result},
+            #{traceId},
+            #{createdBy},
+            #{updatedBy}
+        )
+    </insert>
+</mapper>

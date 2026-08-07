@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.account.mapper.AccountLifecycleMapper">
+
+    <sql id="activationContextColumns">
+        account.id AS account_id,
+        account.tenant_id,
+        account.organization_id,
+        account.username,
+        account.display_name,
+        tenant.name AS tenant_name,
+        organization.name AS organization_name,
+        account.status AS account_status,
+        tenant.status AS tenant_status
+    </sql>
+
+    <select id="selectActivationContext"
+            resultType="com.canteen.smile.modules.account.mapper.AccountLifecycleMapper$ActivationContextRow">
+        SELECT <include refid="activationContextColumns"/>
+        FROM public.iam_account account
+        JOIN public.iam_tenant tenant ON tenant.id = account.tenant_id AND tenant.is_deleted = false
+        JOIN public.iam_organization organization
+          ON organization.id = account.organization_id
+         AND organization.tenant_id = account.tenant_id
+         AND organization.is_deleted = false
+        WHERE account.id = #{accountId}
+          AND account.is_deleted = false
+        LIMIT 1
+    </select>
+
+    <select id="selectRootOwnerActivationContext"
+            resultType="com.canteen.smile.modules.account.mapper.AccountLifecycleMapper$ActivationContextRow">
+        SELECT <include refid="activationContextColumns"/>
+        FROM public.iam_tenant tenant
+        JOIN public.iam_org_owner owner
+          ON owner.tenant_id = tenant.id
+         AND owner.organization_id = tenant.root_organization_id
+         AND owner.is_deleted = false
+        JOIN public.iam_account account
+          ON account.id = owner.account_id
+         AND account.tenant_id = tenant.id
+         AND account.is_deleted = false
+        JOIN public.iam_organization organization
+          ON organization.id = account.organization_id
+         AND organization.tenant_id = account.tenant_id
+         AND organization.is_deleted = false
+        WHERE tenant.id = #{tenantId}
+          AND tenant.is_deleted = false
+        LIMIT 1
+    </select>
+
+    <update id="activatePendingAccount">
+        UPDATE public.iam_account
+        SET status = 'ACTIVE',
+            profile_version = profile_version + 1,
+            updated_by = id,
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{accountId}
+          AND status = 'PENDING_ACTIVATION'
+          AND is_deleted = false
+    </update>
+
+    <update id="markPasswordResetRequired">
+        UPDATE public.iam_account
+        SET status = 'PASSWORD_RESET_REQUIRED',
+            authz_version = authz_version + 1,
+            updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{accountId}
+          AND status IN ('ACTIVE', 'PASSWORD_RESET_REQUIRED')
+          AND is_deleted = false
+    </update>
+
+    <update id="completePasswordReset">
+        UPDATE public.iam_account
+        SET status = 'ACTIVE',
+            profile_version = profile_version + 1,
+            authz_version = authz_version + 1,
+            updated_by = id,
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{accountId}
+          AND status = 'PASSWORD_RESET_REQUIRED'
+          AND is_deleted = false
+    </update>
+
+    <select id="selectRootOwnerSummaries"
+            resultType="com.canteen.smile.modules.account.mapper.AccountLifecycleMapper$TenantOwnerSummaryRow">
+        SELECT tenant.id AS tenant_id,
+               account.username,
+               account.status AS account_status
+        FROM public.iam_tenant tenant
+        JOIN public.iam_org_owner owner
+          ON owner.tenant_id = tenant.id
+         AND owner.organization_id = tenant.root_organization_id
+         AND owner.is_deleted = false
+        JOIN public.iam_account account
+          ON account.id = owner.account_id
+         AND account.tenant_id = tenant.id
+         AND account.is_deleted = false
+        WHERE tenant.is_deleted = false
+          AND tenant.id IN
+          <foreach collection="tenantIds" item="tenantId" open="(" separator="," close=")">
+              #{tenantId}
+          </foreach>
+    </select>
+
+    <select id="selectLoginContext"
+            resultType="com.canteen.smile.modules.account.mapper.AccountLifecycleMapper$LoginContextRow">
+        SELECT account.id AS account_id,
+               account.tenant_id,
+               account.organization_id,
+               account.username,
+               account.display_name,
+               account.status AS account_status,
+               tenant.status AS tenant_status,
+               CASE WHEN EXISTS (
+                   SELECT 1
+                   FROM public.iam_organization_closure effective_path
+                   JOIN public.iam_organization disabled_ancestor
+                     ON disabled_ancestor.tenant_id = effective_path.tenant_id
+                    AND disabled_ancestor.id = effective_path.ancestor_id
+                    AND disabled_ancestor.is_deleted = false
+                   WHERE effective_path.tenant_id = account.tenant_id
+                     AND effective_path.descendant_id = account.organization_id
+                     AND effective_path.is_deleted = false
+                     AND disabled_ancestor.own_status = 'DISABLED'
+               ) THEN 'DISABLED' ELSE 'ACTIVE' END AS organization_status,
+               account.authz_version,
+               policy.concurrent_login_enabled,
+               policy.max_devices,
+               policy.remember_me_enabled,
+               policy.idle_seconds,
+               policy.absolute_seconds,
+               policy.remember_idle_seconds,
+               policy.remember_absolute_seconds
+        FROM public.iam_account account
+        JOIN public.iam_tenant tenant
+          ON tenant.id = account.tenant_id AND tenant.is_deleted = false
+        JOIN public.iam_organization organization
+          ON organization.id = account.organization_id
+         AND organization.tenant_id = account.tenant_id
+         AND organization.is_deleted = false
+        JOIN public.iam_tenant_security_policy policy
+          ON policy.tenant_id = account.tenant_id AND policy.is_deleted = false
+        WHERE account.normalized_username = #{normalizedUsername}
+          AND account.is_deleted = false
+          AND (account.validity_mode = 'LONG_TERM'
+               OR (account.effective_at &lt;= CURRENT_TIMESTAMP AND account.expires_at > CURRENT_TIMESTAMP))
+        LIMIT 1
+    </select>
+
+    <select id="selectTenantPermissionContext"
+            resultType="com.canteen.smile.modules.account.mapper.AccountLifecycleMapper$TenantPermissionContextRow">
+        SELECT account.id AS account_id,
+               account.tenant_id,
+               tenant.name AS tenant_name,
+               account.organization_id,
+               organization.name AS organization_name,
+               tenant.root_organization_id,
+               account.username,
+               account.display_name,
+               account.status AS account_status,
+               tenant.status AS tenant_status,
+               organization.own_status AS organization_status,
+               EXISTS (
+                   SELECT 1
+                   FROM public.iam_org_owner owner
+                   WHERE owner.tenant_id = account.tenant_id
+                     AND owner.organization_id = tenant.root_organization_id
+                     AND owner.account_id = account.id
+                     AND owner.is_deleted = false
+               ) AS root_owner
+        FROM public.iam_account account
+        JOIN public.iam_tenant tenant
+          ON tenant.id = account.tenant_id AND tenant.is_deleted = false
+        JOIN public.iam_organization organization
+          ON organization.id = account.organization_id
+         AND organization.tenant_id = account.tenant_id
+         AND organization.is_deleted = false
+        WHERE account.id = #{accountId}
+          AND account.is_deleted = false
+        LIMIT 1
+    </select>
+</mapper>

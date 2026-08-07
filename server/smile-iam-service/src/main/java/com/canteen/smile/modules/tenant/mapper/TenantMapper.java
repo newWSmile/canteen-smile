@@ -9,6 +9,14 @@ import java.util.List;
 public interface TenantMapper {
 
     /**
+     * 按主键查询有效租户。
+     *
+     * @param tenantId 租户主键
+     * @return 租户实体，不存在时为空
+     */
+    TenantEntity selectById(@Param("tenantId") long tenantId);
+
+    /**
      * 统计符合状态条件的有效租户数量。
      *
      * @param status 可选租户状态

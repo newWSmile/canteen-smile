@@ -59,7 +59,7 @@ public class SaTokenGatewayConfiguration {
 
     /** @param path 请求路径 @return 是否必须完成登录 */
     private boolean requiresLogin(String path) {
-        return path.startsWith("/api/") && !AuthPublicApiPaths.ANONYMOUS_PATHS.contains(path);
+        return path.startsWith("/api/") && !AuthPublicApiPaths.isAnonymous(path);
     }
 
     /**

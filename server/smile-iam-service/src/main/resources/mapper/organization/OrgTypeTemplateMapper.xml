@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.organization.mapper.OrgTypeTemplateMapper">
+    <select id="lockTemplateVersionAllocation" resultType="int">
+        SELECT 1
+        FROM (SELECT pg_advisory_xact_lock(9021001)) AS lock_result
+    </select>
+    <select id="nextTemplateVersion" resultType="long">
+        SELECT COALESCE(MAX(template_version), 0) + 1 FROM public.iam_org_type_template
+    </select>
+    <insert id="insertPublishedTypes">
+        INSERT INTO public.iam_org_type_template
+            (template_version, type_code, name, sort_order, status, created_by, updated_by)
+        VALUES
+        <foreach collection="types" item="item" separator=",">
+            (#{templateVersion}, #{item.typeCode}, #{item.name}, #{item.sortOrder}, 'PUBLISHED', #{operatorId}, #{operatorId})
+        </foreach>
+    </insert>
+    <insert id="insertRelations">
+        INSERT INTO public.iam_org_type_template_relation
+            (template_version, parent_type_code, child_type_code, created_by, updated_by)
+        VALUES
+        <foreach collection="relations" item="item" separator=",">
+            (#{templateVersion}, #{item.parentTypeCode}, #{item.childTypeCode}, #{operatorId}, #{operatorId})
+        </foreach>
+    </insert>
+    <select id="selectPublishedTypes" resultType="com.canteen.smile.modules.organization.mapper.OrgTypeTemplateMapper$PublishedTypeRow">
+        SELECT template_version, type_code, name, sort_order
+        FROM public.iam_org_type_template
+        WHERE status = 'PUBLISHED' AND is_deleted = false
+        ORDER BY template_version DESC, sort_order, id
+    </select>
+    <select id="selectPublishedRelations" resultType="com.canteen.smile.modules.organization.mapper.OrgTypeTemplateMapper$PublishedRelationRow">
+        SELECT r.template_version, r.parent_type_code, r.child_type_code
+        FROM public.iam_org_type_template_relation r
+        WHERE r.is_deleted = false
+          AND EXISTS (
+              SELECT 1 FROM public.iam_org_type_template t
+              WHERE t.template_version = r.template_version AND t.status = 'PUBLISHED' AND t.is_deleted = false
+          )
+        ORDER BY r.template_version DESC, r.id
+    </select>
+    <select id="countPublishedTypes" resultType="long">
+        SELECT COUNT(1) FROM public.iam_org_type_template
+        WHERE template_version = #{templateVersion} AND status = 'PUBLISHED' AND is_deleted = false
+    </select>
+    <select id="countPublishedType" resultType="long">
+        SELECT COUNT(1) FROM public.iam_org_type_template
+        WHERE template_version = #{templateVersion} AND type_code = #{typeCode}
+          AND status = 'PUBLISHED' AND is_deleted = false
+    </select>
+</mapper>

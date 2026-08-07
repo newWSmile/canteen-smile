@@ -52,7 +52,487 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createPlatformTenant
+      summary: 创建并初始化租户
+      description: IAM 本地事务同步创建根机构、首位所有者、保护角色、安全策略、审计和 Outbox，再通过 HMAC Client 幂等初始化 Auth 待激活凭证。失败后可使用相同幂等键重试。
+      tags:
+        - PlatformTenant
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: 同一创建命令重试时保持不变，最长 128 字符。
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+      responses:
+        '201':
+          description: 租户和 Auth 待激活凭证初始化完成。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantCreationApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 永久唯一字段或幂等键冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '502':
+          description: Auth 暂时不可用；IAM 已保留租户并标记为可重试。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+  /platform/tenants/{tenantId}/owner/activation-links:
+    post:
+      operationId: issueTenantOwnerActivationLink
+      summary: 为租户首位所有者生成一次性激活链接票据
+      description: 仅待激活所有者可执行；新票据 24 小时有效并废弃此前未使用票据。
+      tags: [PlatformTenant]
+      parameters:
+        - {$ref: '#/components/parameters/TenantId'}
+      responses:
+        '201':
+          description: 激活票据签发成功，只在本次响应展示。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantOwnerActivationLinkApiResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /platform/tenants/{tenantId}/owner/password-reset-links:
+    post:
+      operationId: issueTenantOwnerPasswordResetLink
+      summary: 为租户所有者生成一次性密码恢复链接票据
+      description: 要求 iam:user:password-reset 权限、必填原因及当前密码再认证；签发后全部设备立即下线，旧密码停止登录，票据 30 分钟有效。
+      tags: [PlatformTenant]
+      parameters:
+        - {$ref: '#/components/parameters/TenantId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TenantOwnerPasswordResetRequest'}
+      responses:
+        '201':
+          description: 密码恢复票据签发成功，只在本次响应展示。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantOwnerPasswordResetLinkApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /platform/org-type-templates:
+    get:
+      operationId: listPublishedOrgTypeTemplates
+      summary: 查询已发布机构类型模板版本
+      tags:
+        - PlatformOrganizationTemplate
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgTypeTemplateListApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: publishOrgTypeTemplate
+      summary: 发布完整不可变机构类型模板版本
+      description: 服务端校验编码唯一、关系引用、禁止自环及整图无环后分配新版本。
+      tags:
+        - PlatformOrganizationTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishOrgTypeTemplateRequest'
+      responses:
+        '201':
+          description: 新模板版本发布成功。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgTypeTemplateApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /tenant/context:
+    get:
+      operationId: getTenantManagementContext
+      summary: 查询当前租户管理身份和最终权限
+      tags: [TenantContext]
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantManagementContextApiResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /tenant/organization-types:
+    get:
+      operationId: pageTenantOrganizationTypes
+      summary: 分页查询当前租户机构类型
+      description: 要求 iam:org-type:view 权限，所有查询条件均固定在当前登录租户内。
+      tags: [TenantOrganizationType]
+      parameters:
+        - {$ref: '#/components/parameters/PageNo'}
+        - {$ref: '#/components/parameters/PageSize'}
+        - name: status
+          in: query
+          schema: {$ref: '#/components/schemas/ActiveStatus'}
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationTypePageApiResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      operationId: createTenantOrganizationType
+      summary: 新增当前租户机构类型
+      description: 仅租户根机构所有者且具备 iam:org-type:manage 权限可调用；类型编码永久保留。
+      tags: [TenantOrganizationType]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateOrganizationTypeRequest'}
+      responses:
+        '201':
+          description: 创建成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationTypeApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/organization-types/active:
+    get:
+      operationId: listActiveTenantOrganizationTypes
+      summary: 查询当前租户全部有效机构类型
+      tags: [TenantOrganizationType]
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationTypeListApiResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /tenant/organization-types/{typeId}:
+    put:
+      operationId: updateTenantOrganizationType
+      summary: 修改机构类型名称和排序
+      tags: [TenantOrganizationType]
+      parameters:
+        - {$ref: '#/components/parameters/TypeId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateOrganizationTypeRequest'}
+      responses:
+        '200':
+          description: 修改成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationTypeApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/organization-types/{typeId}/status:
+    put:
+      operationId: changeTenantOrganizationTypeStatus
+      summary: 停用或恢复机构类型
+      description: 正在被机构使用的类型不能停用。
+      tags: [TenantOrganizationType]
+      parameters:
+        - {$ref: '#/components/parameters/TypeId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ChangeOrganizationTypeStatusRequest'}
+      responses:
+        '200':
+          description: 状态修改成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationTypeApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/organization-type-relations:
+    get:
+      operationId: listTenantOrganizationTypeRelations
+      summary: 查询当前租户有效机构类型允许关系
+      tags: [TenantOrganizationType]
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationTypeRelationListApiResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    put:
+      operationId: replaceTenantOrganizationTypeRelations
+      summary: 整版替换当前租户机构类型允许关系
+      description: 后端校验引用有效、无重复、整图无环，并禁止删除真实机构树正在使用的父子类型关系。
+      tags: [TenantOrganizationType]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReplaceOrganizationTypeRelationsRequest'}
+      responses:
+        '200':
+          description: 保存成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationTypeRelationListApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /tenant/organizations/root:
+    get:
+      operationId: getTenantRootOrganization
+      summary: 查询当前租户根机构
+      tags: [TenantOrganization]
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationApiResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /tenant/organizations:
+    get:
+      operationId: pageTenantChildOrganizations
+      summary: 分页查询直属子机构
+      description: 不加载整棵机构树，要求 iam:org:view 权限。
+      tags: [TenantOrganization]
+      parameters:
+        - name: parentId
+          in: query
+          required: true
+          schema: {$ref: '#/components/schemas/BigintId'}
+        - {$ref: '#/components/parameters/PageNo'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationPageApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      operationId: createTenantOrganization
+      summary: 新增直属子机构
+      description: 后端校验租户边界、父机构实际状态、有效机构类型、允许关系、行政区域和永久业务编码。
+      tags: [TenantOrganization]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateOrganizationRequest'}
+      responses:
+        '201':
+          description: 创建成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/organizations/search:
+    get:
+      operationId: searchTenantOrganizations
+      summary: 有界搜索当前租户机构
+      description: 按名称或业务编码搜索，至少两个字符，最多返回二十条并包含祖先面包屑。
+      tags: [TenantOrganization]
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema: {type: string, minLength: 2, maxLength: 200}
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationSearchListApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /tenant/organizations/{organizationId}:
+    get:
+      operationId: getTenantOrganization
+      summary: 查询机构详情
+      tags: [TenantOrganization]
+      parameters:
+        - {$ref: '#/components/parameters/OrganizationId'}
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationApiResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      operationId: updateTenantOrganization
+      summary: 修改机构名称、类型和行政区域关联
+      description: 修改类型时校验当前父类型和全部直属子类型关系。
+      tags: [TenantOrganization]
+      parameters:
+        - {$ref: '#/components/parameters/OrganizationId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateOrganizationRequest'}
+      responses:
+        '200':
+          description: 修改成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+    delete:
+      operationId: deleteBlankTenantOrganization
+      summary: 删除完全空白机构
+      description: 根机构以及存在子机构、账号、角色或所有者绑定的机构不能删除；业务编码永久保留。
+      tags: [TenantOrganization]
+      parameters:
+        - {$ref: '#/components/parameters/OrganizationId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DeleteOrganizationRequest'}
+      responses:
+        '200':
+          description: 删除成功。
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/organizations/{organizationId}/parent:
+    put:
+      operationId: moveTenantOrganization
+      summary: 将机构迁移到合法的新父机构
+      description: 禁止移动根机构、形成机构环或违反类型允许关系；闭包路径在同一事务内重建。
+      tags: [TenantOrganization]
+      parameters:
+        - {$ref: '#/components/parameters/OrganizationId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MoveOrganizationRequest'}
+      responses:
+        '200':
+          description: 迁移成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/organizations/{organizationId}/status:
+    put:
+      operationId: changeTenantOrganizationStatus
+      summary: 停用或恢复机构自身状态
+      description: 父机构停用后全部下级机构通过闭包查询继承停用；根机构状态由平台租户生命周期管理。
+      tags: [TenantOrganization]
+      parameters:
+        - {$ref: '#/components/parameters/OrganizationId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ChangeOrganizationStatusRequest'}
+      responses:
+        '200':
+          description: 状态修改成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrganizationApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
 components:
+  parameters:
+    PageNo:
+      name: pageNo
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 1}
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    TypeId:
+      name: typeId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/BigintId'}
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/BigintId'}
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
   responses:
     BadRequest:
       description: 分页或状态参数不符合约束。
@@ -78,7 +558,465 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorApiResponse'
+    Conflict:
+      description: 目标所有者生命周期状态不允许当前操作，或状态已经变化。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorApiResponse'
+    NotFound:
+      description: 当前租户边界内不存在目标资源。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorApiResponse'
   schemas:
+    BigintId:
+      type: string
+      pattern: '^[1-9][0-9]*$'
+      description: 避免 JavaScript 精度丢失的 bigint 十进制字符串。
+    ActiveStatus:
+      type: string
+      enum: [ACTIVE, DISABLED]
+    TenantManagementContext:
+      type: object
+      additionalProperties: false
+      required: [accountId, username, tenantId, tenantName, organizationId, organizationName, rootOrganizationId, rootOwner, permissions]
+      properties:
+        accountId: {$ref: '#/components/schemas/BigintId'}
+        username: {type: string}
+        displayName: {type: [string, 'null']}
+        tenantId: {$ref: '#/components/schemas/BigintId'}
+        tenantName: {type: string}
+        organizationId: {$ref: '#/components/schemas/BigintId'}
+        organizationName: {type: string}
+        rootOrganizationId: {$ref: '#/components/schemas/BigintId'}
+        rootOwner: {type: boolean}
+        permissions:
+          type: array
+          uniqueItems: true
+          items: {type: string}
+    OrganizationType:
+      type: object
+      additionalProperties: false
+      required: [id, typeCode, name, sortOrder, status, sourceTemplateVersion, version]
+      properties:
+        id: {$ref: '#/components/schemas/BigintId'}
+        typeCode: {type: string}
+        name: {type: string}
+        sortOrder: {type: integer, minimum: 0, maximum: 100000}
+        status: {$ref: '#/components/schemas/ActiveStatus'}
+        sourceTemplateVersion: {type: [integer, 'null'], format: int64}
+        version: {type: integer, format: int64, minimum: 0}
+    OrganizationTypeRelation:
+      type: object
+      additionalProperties: false
+      required: [id, parentTypeId, childTypeId, version]
+      properties:
+        id: {$ref: '#/components/schemas/BigintId'}
+        parentTypeId: {$ref: '#/components/schemas/BigintId'}
+        childTypeId: {$ref: '#/components/schemas/BigintId'}
+        version: {type: integer, format: int64, minimum: 0}
+    Organization:
+      type: object
+      additionalProperties: false
+      required: [id, parentId, organizationTypeId, typeCode, typeName, businessCode, name, adminRegionId, ownStatus, effectiveStatus, pathVersion, hasChildren, version]
+      properties:
+        id: {$ref: '#/components/schemas/BigintId'}
+        parentId:
+          oneOf:
+            - {$ref: '#/components/schemas/BigintId'}
+            - {type: 'null'}
+        organizationTypeId: {$ref: '#/components/schemas/BigintId'}
+        typeCode: {type: string}
+        typeName: {type: string}
+        businessCode: {type: string}
+        name: {type: string}
+        adminRegionId:
+          oneOf:
+            - {$ref: '#/components/schemas/BigintId'}
+            - {type: 'null'}
+        ownStatus: {$ref: '#/components/schemas/ActiveStatus'}
+        effectiveStatus: {$ref: '#/components/schemas/ActiveStatus'}
+        pathVersion: {type: integer, format: int64, minimum: 0}
+        hasChildren: {type: boolean}
+        version: {type: integer, format: int64, minimum: 0}
+    OrganizationSearchResult:
+      type: object
+      additionalProperties: false
+      required: [id, parentId, organizationTypeId, typeName, businessCode, name, effectiveStatus, breadcrumb]
+      properties:
+        id: {$ref: '#/components/schemas/BigintId'}
+        parentId:
+          oneOf:
+            - {$ref: '#/components/schemas/BigintId'}
+            - {type: 'null'}
+        organizationTypeId: {$ref: '#/components/schemas/BigintId'}
+        typeName: {type: string}
+        businessCode: {type: string}
+        name: {type: string}
+        effectiveStatus: {$ref: '#/components/schemas/ActiveStatus'}
+        breadcrumb: {type: string}
+    CreateOrganizationTypeRequest:
+      type: object
+      additionalProperties: false
+      required: [typeCode, name, sortOrder]
+      properties:
+        typeCode: {type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$'}
+        name: {type: string, minLength: 1, maxLength: 128}
+        sortOrder: {type: integer, minimum: 0, maximum: 100000}
+    UpdateOrganizationTypeRequest:
+      type: object
+      additionalProperties: false
+      required: [name, sortOrder, version]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 128}
+        sortOrder: {type: integer, minimum: 0, maximum: 100000}
+        version: {type: integer, format: int64, minimum: 0}
+    ChangeOrganizationTypeStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status, version]
+      properties:
+        status: {$ref: '#/components/schemas/ActiveStatus'}
+        version: {type: integer, format: int64, minimum: 0}
+    OrganizationTypeRelationRequest:
+      type: object
+      additionalProperties: false
+      required: [parentTypeId, childTypeId]
+      properties:
+        parentTypeId: {$ref: '#/components/schemas/BigintId'}
+        childTypeId: {$ref: '#/components/schemas/BigintId'}
+    ReplaceOrganizationTypeRelationsRequest:
+      type: object
+      additionalProperties: false
+      required: [relations]
+      properties:
+        relations:
+          type: array
+          maxItems: 500
+          items: {$ref: '#/components/schemas/OrganizationTypeRelationRequest'}
+    CreateOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required: [parentId, organizationTypeId, businessCode, name]
+      properties:
+        parentId: {$ref: '#/components/schemas/BigintId'}
+        organizationTypeId: {$ref: '#/components/schemas/BigintId'}
+        businessCode: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$'}
+        name: {type: string, minLength: 1, maxLength: 200}
+        adminRegionId:
+          oneOf:
+            - {$ref: '#/components/schemas/BigintId'}
+            - {type: 'null'}
+    UpdateOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required: [organizationTypeId, name, version]
+      properties:
+        organizationTypeId: {$ref: '#/components/schemas/BigintId'}
+        name: {type: string, minLength: 1, maxLength: 200}
+        adminRegionId:
+          oneOf:
+            - {$ref: '#/components/schemas/BigintId'}
+            - {type: 'null'}
+        version: {type: integer, format: int64, minimum: 0}
+    MoveOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required: [newParentId, version, reason]
+      properties:
+        newParentId: {$ref: '#/components/schemas/BigintId'}
+        version: {type: integer, format: int64, minimum: 0}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    ChangeOrganizationStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status, version, reason]
+      properties:
+        status: {$ref: '#/components/schemas/ActiveStatus'}
+        version: {type: integer, format: int64, minimum: 0}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    DeleteOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required: [version, reason]
+      properties:
+        version: {type: integer, format: int64, minimum: 0}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    OrganizationTypePage:
+      type: object
+      additionalProperties: false
+      required: [items, pageNo, pageSize, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/OrganizationType'}}
+        pageNo: {type: integer, minimum: 1}
+        pageSize: {type: integer, minimum: 1, maximum: 100}
+        total: {type: integer, format: int64, minimum: 0}
+    OrganizationPage:
+      type: object
+      additionalProperties: false
+      required: [items, pageNo, pageSize, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Organization'}}
+        pageNo: {type: integer, minimum: 1}
+        pageSize: {type: integer, minimum: 1, maximum: 100}
+        total: {type: integer, format: int64, minimum: 0}
+    TenantManagementContextApiResponse:
+      $ref: '#/components/schemas/TenantManagementContextSuccessEnvelope'
+    TenantManagementContextSuccessEnvelope:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/TenantManagementContext'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    OrganizationTypePageApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/OrganizationTypePage'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    OrganizationTypeApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/OrganizationType'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    OrganizationTypeListApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {type: array, items: {$ref: '#/components/schemas/OrganizationType'}}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    OrganizationTypeRelationListApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {type: array, items: {$ref: '#/components/schemas/OrganizationTypeRelation'}}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    OrganizationApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/Organization'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    OrganizationPageApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/OrganizationPage'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    OrganizationSearchListApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/OrganizationSearchResult'}}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    TenantOwnerPasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [reauthTicket, reason]
+      properties:
+        reauthTicket:
+          type: string
+          writeOnly: true
+          pattern: '^[A-Za-z0-9_-]{43,128}$'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    TenantOwnerActivationLink:
+      type: object
+      additionalProperties: false
+      required: [tenantId, accountId, activationTicket, expiresAt]
+      properties:
+        tenantId: {type: string, pattern: '^[1-9][0-9]*$'}
+        accountId: {type: string, pattern: '^[1-9][0-9]*$'}
+        activationTicket: {type: string, writeOnly: true}
+        expiresAt: {type: string, format: date-time}
+    TenantOwnerPasswordResetLink:
+      type: object
+      additionalProperties: false
+      required: [tenantId, accountId, resetTicket, expiresAt]
+      properties:
+        tenantId: {type: string, pattern: '^[1-9][0-9]*$'}
+        accountId: {type: string, pattern: '^[1-9][0-9]*$'}
+        resetTicket: {type: string, writeOnly: true}
+        expiresAt: {type: string, format: date-time}
+    OrgTypeTemplateItem:
+      type: object
+      additionalProperties: false
+      required: [typeCode, name, sortOrder]
+      properties:
+        typeCode:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]*$'
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        sortOrder:
+          type: integer
+          minimum: 0
+    OrgTypeTemplateRelation:
+      type: object
+      additionalProperties: false
+      required: [parentTypeCode, childTypeCode]
+      properties:
+        parentTypeCode:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]*$'
+        childTypeCode:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]*$'
+    PublishOrgTypeTemplateRequest:
+      type: object
+      additionalProperties: false
+      required: [types, relations]
+      properties:
+        types:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/OrgTypeTemplateItem'
+        relations:
+          type: array
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/OrgTypeTemplateRelation'
+    OrgTypeTemplate:
+      type: object
+      additionalProperties: false
+      required: [templateVersion, status, types, relations]
+      properties:
+        templateVersion:
+          type: integer
+          format: int64
+          minimum: 1
+        status:
+          type: string
+          const: PUBLISHED
+        types:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrgTypeTemplateItem'
+        relations:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrgTypeTemplateRelation'
+    RootOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required: [typeCode, businessCode, name]
+      properties:
+        typeCode:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]*$'
+          maxLength: 64
+        businessCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        adminRegionId:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+    TenantOwnerRequest:
+      type: object
+      additionalProperties: false
+      required: [username]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 128
+        displayName:
+          type: string
+          maxLength: 128
+        employeeNumber:
+          type: string
+          maxLength: 64
+    TenantSecurityPolicyRequest:
+      type: object
+      additionalProperties: false
+      required: [concurrentLoginEnabled, maxDevices, rememberMeEnabled, idleSeconds, absoluteSeconds,
+        rememberIdleSeconds, rememberAbsoluteSeconds, passwordExpiryEnabled, auditRetentionDays]
+      properties:
+        concurrentLoginEnabled: { type: boolean }
+        maxDevices: { type: integer, minimum: 1, maximum: 100 }
+        rememberMeEnabled: { type: boolean }
+        idleSeconds: { type: integer, minimum: 60 }
+        absoluteSeconds: { type: integer, minimum: 60 }
+        rememberIdleSeconds: { type: integer, minimum: 60 }
+        rememberAbsoluteSeconds: { type: integer, minimum: 60 }
+        passwordExpiryEnabled: { type: boolean }
+        passwordExpiryDays: { type: integer, minimum: 1, maximum: 3650 }
+        auditRetentionDays: { type: integer, minimum: 180 }
+    CreateTenantRequest:
+      type: object
+      additionalProperties: false
+      required: [tenantCode, name, templateVersion, rootOrganization, owner, securityPolicy]
+      properties:
+        tenantCode:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_-]*$'
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        templateVersion:
+          type: integer
+          format: int64
+          minimum: 1
+        rootOrganization:
+          $ref: '#/components/schemas/RootOrganizationRequest'
+        owner:
+          $ref: '#/components/schemas/TenantOwnerRequest'
+        securityPolicy:
+          $ref: '#/components/schemas/TenantSecurityPolicyRequest'
+    TenantCreation:
+      type: object
+      additionalProperties: false
+      required: [tenant, ownerAccountId, ownerStatus]
+      properties:
+        tenant:
+          $ref: '#/components/schemas/TenantSummary'
+        ownerAccountId:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+        ownerStatus:
+          type: string
+          const: PENDING_ACTIVATION
     TenantStatus:
       type: string
       description: 租户生命周期状态。
@@ -198,6 +1136,64 @@ components:
           type:
             - string
             - 'null'
+    TenantCreationApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data, timestamp]
+      properties:
+        code: { type: string, const: '0' }
+        message: { type: string }
+        data:
+          $ref: '#/components/schemas/TenantCreation'
+        timestamp: { type: string, format: date-time }
+        traceId:
+          type: [string, 'null']
+    TenantOwnerActivationLinkApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/TenantOwnerActivationLink'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    TenantOwnerPasswordResetLinkApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/TenantOwnerPasswordResetLink'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    OrgTypeTemplateApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data, timestamp]
+      properties:
+        code: { type: string, const: '0' }
+        message: { type: string }
+        data:
+          $ref: '#/components/schemas/OrgTypeTemplate'
+        timestamp: { type: string, format: date-time }
+        traceId:
+          type: [string, 'null']
+    OrgTypeTemplateListApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data, timestamp]
+      properties:
+        code: { type: string, const: '0' }
+        message: { type: string }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrgTypeTemplate'
+        timestamp: { type: string, format: date-time }
+        traceId:
+          type: [string, 'null']
     ErrorApiResponse:
       type: object
       description: 统一失败响应，不返回业务数据。

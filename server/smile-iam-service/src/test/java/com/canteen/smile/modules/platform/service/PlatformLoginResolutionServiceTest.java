@@ -1,5 +1,6 @@
 package com.canteen.smile.modules.platform.service;
 
+import com.canteen.smile.modules.account.mapper.AccountLifecycleMapper;
 import com.canteen.smile.modules.platform.dto.UsernameLoginResolutionRequest;
 import com.canteen.smile.modules.platform.entity.PlatformIdentityEntity;
 import com.canteen.smile.modules.platform.mapper.PlatformIdentityMapper;
@@ -21,13 +22,17 @@ class PlatformLoginResolutionServiceTest {
     @Mock
     private PlatformIdentityMapper platformIdentityMapper;
 
+    /** 模拟租户账号登录上下文数据访问接口。 */
+    @Mock
+    private AccountLifecycleMapper accountLifecycleMapper;
+
     /** 被测试登录解析服务。 */
     private PlatformLoginResolutionService service;
 
     /** 创建测试服务。 */
     @BeforeEach
     void setUp() {
-        service = new PlatformLoginResolutionService(platformIdentityMapper);
+        service = new PlatformLoginResolutionService(platformIdentityMapper, accountLifecycleMapper);
     }
 
     /** 验证用户名不区分大小写并只解析有效平台身份。 */

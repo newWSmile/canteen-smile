@@ -17,6 +17,12 @@ export const router = createRouter({
       component: () => import('@/modules/auth/pages/LoginPage.vue'),
     },
     {
+      path: '/org-type-templates',
+      name: 'org-type-templates',
+      component: () => import('@/modules/tenant/pages/OrgTypeTemplatePage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/bootstrap',
       name: 'bootstrap',
       component: () => import('@/modules/auth/pages/BootstrapPage.vue'),

@@ -28,4 +28,39 @@ public interface CredentialMapper {
      * @return 新增行数
      */
     int insertCredential(CredentialEntity entity);
+
+    /**
+     * 幂等创建待激活租户账号凭证容器。
+     *
+     * @param accountId IAM 租户账号 ID
+     * @return 实际新增行数
+     */
+    int insertPendingTenantAccountCredential(@Param("accountId") long accountId);
+
+    /**
+     * 为待激活租户账号写入 Argon2id 密码摘要并激活凭证。
+     *
+     * @param accountId IAM 租户账号 ID
+     * @param passwordHash Argon2id 密码摘要
+     * @return 更新行数
+     */
+    int activatePendingTenantAccountCredential(
+            @Param("accountId") long accountId,
+            @Param("passwordHash") String passwordHash
+    );
+
+    /** @param accountId 租户账号 ID @return 进入待重置状态的行数 */
+    int markTenantAccountResetRequired(@Param("accountId") long accountId);
+
+    /**
+     * 写入新密码摘要并恢复有效凭证状态。
+     *
+     * @param accountId 租户账号 ID
+     * @param passwordHash 新 Argon2id 密码摘要
+     * @return 更新行数
+     */
+    int completeTenantAccountPasswordReset(
+            @Param("accountId") long accountId,
+            @Param("passwordHash") String passwordHash
+    );
 }

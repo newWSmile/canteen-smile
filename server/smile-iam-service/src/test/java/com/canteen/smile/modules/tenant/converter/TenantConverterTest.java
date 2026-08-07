@@ -1,5 +1,6 @@
 package com.canteen.smile.modules.tenant.converter;
 
+import com.canteen.smile.modules.account.model.AccountStatus;
 import com.canteen.smile.modules.tenant.entity.TenantEntity;
 import com.canteen.smile.modules.tenant.model.TenantProvisionStatus;
 import com.canteen.smile.modules.tenant.model.TenantStatus;
@@ -22,12 +23,14 @@ class TenantConverterTest {
         TenantConverter converter = new TenantConverter();
 
         /** 转换后的租户分页摘要。 */
-        TenantSummaryVO result = converter.toSummary(entity);
+        TenantSummaryVO result = converter.toSummary(entity, "tenantOwner", AccountStatus.ACTIVE);
 
         assertThat(result.id()).isEqualTo("9007199254740993");
         assertThat(result.rootOrganizationId()).isEqualTo("9007199254740995");
         assertThat(result.status()).isEqualTo(TenantStatus.ACTIVE);
         assertThat(result.provisionStatus()).isEqualTo(TenantProvisionStatus.ACTIVE);
+        assertThat(result.ownerUsername()).isEqualTo("tenantOwner");
+        assertThat(result.ownerAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(result.version()).isEqualTo(7L);
     }
 

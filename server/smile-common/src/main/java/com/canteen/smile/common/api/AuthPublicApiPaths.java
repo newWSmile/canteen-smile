@@ -20,6 +20,12 @@ public final class AuthPublicApiPaths {
     /** 平台恢复码二次验证路径。 */
     public static final String PLATFORM_RECOVERY_LOGIN = EXTERNAL_V1 + "/login/platform-recovery-code";
 
+    /** 一次性账号激活票据资源根路径。 */
+    public static final String ACTIVATIONS = EXTERNAL_V1 + "/activations";
+
+    /** 一次性密码重置票据资源根路径。 */
+    public static final String PASSWORD_RESETS = EXTERNAL_V1 + "/password-resets";
+
     /**
      * 经安全评审允许匿名访问的 Auth 精确路径集合。
      * Gateway 与 Servlet 服务必须共同引用，禁止分别维护白名单。
@@ -28,8 +34,25 @@ public final class AuthPublicApiPaths {
             PLATFORM_BOOTSTRAP,
             PASSWORD_ENCRYPTION_CHALLENGES,
             PASSWORD_LOGIN,
-            PLATFORM_RECOVERY_LOGIN
+            PLATFORM_RECOVERY_LOGIN,
+            ACTIVATIONS + "/**",
+            PASSWORD_RESETS + "/**"
     );
+
+    /**
+     * 判断请求是否属于经过安全评审的匿名 Auth 路径。
+     *
+     * @param path 请求路径
+     * @return 是否允许匿名访问
+     */
+    public static boolean isAnonymous(String path) {
+        return PLATFORM_BOOTSTRAP.equals(path)
+                || PASSWORD_ENCRYPTION_CHALLENGES.equals(path)
+                || PASSWORD_LOGIN.equals(path)
+                || PLATFORM_RECOVERY_LOGIN.equals(path)
+                || path.startsWith(ACTIVATIONS + "/")
+                || path.startsWith(PASSWORD_RESETS + "/");
+    }
 
     /** 禁止实例化公开路径常量类。 */
     private AuthPublicApiPaths() {

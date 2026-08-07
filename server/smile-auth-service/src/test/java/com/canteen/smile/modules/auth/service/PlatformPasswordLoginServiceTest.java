@@ -54,7 +54,16 @@ class PlatformPasswordLoginServiceTest {
                 "platform-admin",
                 "平台管理员",
                 AuthConstants.ACTIVE_STATUS,
-                3L
+                3L,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
         );
         /** Auth 本地密码凭证。 */
         CredentialEntity credential = new CredentialEntity();

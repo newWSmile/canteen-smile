@@ -24,19 +24,28 @@ class AuthMapperXmlTest {
                 "mapper/auth/CredentialMapper.xml",
                 "mapper/auth/PlatformRecoveryCodeMapper.xml",
                 "mapper/auth/LoginFailureMapper.xml",
-                "mapper/auth/DeviceSessionMapper.xml"
+                "mapper/auth/DeviceSessionMapper.xml",
+                "mapper/auth/ReauthTicketMapper.xml",
+                "mapper/auth/PasswordResetTicketMapper.xml",
+                "mapper/auth/PasswordHistoryMapper.xml"
         );
         for (String resource : resources) {
             parse(configuration, resource);
         }
 
         assertThat(configuration.hasStatement(CredentialMapper.class.getName() + ".selectBySubject")).isTrue();
+        assertThat(configuration.hasStatement(CredentialMapper.class.getName()
+                + ".insertPendingTenantAccountCredential")).isTrue();
         assertThat(configuration.hasStatement(PlatformRecoveryCodeMapper.class.getName()
                 + ".consumeRecoveryCode")).isTrue();
         assertThat(configuration.hasStatement(LoginFailureMapper.class.getName()
                 + ".recordPasswordFailure")).isTrue();
         assertThat(configuration.hasStatement(DeviceSessionMapper.class.getName()
                 + ".insertDeviceSession")).isTrue();
+        assertThat(configuration.hasStatement(ReauthTicketMapper.class.getName() + ".consume")).isTrue();
+        assertThat(configuration.hasStatement(PasswordResetTicketMapper.class.getName() + ".insert")).isTrue();
+        assertThat(configuration.hasStatement(PasswordHistoryMapper.class.getName()
+                + ".selectRecentHashes")).isTrue();
     }
 
     /** 将一个 Mapper XML 注册到测试配置。 */
