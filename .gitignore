@@ -19,3 +19,4 @@ server/.env
 server/logs/
 server/**/logs/
 server/**/src/main/resources/application-local.yml
+logs/**/*.log.gz
