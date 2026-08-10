@@ -19,6 +19,11 @@ logging:
     com.canteen.smile: ${APPLICATION_LOG_LEVEL:INFO}
 
 application:
+  sms:
+    # 生产必须显式选择真实短信策略并由 Secret/密钥服务提供手机号摘要 Pepper。
+    provider-code: ${SMS_PROVIDER_CODE}
+    mobile-hash-pepper: ${SMS_MOBILE_HASH_PEPPER}
+    code-hash-pepper: ${SMS_CODE_HASH_PEPPER}
   bootstrap:
     # 仅首次引导期间由 Secret/密钥服务注入，引导完成后应移除。
     secret: ${PLATFORM_BOOTSTRAP_SECRET}

@@ -1,9 +1,11 @@
 package com.canteen.smile.modules.auth.mapper;
 
 import com.canteen.smile.modules.auth.entity.LoginFailureEntity;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /** 密码登录失败计数和锁定状态数据访问接口。 */
+@Mapper
 public interface LoginFailureMapper {
 
     /**

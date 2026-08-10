@@ -1,9 +1,11 @@
 package com.canteen.smile.modules.auth.mapper;
 
 import com.canteen.smile.modules.auth.entity.DeviceSessionEntity;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /** 设备会话审计索引数据访问接口。 */
+@Mapper
 public interface DeviceSessionMapper {
 
     /** @param entity 设备会话实体 @return 新增行数 */

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.sms.mapper.SmsRuntimePolicyMapper">
+
+    <resultMap id="SmsRuntimePolicyMap" type="com.canteen.smile.modules.sms.entity.SmsRuntimePolicyEntity">
+        <id property="id" column="id" />
+        <result property="policyCode" column="policy_code" />
+        <result property="challengeTtlSeconds" column="challenge_ttl_seconds" />
+        <result property="resendIntervalSeconds" column="resend_interval_seconds" />
+        <result property="maxVerificationAttempts" column="max_verification_attempts" />
+        <result property="mobileHourlyLimit" column="mobile_hourly_limit" />
+        <result property="mobileDailyLimit" column="mobile_daily_limit" />
+        <result property="ipHourlyLimit" column="ip_hourly_limit" />
+        <result property="ipDailyLimit" column="ip_daily_limit" />
+        <result property="deviceHourlyLimit" column="device_hourly_limit" />
+        <result property="deviceDailyLimit" column="device_daily_limit" />
+        <result property="plaintextCodeRetentionEnabled" column="plaintext_code_retention_enabled" />
+        <result property="createdTime" column="created_time" />
+        <result property="updatedTime" column="updated_time" />
+        <result property="version" column="version" />
+    </resultMap>
+
+    <select id="selectGlobal" resultMap="SmsRuntimePolicyMap">
+        SELECT id,
+               policy_code,
+               challenge_ttl_seconds,
+               resend_interval_seconds,
+               max_verification_attempts,
+               mobile_hourly_limit,
+               mobile_daily_limit,
+               ip_hourly_limit,
+               ip_daily_limit,
+               device_hourly_limit,
+               device_daily_limit,
+               plaintext_code_retention_enabled,
+               created_time,
+               updated_time,
+               version
+        FROM public.auth_sms_runtime_policy
+        WHERE policy_code = 'GLOBAL'
+          AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <insert id="insertDefault">
+        INSERT INTO public.auth_sms_runtime_policy (
+            policy_code,
+            challenge_ttl_seconds,
+            resend_interval_seconds,
+            max_verification_attempts,
+            mobile_hourly_limit,
+            mobile_daily_limit,
+            ip_hourly_limit,
+            ip_daily_limit,
+            device_hourly_limit,
+            device_daily_limit,
+            plaintext_code_retention_enabled
+        ) VALUES (
+            'GLOBAL',
+            #{challengeTtlSeconds},
+            #{resendIntervalSeconds},
+            #{maxVerificationAttempts},
+            #{mobileHourlyLimit},
+            #{mobileDailyLimit},
+            #{ipHourlyLimit},
+            #{ipDailyLimit},
+            #{deviceHourlyLimit},
+            #{deviceDailyLimit},
+            false
+        )
+        ON CONFLICT (policy_code) DO NOTHING
+    </insert>
+
+    <update id="updateRateLimits">
+        UPDATE public.auth_sms_runtime_policy
+        SET challenge_ttl_seconds = #{policy.challengeTtlSeconds},
+            resend_interval_seconds = #{policy.resendIntervalSeconds},
+            max_verification_attempts = #{policy.maxVerificationAttempts},
+            mobile_hourly_limit = #{policy.mobileHourlyLimit},
+            mobile_daily_limit = #{policy.mobileDailyLimit},
+            ip_hourly_limit = #{policy.ipHourlyLimit},
+            ip_daily_limit = #{policy.ipDailyLimit},
+            device_hourly_limit = #{policy.deviceHourlyLimit},
+            device_daily_limit = #{policy.deviceDailyLimit},
+            updated_by = #{actorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE policy_code = 'GLOBAL'
+          AND version = #{policy.version}
+          AND is_deleted = false
+    </update>
+
+    <update id="updateSecurity">
+        UPDATE public.auth_sms_runtime_policy
+        SET plaintext_code_retention_enabled = #{enabled},
+            updated_by = #{actorId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE policy_code = 'GLOBAL'
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+</mapper>

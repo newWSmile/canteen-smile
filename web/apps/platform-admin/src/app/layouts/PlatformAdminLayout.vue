@@ -64,6 +64,14 @@ const logoutFlight = useSingleFlight(async () => {
         <RouterLink :class="{ active: route.name === 'permission-resources' }" :to="{ name: 'permission-resources' }"><span>◆</span>权限资源</RouterLink>
         <span class="disabled"><b>◇</b>平台身份</span>
         <RouterLink :class="{ active: route.name === 'platform-audit' }" :to="{ name: 'platform-audit' }"><span>◎</span>平台审计</RouterLink>
+        <div class="nav-group" :class="{ active: route.path.startsWith('/sms') }">
+          <div class="nav-group-title"><span>✉</span><strong>短信管理</strong></div>
+          <div class="nav-children">
+            <RouterLink :class="{ active: route.name === 'sms-deliveries' }" :to="{ name: 'sms-deliveries' }">短信列表</RouterLink>
+            <RouterLink :class="{ active: route.name === 'sms-settings' }" :to="{ name: 'sms-settings' }">短信设置</RouterLink>
+            <RouterLink :class="{ active: route.name === 'sms-security' }" :to="{ name: 'sms-security' }">短信安全</RouterLink>
+          </div>
+        </div>
         <span class="disabled"><b>⚙</b>安全配置</span>
       </nav>
       <div class="boundary-note">
@@ -102,6 +110,12 @@ nav a, nav .disabled { min-height: 44px; padding: 12px 14px; display: flex; alig
 nav a.active { color: #fff; background: #6d48c4; }
 nav .disabled { cursor: not-allowed; opacity: .65; }
 nav .disabled b { font-weight: 400; }
+.nav-group { padding: 8px; border-radius: 10px; }
+.nav-group.active { background: rgba(109,72,196,.16); }
+.nav-group-title { min-height: 36px; padding: 7px 6px; display: flex; align-items: center; gap: 12px; color: #d8d1e1; }
+.nav-group-title strong { font-weight: 600; }
+.nav-children { margin-left: 26px; display: grid; gap: 3px; }
+.nav-children a { min-height: 34px; padding: 8px 10px; font-size: 13px; }
 .boundary-note { margin-top: auto; padding: 16px; display: flex; gap: 12px; align-items: flex-start; border: 1px solid #40364f; border-radius: 14px; background: #2a2237; }
 .boundary-note div { display: grid; gap: 5px; }
 .boundary-note small { color: #8f849c; line-height: 1.5; }

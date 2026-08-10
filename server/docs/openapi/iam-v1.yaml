@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Canteen Smile IAM API
-  version: 1.0.0
+  version: 1.1.0
   description: IAM 服务已经实现并冻结的外部 REST 契约；未实现接口不得提前写入本文件。
 servers:
   - url: /api/iam/v1
@@ -798,6 +798,47 @@ paths:
         - {name: roleId, in: query, required: false, schema: {$ref: '#/components/schemas/BigintId'}}
       responses:
         '200': {description: 查询成功。, content: {application/json: {schema: {$ref: '#/components/schemas/RolePermissionListApiResponse'}}}}
+  /platform/sms/settings:
+    get:
+      operationId: getPlatformSmsSettings
+      summary: 查询短信验证码与多维限流设置
+      description: 由 IAM 校验 platform:sms-settings:view 后，通过 HMAC Client 查询 Auth 自有策略。
+      tags: [PlatformSms]
+      responses:
+        '200': {description: 查询成功。, content: {application/json: {schema: {$ref: '#/components/schemas/SmsRuntimePolicyApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    put:
+      operationId: updatePlatformSmsSettings
+      summary: 修改短信验证码与多维限流设置
+      description: 要求平台当前密码再认证与操作原因，成功后立即影响后续验证码挑战。
+      tags: [PlatformSms]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SmsRateLimitSettingsUpdateRequest'}}}}
+      responses:
+        '200': {description: 修改成功。, content: {application/json: {schema: {$ref: '#/components/schemas/SmsRuntimePolicyApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /platform/sms/security:
+    get:
+      operationId: getPlatformSmsSecurity
+      summary: 查询短信敏感正文留存设置
+      tags: [PlatformSms]
+      responses:
+        '200': {description: 查询成功。, content: {application/json: {schema: {$ref: '#/components/schemas/SmsRuntimePolicyApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    put:
+      operationId: updatePlatformSmsSecurity
+      summary: 开启或关闭后续验证码明文正文留存
+      description: 默认关闭；开启仅影响后续新记录，完整手机号和应用日志仍强制脱敏。
+      tags: [PlatformSms]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SmsSecuritySettingsUpdateRequest'}}}}
+      responses:
+        '200': {description: 修改成功。, content: {application/json: {schema: {$ref: '#/components/schemas/SmsRuntimePolicyApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
 components:
   parameters:
     AuditSource:
@@ -1926,5 +1967,57 @@ components:
         code: {type: string, const: '0'}
         message: {type: string}
         data: {$ref: '#/components/schemas/TenantUserActivationLink'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    SmsRuntimePolicy:
+      type: object
+      additionalProperties: false
+      required: [challengeTtlSeconds, resendIntervalSeconds, maxVerificationAttempts, mobileHourlyLimit, mobileDailyLimit, ipHourlyLimit, ipDailyLimit, deviceHourlyLimit, deviceDailyLimit, plaintextCodeRetentionEnabled, updatedTime, version]
+      properties:
+        challengeTtlSeconds: {type: integer, minimum: 60, maximum: 900}
+        resendIntervalSeconds: {type: integer, minimum: 30, maximum: 600}
+        maxVerificationAttempts: {type: integer, minimum: 1, maximum: 5}
+        mobileHourlyLimit: {type: integer, minimum: 1, maximum: 100}
+        mobileDailyLimit: {type: integer, minimum: 1, maximum: 500}
+        ipHourlyLimit: {type: integer, minimum: 1, maximum: 1000}
+        ipDailyLimit: {type: integer, minimum: 1, maximum: 5000}
+        deviceHourlyLimit: {type: integer, minimum: 1, maximum: 500}
+        deviceDailyLimit: {type: integer, minimum: 1, maximum: 2000}
+        plaintextCodeRetentionEnabled: {type: boolean, description: 是否允许后续投递记录保留验证码明文。}
+        updatedTime: {type: [string, 'null'], format: date-time}
+        version: {type: integer, format: int64, minimum: 0}
+    SmsRateLimitSettingsUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [challengeTtlSeconds, resendIntervalSeconds, maxVerificationAttempts, mobileHourlyLimit, mobileDailyLimit, ipHourlyLimit, ipDailyLimit, deviceHourlyLimit, deviceDailyLimit, version, reauthTicket, reason]
+      properties:
+        challengeTtlSeconds: {type: integer, minimum: 60, maximum: 900}
+        resendIntervalSeconds: {type: integer, minimum: 30, maximum: 600}
+        maxVerificationAttempts: {type: integer, minimum: 1, maximum: 5}
+        mobileHourlyLimit: {type: integer, minimum: 1, maximum: 100}
+        mobileDailyLimit: {type: integer, minimum: 1, maximum: 500}
+        ipHourlyLimit: {type: integer, minimum: 1, maximum: 1000}
+        ipDailyLimit: {type: integer, minimum: 1, maximum: 5000}
+        deviceHourlyLimit: {type: integer, minimum: 1, maximum: 500}
+        deviceDailyLimit: {type: integer, minimum: 1, maximum: 2000}
+        version: {type: integer, format: int64, minimum: 0}
+        reauthTicket: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    SmsSecuritySettingsUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [plaintextCodeRetentionEnabled, version, reauthTicket, reason]
+      properties:
+        plaintextCodeRetentionEnabled: {type: boolean}
+        version: {type: integer, format: int64, minimum: 0}
+        reauthTicket: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    SmsRuntimePolicyApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/SmsRuntimePolicy'}
         timestamp: {type: string, format: date-time}
         traceId: {type: [string, 'null']}

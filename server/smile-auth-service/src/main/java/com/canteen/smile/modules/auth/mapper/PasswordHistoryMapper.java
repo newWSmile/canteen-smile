@@ -1,10 +1,12 @@
 package com.canteen.smile.modules.auth.mapper;
 
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 /** 密码历史摘要数据访问接口。 */
+@Mapper
 public interface PasswordHistoryMapper {
 
     /**

@@ -16,6 +16,8 @@ class AuthApiPathsTest {
                 .isEqualTo(AuthPublicApiPaths.PASSWORD_ENCRYPTION_CHALLENGES);
         assertThat(AuthPublicApiPaths.ANONYMOUS_PATHS)
                 .contains(AuthApiPaths.PASSWORD_ENCRYPTION_CHALLENGES);
+        assertThat(AuthApiPaths.SMS_CHALLENGES).isEqualTo(AuthPublicApiPaths.SMS_CHALLENGES);
+        assertThat(AuthPublicApiPaths.ANONYMOUS_PATHS).contains(AuthApiPaths.SMS_CHALLENGES);
         assertThat(AuthApiPaths.PASSWORD_LOGIN).isEqualTo(AuthPublicApiPaths.PASSWORD_LOGIN);
         assertThat(AuthApiPaths.PLATFORM_RECOVERY_LOGIN)
                 .isEqualTo(AuthPublicApiPaths.PLATFORM_RECOVERY_LOGIN);

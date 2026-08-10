@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.sms.mapper.SmsDeliveryRecordMapper">
+
+    <insert id="insertProcessing">
+        INSERT INTO public.auth_sms_delivery_record (
+            request_id,
+            challenge_id,
+            provider_code,
+            purpose,
+            masked_mobile,
+            mobile_hash,
+            template_code,
+            content_snapshot,
+            sensitive_content_retained,
+            status,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{requestId},
+            #{challengeId},
+            #{providerCode},
+            #{purpose},
+            #{maskedMobile},
+            #{mobileHash},
+            #{templateCode},
+            #{contentSnapshot},
+            #{sensitiveContentRetained},
+            'PROCESSING',
+            0,
+            0
+        )
+        ON CONFLICT (request_id) DO NOTHING
+    </insert>
+
+    <update id="markAccepted">
+        UPDATE public.auth_sms_delivery_record
+        SET status = 'ACCEPTED',
+            provider_message_id = #{providerMessageId},
+            accepted_time = #{acceptedTime},
+            failure_code = NULL,
+            failure_message = NULL,
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE request_id = #{requestId}
+          AND status = 'PROCESSING'
+          AND is_deleted = false
+    </update>
+
+    <update id="markFailed">
+        UPDATE public.auth_sms_delivery_record
+        SET status = 'FAILED',
+            provider_message_id = NULL,
+            accepted_time = NULL,
+            failure_code = #{failureCode},
+            failure_message = #{failureMessage},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE request_id = #{requestId}
+          AND status = 'PROCESSING'
+          AND is_deleted = false
+    </update>
+
+    <sql id="deliveryFilters">
+        is_deleted = false
+        <if test="mobileHash != null and mobileHash != ''">
+            AND mobile_hash = #{mobileHash}
+        </if>
+        <if test="startTime != null">
+            AND created_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_time &lt;= #{endTime}
+        </if>
+    </sql>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(1)
+        FROM public.auth_sms_delivery_record
+        WHERE <include refid="deliveryFilters"/>
+    </select>
+
+    <select id="selectPage"
+            resultType="com.canteen.smile.modules.sms.mapper.SmsDeliveryRecordMapper$SmsDeliveryRow">
+        SELECT id,
+               request_id,
+               challenge_id,
+               provider_code,
+               purpose,
+               masked_mobile,
+               template_code,
+               content_snapshot,
+               sensitive_content_retained,
+               status,
+               provider_message_id,
+               failure_code,
+               failure_message,
+               accepted_time,
+               created_time
+        FROM public.auth_sms_delivery_record
+        WHERE <include refid="deliveryFilters"/>
+        ORDER BY created_time DESC, id DESC
+        LIMIT #{limit}
+        OFFSET #{offset}
+    </select>
+</mapper>

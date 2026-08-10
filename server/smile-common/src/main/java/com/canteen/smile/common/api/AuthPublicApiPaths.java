@@ -17,6 +17,9 @@ public final class AuthPublicApiPaths {
     /** 密码信封加密一次性挑战创建路径。 */
     public static final String PASSWORD_ENCRYPTION_CHALLENGES = EXTERNAL_V1 + "/password-encryption/challenges";
 
+    /** 短信验证码挑战创建路径。 */
+    public static final String SMS_CHALLENGES = EXTERNAL_V1 + "/sms/challenges";
+
     /** 平台恢复码二次验证路径。 */
     public static final String PLATFORM_RECOVERY_LOGIN = EXTERNAL_V1 + "/login/platform-recovery-code";
 
@@ -33,6 +36,7 @@ public final class AuthPublicApiPaths {
     public static final Set<String> ANONYMOUS_PATHS = Set.of(
             PLATFORM_BOOTSTRAP,
             PASSWORD_ENCRYPTION_CHALLENGES,
+            SMS_CHALLENGES,
             PASSWORD_LOGIN,
             PLATFORM_RECOVERY_LOGIN,
             ACTIVATIONS + "/**",
@@ -48,6 +52,7 @@ public final class AuthPublicApiPaths {
     public static boolean isAnonymous(String path) {
         return PLATFORM_BOOTSTRAP.equals(path)
                 || PASSWORD_ENCRYPTION_CHALLENGES.equals(path)
+                || SMS_CHALLENGES.equals(path)
                 || PASSWORD_LOGIN.equals(path)
                 || PLATFORM_RECOVERY_LOGIN.equals(path)
                 || path.startsWith(ACTIVATIONS + "/")

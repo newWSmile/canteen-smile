@@ -90,6 +90,44 @@ public class IamAuditLogService {
     }
 
     /**
+     * 记录要求填写原因的平台敏感治理操作。
+     *
+     * @param operatorId 平台身份 ID
+     * @param actionCode 动作编码
+     * @param actionNameFallback 中文动作名称
+     * @param targetType 目标类型
+     * @param targetId 目标标识
+     * @param reason 必填操作原因
+     * @param result SUCCESS 或 FAILURE
+     */
+    @Transactional
+    public void recordPlatformActionWithReason(
+            long operatorId,
+            String actionCode,
+            String actionNameFallback,
+            String targetType,
+            String targetId,
+            String reason,
+            String result
+    ) {
+        IamAuditLogEntity entity = new IamAuditLogEntity();
+        entity.setOperatorType("PLATFORM_IDENTITY");
+        entity.setOperatorId(operatorId);
+        entity.setActionCode(actionCode);
+        entity.setActionNameSnapshot(requiredActionName(actionNameFallback));
+        entity.setTargetType(targetType);
+        entity.setTargetId(targetId);
+        entity.setReason(reason);
+        entity.setResult(result);
+        entity.setTraceId(MDC.get("traceId"));
+        entity.setCreatedBy(operatorId);
+        entity.setUpdatedBy(operatorId);
+        if (mapper.insert(entity) != 1) {
+            throw new IllegalStateException("IAM platform sensitive audit log was not inserted");
+        }
+    }
+
+    /**
      * 记录租户账号执行的机构治理操作。
      *
      * @param tenantId 租户 ID

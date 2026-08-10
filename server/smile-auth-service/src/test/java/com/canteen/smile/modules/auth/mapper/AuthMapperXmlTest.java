@@ -28,6 +28,9 @@ class AuthMapperXmlTest {
                 "mapper/auth/ReauthTicketMapper.xml",
                 "mapper/auth/PasswordResetTicketMapper.xml",
                 "mapper/auth/PasswordHistoryMapper.xml",
+                "mapper/sms/SmsChallengeMapper.xml",
+                "mapper/sms/SmsDeliveryRecordMapper.xml",
+                "mapper/sms/SmsRuntimePolicyMapper.xml",
                 "mapper/securityevent/SecurityEventMapper.xml",
                 "mapper/audit/AuthAuditLogMapper.xml"
         );
@@ -48,6 +51,12 @@ class AuthMapperXmlTest {
         assertThat(configuration.hasStatement(PasswordResetTicketMapper.class.getName() + ".insert")).isTrue();
         assertThat(configuration.hasStatement(PasswordHistoryMapper.class.getName()
                 + ".selectRecentHashes")).isTrue();
+        assertThat(configuration.hasStatement("com.canteen.smile.modules.sms.mapper.SmsChallengeMapper"
+                + ".consume")).isTrue();
+        assertThat(configuration.hasStatement("com.canteen.smile.modules.sms.mapper.SmsDeliveryRecordMapper"
+                + ".selectPage")).isTrue();
+        assertThat(configuration.hasStatement("com.canteen.smile.modules.sms.mapper.SmsRuntimePolicyMapper"
+                + ".updateSecurity")).isTrue();
         assertThat(configuration.hasStatement("com.canteen.smile.modules.securityevent.mapper.SecurityEventMapper"
                 + ".insertConsumedEvent")).isTrue();
         assertThat(configuration.hasStatement("com.canteen.smile.modules.securityevent.mapper.SecurityEventMapper"

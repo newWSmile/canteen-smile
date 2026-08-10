@@ -20,6 +20,9 @@ public final class AuthApiPaths {
     /** 密码信封加密一次性挑战创建路径。 */
     public static final String PASSWORD_ENCRYPTION_CHALLENGES = AuthPublicApiPaths.PASSWORD_ENCRYPTION_CHALLENGES;
 
+    /** 短信验证码挑战创建路径。 */
+    public static final String SMS_CHALLENGES = AuthPublicApiPaths.SMS_CHALLENGES;
+
     /** 平台恢复码二次验证路径。 */
     public static final String PLATFORM_RECOVERY_LOGIN = AuthPublicApiPaths.PLATFORM_RECOVERY_LOGIN;
 
@@ -67,6 +70,18 @@ public final class AuthApiPaths {
 
     /** IAM 经 HMAC 查询 Auth 自有认证审计日志的内部路径。 */
     public static final String INTERNAL_AUDIT_LOG_SEARCH = INTERNAL_V1 + "/audit-logs/search";
+
+    /** IAM 经 HMAC 查询短信投递记录的内部路径。 */
+    public static final String INTERNAL_SMS_DELIVERY_SEARCH = INTERNAL_V1 + "/sms-deliveries/search";
+
+    /** IAM 经 HMAC 查询全局短信运行策略的内部路径。 */
+    public static final String INTERNAL_SMS_RUNTIME_POLICY = INTERNAL_V1 + "/sms-policy";
+
+    /** IAM 经 HMAC 修改短信验证码与限流策略的内部路径。 */
+    public static final String INTERNAL_SMS_RATE_LIMIT_POLICY = INTERNAL_SMS_RUNTIME_POLICY + "/rate-limits";
+
+    /** IAM 经 HMAC 修改短信敏感内容留存策略的内部路径。 */
+    public static final String INTERNAL_SMS_SECURITY_POLICY = INTERNAL_SMS_RUNTIME_POLICY + "/security";
 
     /** 禁止实例化 API 路径常量类。 */
     private AuthApiPaths() {

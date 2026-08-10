@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties({
         BootstrapProperties.class,
         PasswordEnvelopeProperties.class,
+        SmsProperties.class,
         IamClientProperties.class,
         InternalHmacClientProperties.class,
         AuthInternalHmacProperties.class

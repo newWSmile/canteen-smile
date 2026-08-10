@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.sms.mapper.SmsChallengeMapper">
+
+    <resultMap id="smsChallengeResultMap" type="com.canteen.smile.modules.sms.entity.SmsChallengeEntity">
+        <id property="id" column="id"/>
+        <result property="challengeId" column="challenge_id"/>
+        <result property="purpose" column="purpose"/>
+        <result property="mobileHash" column="mobile_hash"/>
+        <result property="codeHash" column="code_hash"/>
+        <result property="providerConfigId" column="provider_config_id"/>
+        <result property="templateConfigId" column="template_config_id"/>
+        <result property="attempts" column="attempts"/>
+        <result property="status" column="status"/>
+        <result property="sentTime" column="sent_time"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="consumedTime" column="consumed_time"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <update id="invalidateOpenChallenges">
+        UPDATE public.auth_sms_challenge
+        SET status = 'INVALIDATED',
+            updated_time = CURRENT_TIMESTAMP,
+            updated_by = 0,
+            version = version + 1
+        WHERE mobile_hash = #{mobileHash}
+          AND purpose = #{purpose}
+          AND status IN ('PENDING', 'VERIFIED')
+          AND is_deleted = false
+    </update>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO public.auth_sms_challenge (
+            challenge_id,
+            purpose,
+            mobile_hash,
+            code_hash,
+            provider_config_id,
+            template_config_id,
+            attempts,
+            status,
+            sent_time,
+            expires_at,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{challengeId},
+            #{purpose},
+            #{mobileHash},
+            #{codeHash},
+            #{providerConfigId},
+            #{templateConfigId},
+            0,
+            'PENDING',
+            #{sentTime},
+            #{expiresAt},
+            0,
+            0
+        )
+    </insert>
+
+    <select id="selectByChallengeId" resultMap="smsChallengeResultMap">
+        SELECT
+            id,
+            challenge_id,
+            purpose,
+            mobile_hash,
+            code_hash,
+            provider_config_id,
+            template_config_id,
+            attempts,
+            status,
+            sent_time,
+            expires_at,
+            consumed_time,
+            version
+        FROM public.auth_sms_challenge
+        WHERE challenge_id = #{challengeId}
+          AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <update id="consume">
+        UPDATE public.auth_sms_challenge
+        SET status = 'CONSUMED',
+            consumed_time = CURRENT_TIMESTAMP,
+            updated_time = CURRENT_TIMESTAMP,
+            updated_by = 0,
+            version = version + 1
+        WHERE challenge_id = #{challengeId}
+          AND status = 'PENDING'
+          AND attempts &lt; #{maxAttempts}
+          AND expires_at &gt; CURRENT_TIMESTAMP
+          AND is_deleted = false
+    </update>
+
+    <update id="recordFailure">
+        UPDATE public.auth_sms_challenge
+        SET attempts = attempts + 1,
+            status = CASE
+                WHEN attempts + 1 &gt;= #{maxAttempts} THEN 'INVALIDATED'
+                ELSE 'PENDING'
+            END,
+            updated_time = CURRENT_TIMESTAMP,
+            updated_by = 0,
+            version = version + 1
+        WHERE challenge_id = #{challengeId}
+          AND status = 'PENDING'
+          AND attempts &lt; #{maxAttempts}
+          AND expires_at &gt; CURRENT_TIMESTAMP
+          AND is_deleted = false
+    </update>
+
+    <update id="markExpired">
+        UPDATE public.auth_sms_challenge
+        SET status = 'EXPIRED',
+            updated_time = CURRENT_TIMESTAMP,
+            updated_by = 0,
+            version = version + 1
+        WHERE challenge_id = #{challengeId}
+          AND status IN ('PENDING', 'VERIFIED')
+          AND expires_at &lt;= CURRENT_TIMESTAMP
+          AND is_deleted = false
+    </update>
+
+    <update id="invalidate">
+        UPDATE public.auth_sms_challenge
+        SET status = 'INVALIDATED',
+            updated_time = CURRENT_TIMESTAMP,
+            updated_by = 0,
+            version = version + 1
+        WHERE challenge_id = #{challengeId}
+          AND status IN ('PENDING', 'VERIFIED')
+          AND is_deleted = false
+    </update>
+</mapper>

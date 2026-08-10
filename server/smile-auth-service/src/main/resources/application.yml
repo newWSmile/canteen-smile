@@ -52,6 +52,19 @@ application:
     challenge-ttl-seconds: ${PASSWORD_ENVELOPE_CHALLENGE_TTL_SECONDS:120}
     rsa-key-size: ${PASSWORD_ENVELOPE_RSA_KEY_SIZE:2048}
     rsa-key-rotation-days: ${PASSWORD_ENVELOPE_RSA_KEY_ROTATION_DAYS:30}
+  sms:
+    provider-code: ${SMS_PROVIDER_CODE:LOCAL_DATABASE_LOG}
+    mobile-hash-pepper: ${SMS_MOBILE_HASH_PEPPER:}
+    code-hash-pepper: ${SMS_CODE_HASH_PEPPER:${SMS_MOBILE_HASH_PEPPER:}}
+    challenge-ttl-seconds: ${SMS_CHALLENGE_TTL_SECONDS:300}
+    resend-interval-seconds: ${SMS_RESEND_INTERVAL_SECONDS:60}
+    max-verification-attempts: ${SMS_MAX_VERIFICATION_ATTEMPTS:5}
+    mobile-hourly-limit: ${SMS_MOBILE_HOURLY_LIMIT:5}
+    mobile-daily-limit: ${SMS_MOBILE_DAILY_LIMIT:10}
+    ip-hourly-limit: ${SMS_IP_HOURLY_LIMIT:30}
+    ip-daily-limit: ${SMS_IP_DAILY_LIMIT:100}
+    device-hourly-limit: ${SMS_DEVICE_HOURLY_LIMIT:10}
+    device-daily-limit: ${SMS_DEVICE_DAILY_LIMIT:30}
   clients:
     iam:
       base-url: ${IAM_SERVICE_URI:http://127.0.0.1:8082}

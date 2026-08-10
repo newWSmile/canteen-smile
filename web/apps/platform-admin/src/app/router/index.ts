@@ -35,6 +35,37 @@ export const router = createRouter({
           component: () => import('@/modules/audit/pages/AuditLogsPage.vue'),
           meta: { requiresAuth: true, title: '平台审计' },
         },
+        {
+          path: 'sms',
+          name: 'sms-management',
+          component: () => import('@/modules/sms/layouts/SmsManagementLayout.vue'),
+          redirect: { name: 'sms-deliveries' },
+          meta: { requiresAuth: true, title: '短信管理' },
+          children: [
+            {
+              path: 'deliveries',
+              name: 'sms-deliveries',
+              component: () => import('@/modules/sms/pages/SmsDeliveriesPage.vue'),
+              meta: { requiresAuth: true, title: '短信列表' },
+            },
+            {
+              path: 'settings',
+              name: 'sms-settings',
+              component: () => import('@/modules/sms/pages/SmsSettingsPage.vue'),
+              meta: { requiresAuth: true, title: '短信设置' },
+            },
+            {
+              path: 'security',
+              name: 'sms-security',
+              component: () => import('@/modules/sms/pages/SmsSecurityPage.vue'),
+              meta: { requiresAuth: true, title: '短信安全' },
+            },
+          ],
+        },
+        {
+          path: 'sms-deliveries',
+          redirect: { name: 'sms-deliveries' },
+        },
       ],
     },
     {

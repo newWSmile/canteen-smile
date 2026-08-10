@@ -1,9 +1,11 @@
 package com.canteen.smile.modules.auth.mapper;
 
 import com.canteen.smile.modules.auth.entity.PasswordResetTicketEntity;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /** 一次性密码重置票据数据访问接口。 */
+@Mapper
 public interface PasswordResetTicketMapper {
 
     /** @param subjectId 租户账号 ID @return 废弃的有效票据数量 */

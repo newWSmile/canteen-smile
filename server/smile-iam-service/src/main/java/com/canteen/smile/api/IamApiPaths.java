@@ -44,6 +44,18 @@ public final class IamApiPaths {
     /** 平台身份查看平台治理与认证安全审计日志的资源路径。 */
     public static final String PLATFORM_AUDIT_LOGS = EXTERNAL_V1 + "/platform/audit-logs";
 
+    /** 平台短信发送记录分页路径。 */
+    public static final String PLATFORM_SMS_DELIVERIES = EXTERNAL_V1 + "/platform/sms-deliveries";
+
+    /** 平台短信发送记录敏感条件分页查询路径。 */
+    public static final String PLATFORM_SMS_DELIVERY_SEARCH = PLATFORM_SMS_DELIVERIES + "/search";
+
+    /** 平台短信验证码和多维限流设置路径。 */
+    public static final String PLATFORM_SMS_SETTINGS = EXTERNAL_V1 + "/platform/sms/settings";
+
+    /** 平台短信敏感正文留存安全设置路径。 */
+    public static final String PLATFORM_SMS_SECURITY = EXTERNAL_V1 + "/platform/sms/security";
+
     /** 租户管理端当前身份与租户上下文。 */
     public static final String TENANT_CONTEXT = EXTERNAL_V1 + "/tenant/context";
 

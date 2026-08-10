@@ -2,12 +2,14 @@ package com.canteen.smile.modules.audit.mapper;
 
 import com.canteen.smile.internal.dto.AuthAuditLogSearchRequest;
 import com.canteen.smile.modules.auth.entity.DeviceSessionEntity;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 
 /** Auth 自有认证安全审计数据访问接口。 */
+@Mapper
 public interface AuthAuditLogMapper {
 
     /**

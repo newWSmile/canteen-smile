@@ -1,9 +1,11 @@
 package com.canteen.smile.modules.auth.mapper;
 
 import com.canteen.smile.modules.auth.entity.ReauthTicketEntity;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /** 敏感操作再认证票据数据访问接口。 */
+@Mapper
 public interface ReauthTicketMapper {
 
     /** @param entity 新再认证票据 @return 新增行数 */

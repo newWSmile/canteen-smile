@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Canteen Smile Auth API
-  version: 1.3.0
-  description: Auth 服务当前已经实现的首次引导、用户名密码登录、平台恢复能力和设备会话契约。
+  version: 1.4.0
+  description: Auth 服务当前已经实现的首次引导、用户名密码登录、短信验证码挑战、平台恢复能力和设备会话契约。
 servers:
   - url: /api/auth/v1
 paths:
@@ -26,6 +26,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/PasswordEncryptionChallengeApiResponse'
         '400': {$ref: '#/components/responses/BadRequest'}
+        '503': {$ref: '#/components/responses/RuntimeUnavailable'}
+  /sms/challenges:
+    post:
+      operationId: createSmsChallenge
+      summary: 创建短信验证码挑战
+      description: 创建五分钟有效的六位验证码，通过当前 SmsClient 策略发送；同手机号六十秒内禁止重发，并按手机号、来源 IP 和设备执行小时及每日限流。响应始终不泄露手机号绑定了哪些账号。
+      tags: [SmsChallenge]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SmsChallengeCreateRequest'
+      responses:
+        '201':
+          description: 挑战创建且短信策略已接受发送请求。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsChallengeApiResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '429': {$ref: '#/components/responses/RateLimited'}
         '503': {$ref: '#/components/responses/RuntimeUnavailable'}
   /platform/bootstrap:
     post:
@@ -232,7 +254,12 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorApiResponse'}
     RuntimeUnavailable:
-      description: Redis 认证运行态暂时不可用。
+      description: Redis 认证运行态或短信发送策略暂时不可用。
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorApiResponse'}
+    RateLimited:
+      description: 短信重发间隔未到，或手机号、来源 IP、设备达到小时或每日发送上限。
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorApiResponse'}
@@ -246,6 +273,39 @@ components:
         deviceType: {type: string, minLength: 1, maxLength: 64}
         deviceName: {type: string, minLength: 1, maxLength: 128}
         userAgentSummary: {type: [string, 'null'], maxLength: 256}
+    SmsChallengeCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [purpose, mobile, deviceId]
+      properties:
+        purpose:
+          type: string
+          enum: [LOGIN, ACTIVATION, PASSWORD_RESET, MOBILE_BIND, MOBILE_CHANGE, ADMIN_REAUTH, PLATFORM_SECOND_FACTOR]
+        mobile:
+          type: string
+          minLength: 1
+          maxLength: 32
+          writeOnly: true
+          description: 完整手机号仅在 Auth 当前调用链和短信策略内使用。
+        deviceId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+          description: 客户端持久化稳定设备标识，仅以摘要进入 Redis 限流 Key。
+        captchaTicket:
+          type: [string, 'null']
+          maxLength: 256
+          writeOnly: true
+    SmsChallenge:
+      type: object
+      additionalProperties: false
+      required: [challengeId, maskedMobile, expiresAt, resendAt]
+      properties:
+        challengeId: {type: string, format: uuid}
+        maskedMobile: {type: string}
+        expiresAt: {type: string, format: date-time}
+        resendAt: {type: string, format: date-time}
     PasswordEncryptionChallengeRequest:
       type: object
       additionalProperties: false
@@ -411,6 +471,12 @@ components:
         - type: object
           properties:
             data: {$ref: '#/components/schemas/PasswordEncryptionChallenge'}
+    SmsChallengeApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/SmsChallenge'}
     LoginResultApiResponse:
       allOf:
         - {$ref: '#/components/schemas/SuccessEnvelope'}

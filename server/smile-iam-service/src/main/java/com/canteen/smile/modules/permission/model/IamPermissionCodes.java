@@ -45,6 +45,21 @@ public final class IamPermissionCodes {
     /** 查看平台治理与平台身份认证审计。 */
     public static final String PLATFORM_AUDIT_VIEW = "platform:audit:view";
 
+    /** 查看平台短信发送记录。 */
+    public static final String PLATFORM_SMS_DELIVERY_VIEW = "platform:sms-delivery:view";
+
+    /** 查看平台短信验证码和限流设置。 */
+    public static final String PLATFORM_SMS_SETTINGS_VIEW = "platform:sms-settings:view";
+
+    /** 修改平台短信验证码和限流设置。 */
+    public static final String PLATFORM_SMS_SETTINGS_UPDATE = "platform:sms-settings:update";
+
+    /** 查看平台短信安全设置。 */
+    public static final String PLATFORM_SMS_SECURITY_VIEW = "platform:sms-security:view";
+
+    /** 修改平台短信安全设置。 */
+    public static final String PLATFORM_SMS_SECURITY_UPDATE = "platform:sms-security:update";
+
     /** 查看本租户机构类型。 */
     public static final String IAM_ORG_TYPE_VIEW = "iam:org-type:view";
 

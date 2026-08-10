@@ -93,3 +93,21 @@ mvn -pl smile-iam-service spring-boot:run
 IAM 的可靠事件由处理器 `iamOutboxDeliveryJob` 有界投递。部署时设置 `XXL_JOB_ENABLED=true`、`XXL_JOB_ADMIN_ADDRESSES` 和通过安全配置注入的 `XXL_JOB_ACCESS_TOKEN`，然后在 XXL-JOB 管理端创建同名 Bean 模式任务。任务可按秒级或业务允许的延迟配置；多实例通过 PostgreSQL `FOR UPDATE SKIP LOCKED` 竞争领取，不得为每个实例创建不同处理器。失败事件按配置指数退避，达到最大次数进入 `DEAD`，需配置监控告警并在排除原因后受控重投。
 
 本地或新环境启用投递前，按 `sql/CHANGELOG.md` 顺序执行 `IAM_DDL_0007` 和 `IAM_DML_0002`。Auth 的 `/internal/auth/v1/security-events` 只接受内部 HMAC 请求，不通过 Gateway 暴露；重复事件按事件 ID 和载荷摘要幂等返回成功。
+
+## 短信发送策略
+
+短信供应商统一通过 Auth 的 `SmsClient` 策略接口接入。当前 `local`、`dev` 和 `test` 环境提供 `LOCAL_DATABASE_LOG` 策略：它不连接真实运营商，统一发送服务会先用请求 ID 原子防重，再保存脱敏手机号、业务用途、可读正文快照和投递结果，并输出不含完整手机号、验证码、Token 或一次性链接的安全日志。正文快照保持明文可读，但验证码等一次性秘密统一替换为 `******`。
+
+本地启用前先执行 `AUTH_DDL_0007`、`AUTH_DDL_0008` 和 `AUTH_DDL_0009`，并通过未提交的 `application-local.yml` 或环境变量配置：
+
+```text
+SMS_PROVIDER_CODE=LOCAL_DATABASE_LOG
+SMS_MOBILE_HASH_PEPPER=本地生成的高熵随机值
+SMS_CODE_HASH_PEPPER=本地生成的高熵随机值（未单独设置时可显式回退到手机号 Pepper）
+```
+
+平台端短信记录查询经 Gateway 进入 IAM，由 IAM 完成 `platform:sms-delivery:view` 权限校验后通过 HMAC Client 调用 Auth，禁止 IAM 跨库读取。完整手机号只作为精确查询条件在 Auth 内存中计算 HMAC 摘要，响应始终只返回脱敏号码。平台菜单权限由 `IAM_DML_0004` 发布。后续接入真实厂商时新增对应 `SmsClient` 实现并切换 `SMS_PROVIDER_CODE`，不得修改验证码业务服务或在 Controller 中直接调用厂商 SDK。
+
+短信挑战通过 `POST /api/auth/v1/sms/challenges` 创建：默认五分钟有效、同手机号六十秒内不能重发，手机号、来源 IP 和设备分别执行小时与每日限流；这些阈值由 Auth 自有全局短信策略控制。Redis Cluster 的多维限流 Key 使用固定哈希槽标签执行单次 Lua 原子检查；全部 Key 均设置过期时间且只包含手机号、IP、设备摘要。验证码只保存绑定挑战、用途和手机号摘要的 HMAC，默认错误五次后失效，成功校验时由具体登录、找回或绑定流程原子消费一次。
+
+平台短信管理分为“短信列表、短信设置、短信安全”。执行 `IAM_DML_0005` 后，平台端可维护验证码有效期、错误次数和手机号/IP/设备限流；修改必须填写原因并通过当前平台密码再认证。验证码明文留存默认关闭，显式开启后只影响后续新投递记录；完整手机号和应用日志无论开关状态都必须脱敏。

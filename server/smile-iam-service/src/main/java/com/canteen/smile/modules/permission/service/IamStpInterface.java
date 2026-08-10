@@ -56,7 +56,12 @@ public class IamStpInterface implements StpInterface {
                         IamPermissionCodes.IAM_USER_PASSWORD_RESET,
                         IamPermissionCodes.PLATFORM_ORG_TEMPLATE_MANAGE,
                         IamPermissionCodes.PLATFORM_PERMISSION_MANAGE,
-                        IamPermissionCodes.PLATFORM_AUDIT_VIEW
+                        IamPermissionCodes.PLATFORM_AUDIT_VIEW,
+                        IamPermissionCodes.PLATFORM_SMS_DELIVERY_VIEW,
+                        IamPermissionCodes.PLATFORM_SMS_SETTINGS_VIEW,
+                        IamPermissionCodes.PLATFORM_SMS_SETTINGS_UPDATE,
+                        IamPermissionCodes.PLATFORM_SMS_SECURITY_VIEW,
+                        IamPermissionCodes.PLATFORM_SMS_SECURITY_UPDATE
                 );
         }
         AccountLifecycleMapper.TenantPermissionContextRow context = activeTenantContext(loginId);

@@ -1,9 +1,11 @@
 package com.canteen.smile.modules.auth.mapper;
 
 import com.canteen.smile.modules.auth.entity.ActivationTicketEntity;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /** 账号激活票据数据访问接口。 */
+@Mapper
 public interface ActivationTicketMapper {
 
     /** @param subjectId 租户账号 ID @return 废弃的有效票据数量 */

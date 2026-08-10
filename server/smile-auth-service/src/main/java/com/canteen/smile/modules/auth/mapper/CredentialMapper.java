@@ -1,9 +1,11 @@
 package com.canteen.smile.modules.auth.mapper;
 
 import com.canteen.smile.modules.auth.entity.CredentialEntity;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /** 平台和租户认证凭证数据访问接口。 */
+@Mapper
 public interface CredentialMapper {
 
     /** @return 有效平台身份凭证数量 */

@@ -12,5 +12,8 @@ public enum ReauthAction {
     TENANT_USER_CREATE,
 
     /** 租户管理员替换账号角色集合。 */
-    TENANT_USER_ROLE_ASSIGN
+    TENANT_USER_ROLE_ASSIGN,
+
+    /** 平台身份修改短信验证码限流或敏感内容留存策略。 */
+    PLATFORM_SMS_POLICY_UPDATE
 }

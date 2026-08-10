@@ -1,8 +1,10 @@
 package com.canteen.smile.modules.securityevent.mapper;
 
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /** Auth 安全事件幂等记录、快照、会话和审计的数据访问接口。 */
+@Mapper
 public interface SecurityEventMapper {
 
     /** @return 指定事件已有的消费结果，不存在时为空。 */

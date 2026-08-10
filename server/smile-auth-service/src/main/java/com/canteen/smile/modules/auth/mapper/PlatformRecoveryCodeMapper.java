@@ -1,9 +1,11 @@
 package com.canteen.smile.modules.auth.mapper;
 
 import com.canteen.smile.modules.auth.entity.PlatformRecoveryCodeEntity;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /** 平台一次性恢复码数据访问接口。 */
+@Mapper
 public interface PlatformRecoveryCodeMapper {
 
     /**
