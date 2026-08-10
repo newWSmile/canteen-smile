@@ -24,7 +24,10 @@ public interface SecurityEventMapper {
     /** @return 新增系统安全审计日志数量。 */
     int insertSecurityAudit(@Param("tenantId") long tenantId,
                             @Param("accountId") long accountId,
+                            @Param("usernameSnapshot") String usernameSnapshot,
+                            @Param("displayNameSnapshot") String displayNameSnapshot,
                             @Param("actionCode") String actionCode,
+                            @Param("actionNameSnapshot") String actionNameSnapshot,
                             @Param("traceId") String traceId);
 
     /** 已消费事件最小投影。 */

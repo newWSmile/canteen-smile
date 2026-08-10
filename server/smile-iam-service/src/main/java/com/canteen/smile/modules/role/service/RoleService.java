@@ -88,7 +88,7 @@ public class RoleService {
         } catch (DuplicateKeyException exception) {
             throw new BusinessException("IAM_2701", "本机构角色名称已经存在", 409);
         }
-        audit(actor, "iam:role:create", roleId, null);
+        audit(actor, "iam:role:create", "新增角色", roleId, null);
         return toVO(requireRole(actor, roleId));
     }
 
@@ -107,7 +107,7 @@ public class RoleService {
         } catch (DuplicateKeyException exception) {
             throw new BusinessException("IAM_2701", "本机构角色名称已经存在", 409);
         }
-        audit(actor, "iam:role:update", roleId, null);
+        audit(actor, "iam:role:update", "修改角色", roleId, null);
         return toVO(requireRole(actor, roleId));
     }
 
@@ -123,7 +123,8 @@ public class RoleService {
             throw conflict();
         }
         authorizationChanged(actor, roleId);
-        audit(actor, enabled ? "iam:role:enable" : "iam:role:disable", roleId, request.reason().strip());
+        audit(actor, enabled ? "iam:role:enable" : "iam:role:disable",
+                enabled ? "启用角色" : "停用角色", roleId, request.reason().strip());
         return toVO(requireRole(actor, roleId));
     }
 
@@ -139,7 +140,7 @@ public class RoleService {
                 request.version(), actor.accountId()) != 1) {
             throw conflict();
         }
-        audit(actor, "iam:role:delete", roleId, request.reason().strip());
+        audit(actor, "iam:role:delete", "删除角色", roleId, request.reason().strip());
     }
 
     /** @return 当前操作者授权上限 */
@@ -194,7 +195,7 @@ public class RoleService {
                     permissionIds, actor.accountId());
         }
         authorizationChanged(actor, roleId);
-        audit(actor, "iam:role:grant", roleId, request.reason().strip());
+        audit(actor, "iam:role:grant", "分配功能权限", roleId, request.reason().strip());
         return permissionTree(roleId);
     }
 
@@ -232,7 +233,7 @@ public class RoleService {
             insertPolicy(actor, roleId, policy.moduleCode(), policy.scopeType(), distinctIds(policy.organizationIds()));
         }
         authorizationChanged(actor, roleId);
-        audit(actor, "iam:role:data-scope", roleId, request.reason().strip());
+        audit(actor, "iam:role:data-scope", "配置数据范围", roleId, request.reason().strip());
         return dataPolicies(roleId);
     }
 
@@ -324,10 +325,16 @@ public class RoleService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    /** 写入成功审计。 */
-    private void audit(TenantActorContext actor, String action, long roleId, String reason) {
+    /**
+     * @param actor 当前租户操作者
+     * @param action 稳定动作编码
+     * @param actionName 中文动作名称
+     * @param roleId 目标角色 ID
+     * @param reason 敏感操作原因
+     */
+    private void audit(TenantActorContext actor, String action, String actionName, long roleId, String reason) {
         auditLogService.recordTenantOrganizationAction(
-                actor.tenantId(), actor.organizationId(), actor.accountId(), action,
+                actor.tenantId(), actor.organizationId(), actor.accountId(), action, actionName,
                 "ROLE", Long.toString(roleId), reason, "SUCCESS"
         );
     }

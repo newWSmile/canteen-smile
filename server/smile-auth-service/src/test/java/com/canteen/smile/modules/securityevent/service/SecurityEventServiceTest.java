@@ -29,8 +29,9 @@ class SecurityEventServiceTest {
         SecurityEventRequest request = request(objectMapper);
         when(mapper.insertConsumedEvent(request.eventId(), request.eventType(), digest(objectMapper, request.payload())))
                 .thenReturn(1);
-        when(mapper.insertSecurityAudit(2L, 9L,
-                "auth:session:invalidate:ACCOUNT_ROLES_CHANGED", request.traceId())).thenReturn(1);
+        when(mapper.insertSecurityAudit(2L, 9L, "audit_user", "审计用户",
+                "auth:session:invalidate:ACCOUNT_ROLES_CHANGED", "用户角色变化，强制会话失效",
+                request.traceId())).thenReturn(1);
         SecurityEventService service = new SecurityEventService(mapper, invalidator, objectMapper);
 
         SecurityEventResponse response = service.consume(request.eventId(), request);
@@ -83,7 +84,12 @@ class SecurityEventServiceTest {
 
     /** 创建真实契约字段的账号角色变更事件。 */
     private SecurityEventRequest request(ObjectMapper objectMapper) {
-        JsonNode payload = objectMapper.createObjectNode().put("tenantId", "2").put("accountId", "9");
+        JsonNode payload = objectMapper.createObjectNode()
+                .put("tenantId", "2")
+                .put("accountId", "9")
+                .put("actionNameSnapshot", "用户角色变化，强制会话失效")
+                .put("usernameSnapshot", "audit_user")
+                .put("displayNameSnapshot", "审计用户");
         return new SecurityEventRequest(
                 "event-1", "ACCOUNT_ROLES_CHANGED", "TENANT_ACCOUNT", "9", "2",
                 OffsetDateTime.now(), 1, "trace-1", payload

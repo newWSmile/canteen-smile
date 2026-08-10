@@ -5,12 +5,16 @@
     <insert id="insertSessionCreatedAudit">
         INSERT INTO public.auth_audit_log (
             tenant_id, subject_type, subject_id, operator_type, operator_id,
-            action_code, result, login_method, device_summary, trace_id,
+            subject_username_snapshot, subject_display_name_snapshot,
+            operator_username_snapshot, operator_display_name_snapshot,
+            action_code, action_name_snapshot, result, login_method, device_summary, trace_id,
             created_by, updated_by
         ) VALUES (
             #{entity.tenantId}, #{entity.subjectType}, #{entity.subjectId},
             #{entity.subjectType}, #{entity.subjectId},
-            #{actionCode}, 'SUCCESS', #{entity.loginMethod},
+            #{username}, COALESCE(#{displayName}, #{username}),
+            #{username}, COALESCE(#{displayName}, #{username}),
+            #{actionCode}, #{actionNameSnapshot}, 'SUCCESS', #{entity.loginMethod},
             LEFT(CONCAT(#{entity.deviceType}, ' / ', #{entity.deviceName}), 256),
             #{traceId}, #{entity.subjectId}, #{entity.subjectId}
         )
@@ -56,8 +60,10 @@
     </select>
 
     <select id="selectPage" resultType="com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper$AuthAuditLogRow">
-        SELECT id, tenant_id, subject_type, subject_id, operator_type, operator_id,
-               action_code, result, login_method, failure_reason_code, masked_mobile,
+        SELECT id, tenant_id, subject_type, subject_id,
+               subject_username_snapshot, subject_display_name_snapshot,
+               operator_type, operator_id, operator_username_snapshot, operator_display_name_snapshot,
+               action_code, action_name_snapshot, result, login_method, failure_reason_code, masked_mobile,
                device_summary, trace_id, occurred_time
         FROM public.auth_audit_log
         WHERE <include refid="scopeAndFilters"/>

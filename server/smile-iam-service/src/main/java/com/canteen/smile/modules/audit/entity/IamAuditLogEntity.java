@@ -24,17 +24,32 @@ public class IamAuditLogEntity {
     /** 操作身份 ID。 */
     private Long operatorId;
 
+    /** 事件发生时操作人的用户名快照。 */
+    private String operatorUsernameSnapshot;
+
+    /** 事件发生时操作人的显示名称快照。 */
+    private String operatorDisplayNameSnapshot;
+
     /** 租户操作者执行操作时所属的机构 ID。 */
     private Long operatorOrganizationId;
 
     /** 审计动作编码。 */
     private String actionCode;
 
+    /** 事件发生时的中文动作名称快照。 */
+    private String actionNameSnapshot;
+
     /** 被操作目标类型。 */
     private String targetType;
 
     /** 被操作目标 ID。 */
     private String targetId;
+
+    /** 事件发生时被操作目标的名称快照。 */
+    private String targetNameSnapshot;
+
+    /** 事件发生时被操作目标的业务编码快照。 */
+    private String targetCodeSnapshot;
 
     /** 敏感操作原因。 */
     private String reason;

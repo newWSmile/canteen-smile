@@ -63,6 +63,8 @@ public class TenantPasswordLoginService {
                 accountId,
                 Long.parseLong(resolution.tenantId()),
                 Long.parseLong(resolution.organizationId()),
+                resolution.username(),
+                resolution.displayName(),
                 request.getAppCode(),
                 rememberMe,
                 request.getDevice().getDeviceId(),

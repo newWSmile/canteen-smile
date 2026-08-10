@@ -52,9 +52,14 @@ public class TenantSessionService {
         tokenSession.set("organizationId", context.organizationId());
         tokenSession.set("authzVersion", context.authzVersion());
         try {
-            persistenceService.create(entity(
-                    context, tokenInfo.getTokenValue(), sessionId, loginIp, now, idleExpiresAt, absoluteExpiresAt
-            ));
+            persistenceService.create(
+                    entity(
+                            context, tokenInfo.getTokenValue(), sessionId, loginIp,
+                            now, idleExpiresAt, absoluteExpiresAt
+                    ),
+                    context.username(),
+                    context.displayName()
+            );
         } catch (RuntimeException exception) {
             StpUtil.logoutByTokenValue(tokenInfo.getTokenValue());
             throw exception;

@@ -30,14 +30,23 @@ export interface AuditLog {
   source: AuditSource
   tenantId: string | null
   operatorType: string
+  operatorTypeName: string
   operatorId: string | null
+  operatorUsername: string | null
+  operatorDisplayName: string | null
   actionCode: string
+  actionName: string
   targetType: string | null
+  targetTypeName: string
   targetId: string | null
+  targetName: string | null
+  targetCode: string | null
   result: AuditResult
   reason: string | null
   loginMethod: string | null
+  loginMethodName: string | null
   failureReasonCode: string | null
+  failureReason: string | null
   maskedMobile: string | null
   deviceSummary: string | null
   traceId: string | null

@@ -167,7 +167,10 @@
           payload_json,status,created_by,updated_by)
         VALUES (#{outboxId},#{eventId},'TENANT_ACCOUNT',CAST(#{accountId} AS varchar),#{tenantId},
           'ACCOUNT_ROLES_CHANGED',jsonb_build_object('accountId',CAST(#{accountId} AS varchar),
-          'tenantId',CAST(#{tenantId} AS varchar)),'PENDING',#{operatorId},#{operatorId})
+          'tenantId',CAST(#{tenantId} AS varchar),
+          'actionNameSnapshot','用户角色变化，强制会话失效',
+          'usernameSnapshot',(SELECT account.username FROM public.iam_account account WHERE account.id=#{accountId}),
+          'displayNameSnapshot',(SELECT COALESCE(account.display_name, account.username) FROM public.iam_account account WHERE account.id=#{accountId})),'PENDING',#{operatorId},#{operatorId})
     </insert>
     <update id="updateUserProfile">
         UPDATE public.iam_account
@@ -195,6 +198,9 @@
           payload_json,status,created_by,updated_by)
         VALUES (#{outboxId},#{eventId},'TENANT_ACCOUNT',CAST(#{accountId} AS varchar),#{tenantId},
           #{eventType},jsonb_build_object('accountId',CAST(#{accountId} AS varchar),
-          'tenantId',CAST(#{tenantId} AS varchar)),'PENDING',#{operatorId},#{operatorId})
+          'tenantId',CAST(#{tenantId} AS varchar),
+          'actionNameSnapshot',#{actionNameSnapshot},
+          'usernameSnapshot',(SELECT account.username FROM public.iam_account account WHERE account.id=#{accountId}),
+          'displayNameSnapshot',(SELECT COALESCE(account.display_name, account.username) FROM public.iam_account account WHERE account.id=#{accountId})),'PENDING',#{operatorId},#{operatorId})
     </insert>
 </mapper>

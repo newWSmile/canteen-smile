@@ -5,6 +5,7 @@ package com.canteen.smile.modules.auth.service;
  *
  * @param platformIdentityId 平台身份 ID
  * @param username 当前用户名
+ * @param displayName 当前显示名称
  * @param appCode 应用编码
  * @param rememberMe 是否申请记住我会话
  * @param deviceId 客户端稳定设备标识
@@ -15,6 +16,7 @@ package com.canteen.smile.modules.auth.service;
 public record PlatformSecondFactorContext(
         long platformIdentityId,
         String username,
+        String displayName,
         String appCode,
         boolean rememberMe,
         String deviceId,

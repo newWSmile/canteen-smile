@@ -67,7 +67,7 @@ public class PermissionResourceService {
             throw new BusinessException("IAM_2601", "权限码或 API 模板路径已被永久占用", 409);
         }
         auditLogService.recordPlatformAction(
-                operatorId, "platform:permission:create", "PERMISSION_RESOURCE",
+                operatorId, "platform:permission:create", "新建权限资源草稿", "PERMISSION_RESOURCE",
                 entity.getId().toString(), "SUCCESS"
         );
         return toVO(requireResource(entity.getId()));
@@ -92,7 +92,7 @@ public class PermissionResourceService {
             mapper.initializeMenuForExistingTenants(resourceId, operatorId);
         }
         auditLogService.recordPlatformAction(
-                operatorId, "platform:permission:publish", "PERMISSION_RESOURCE",
+                operatorId, "platform:permission:publish", "发布权限资源", "PERMISSION_RESOURCE",
                 Long.toString(resourceId), "SUCCESS"
         );
         return toVO(requireResource(resourceId));
@@ -110,7 +110,7 @@ public class PermissionResourceService {
             throw conflict();
         }
         auditLogService.recordPlatformAction(
-                operatorId, "platform:permission:deprecate", "PERMISSION_RESOURCE",
+                operatorId, "platform:permission:deprecate", "废弃权限资源", "PERMISSION_RESOURCE",
                 Long.toString(resourceId), "SUCCESS"
         );
         return toVO(requireResource(resourceId));

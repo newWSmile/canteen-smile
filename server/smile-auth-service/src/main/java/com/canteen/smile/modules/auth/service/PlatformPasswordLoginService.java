@@ -79,6 +79,7 @@ public class PlatformPasswordLoginService {
         PlatformSecondFactorContext context = new PlatformSecondFactorContext(
                 platformIdentityId,
                 resolution.username(),
+                resolution.displayName(),
                 request.getAppCode(),
                 request.isRememberMe(),
                 request.getDevice().getDeviceId(),

@@ -57,10 +57,12 @@
     <insert id="insertSecurityAudit">
         INSERT INTO public.auth_audit_log (
             tenant_id, subject_type, subject_id, operator_type, operator_id,
-            action_code, result, trace_id, created_by, updated_by
+            subject_username_snapshot, subject_display_name_snapshot,
+            action_code, action_name_snapshot, result, trace_id, created_by, updated_by
         ) VALUES (
             #{tenantId}, 'TENANT_ACCOUNT', #{accountId}, 'SYSTEM', 0,
-            #{actionCode}, 'SUCCESS', #{traceId}, 0, 0
+            #{usernameSnapshot}, #{displayNameSnapshot},
+            #{actionCode}, #{actionNameSnapshot}, 'SUCCESS', #{traceId}, 0, 0
         )
     </insert>
 </mapper>

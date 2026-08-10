@@ -15,12 +15,18 @@ public interface AuthAuditLogMapper {
      *
      * @param entity 已持久化设备会话
      * @param actionCode 与登录方式对应的动作编码
+     * @param actionNameSnapshot 事件发生时的中文动作名称
+     * @param username 已验证主体的用户名快照
+     * @param displayName 已验证主体的显示名称快照
      * @param traceId 当前链路 ID
      * @return 新增行数
      */
     int insertSessionCreatedAudit(
             @Param("entity") DeviceSessionEntity entity,
             @Param("actionCode") String actionCode,
+            @Param("actionNameSnapshot") String actionNameSnapshot,
+            @Param("username") String username,
+            @Param("displayName") String displayName,
             @Param("traceId") String traceId
     );
 
@@ -41,9 +47,14 @@ public interface AuthAuditLogMapper {
      * @param tenantId 租户 ID
      * @param subjectType 主体类型
      * @param subjectId 主体 ID
+     * @param subjectUsernameSnapshot 主体用户名快照
+     * @param subjectDisplayNameSnapshot 主体显示名称快照
      * @param operatorType 操作者类型
      * @param operatorId 操作者 ID
+     * @param operatorUsernameSnapshot 操作者用户名快照
+     * @param operatorDisplayNameSnapshot 操作者显示名称快照
      * @param actionCode 动作编码
+     * @param actionNameSnapshot 中文动作名称快照
      * @param result 结果
      * @param loginMethod 登录方式
      * @param failureReasonCode 失败原因码
@@ -57,9 +68,14 @@ public interface AuthAuditLogMapper {
             Long tenantId,
             String subjectType,
             Long subjectId,
+            String subjectUsernameSnapshot,
+            String subjectDisplayNameSnapshot,
             String operatorType,
             long operatorId,
+            String operatorUsernameSnapshot,
+            String operatorDisplayNameSnapshot,
             String actionCode,
+            String actionNameSnapshot,
             String result,
             String loginMethod,
             String failureReasonCode,

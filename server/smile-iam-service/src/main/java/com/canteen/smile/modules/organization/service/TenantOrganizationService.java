@@ -129,7 +129,7 @@ public class TenantOrganizationService {
         } catch (DuplicateKeyException exception) {
             throw conflict("机构业务编码已被永久占用，或同一父机构下已存在同名机构");
         }
-        audit(actor, "iam:org:create", organizationId, null);
+        audit(actor, "iam:org:create", "新增机构", organizationId, null);
         return toVO(requireOrganization(actor.tenantId(), organizationId));
     }
 
@@ -165,7 +165,7 @@ public class TenantOrganizationService {
                     actor.tenantId(), organizationId, current.name(), newName, actor.accountId()
             );
         }
-        audit(actor, "iam:org:update", organizationId, null);
+        audit(actor, "iam:org:update", "修改机构", organizationId, null);
         return toVO(requireOrganization(actor.tenantId(), organizationId));
     }
 
@@ -201,7 +201,7 @@ public class TenantOrganizationService {
         } catch (DuplicateKeyException exception) {
             throw conflict("新父机构下已存在同名机构，或机构路径发生冲突");
         }
-        audit(actor, "iam:org:move", organizationId, request.reason().strip());
+        audit(actor, "iam:org:move", "迁移机构", organizationId, request.reason().strip());
         return toVO(requireOrganization(actor.tenantId(), organizationId));
     }
 
@@ -222,7 +222,7 @@ public class TenantOrganizationService {
         ) != 1) {
             throw conflict("机构状态已变化，请刷新后重试");
         }
-        audit(actor, "iam:org:status", organizationId, request.reason().strip());
+        audit(actor, "iam:org:status", "变更机构状态", organizationId, request.reason().strip());
         return toVO(requireOrganization(actor.tenantId(), organizationId));
     }
 
@@ -248,7 +248,7 @@ public class TenantOrganizationService {
         ) != 1) {
             throw conflict("机构状态已变化，请刷新后重试");
         }
-        audit(actor, "iam:org:delete", organizationId, request.reason().strip());
+        audit(actor, "iam:org:delete", "删除空白机构", organizationId, request.reason().strip());
     }
 
     /** 校验机构类型有效。 */
@@ -282,10 +282,16 @@ public class TenantOrganizationService {
         return row;
     }
 
-    /** 写入成功审计。 */
-    private void audit(TenantActorContext actor, String action, long targetId, String reason) {
+    /**
+     * @param actor 当前租户操作者
+     * @param action 稳定动作编码
+     * @param actionName 中文动作名称
+     * @param targetId 目标机构 ID
+     * @param reason 敏感操作原因
+     */
+    private void audit(TenantActorContext actor, String action, String actionName, long targetId, String reason) {
         auditLogService.recordTenantOrganizationAction(
-                actor.tenantId(), actor.organizationId(), actor.accountId(), action, "ORGANIZATION",
+                actor.tenantId(), actor.organizationId(), actor.accountId(), action, actionName, "ORGANIZATION",
                 Long.toString(targetId), reason, "SUCCESS"
         );
     }

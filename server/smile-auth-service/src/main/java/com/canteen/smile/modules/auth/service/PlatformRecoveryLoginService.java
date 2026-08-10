@@ -52,6 +52,7 @@ public class PlatformRecoveryLoginService {
         PlatformSecondFactorContext currentContext = new PlatformSecondFactorContext(
                 context.platformIdentityId(),
                 resolution.username(),
+                resolution.displayName(),
                 context.appCode(),
                 context.rememberMe(),
                 context.deviceId(),

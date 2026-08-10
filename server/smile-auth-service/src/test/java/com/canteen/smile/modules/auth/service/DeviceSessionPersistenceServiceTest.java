@@ -20,13 +20,17 @@ class DeviceSessionPersistenceServiceTest {
         AuthAuditLogMapper auditMapper = mock(AuthAuditLogMapper.class);
         DeviceSessionEntity entity = session("PASSWORD");
         when(sessionMapper.insertDeviceSession(entity)).thenReturn(1);
-        when(auditMapper.insertSessionCreatedAudit(entity, "auth:login:password", null)).thenReturn(1);
+        when(auditMapper.insertSessionCreatedAudit(
+                entity, "auth:login:password", "用户名密码登录",
+                "audit_user", "审计用户", null)).thenReturn(1);
         DeviceSessionPersistenceService service = new DeviceSessionPersistenceService(sessionMapper, auditMapper);
 
-        service.create(entity);
+        service.create(entity, "audit_user", "审计用户");
 
         verify(sessionMapper).insertDeviceSession(entity);
-        verify(auditMapper).insertSessionCreatedAudit(entity, "auth:login:password", null);
+        verify(auditMapper).insertSessionCreatedAudit(
+                entity, "auth:login:password", "用户名密码登录",
+                "audit_user", "审计用户", null);
     }
 
     /** 验证审计写入失败会让事务方法失败，防止静默遗漏。 */
@@ -36,10 +40,12 @@ class DeviceSessionPersistenceServiceTest {
         AuthAuditLogMapper auditMapper = mock(AuthAuditLogMapper.class);
         DeviceSessionEntity entity = session("RECOVERY_CODE");
         when(sessionMapper.insertDeviceSession(entity)).thenReturn(1);
-        when(auditMapper.insertSessionCreatedAudit(entity, "auth:login:recovery-code", null)).thenReturn(0);
+        when(auditMapper.insertSessionCreatedAudit(
+                entity, "auth:login:recovery-code", "恢复码登录",
+                "audit_user", "审计用户", null)).thenReturn(0);
         DeviceSessionPersistenceService service = new DeviceSessionPersistenceService(sessionMapper, auditMapper);
 
-        assertThatThrownBy(() -> service.create(entity))
+        assertThatThrownBy(() -> service.create(entity, "audit_user", "审计用户"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Auth login audit was not inserted");
     }

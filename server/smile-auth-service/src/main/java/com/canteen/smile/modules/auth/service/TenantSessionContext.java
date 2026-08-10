@@ -6,6 +6,8 @@ package com.canteen.smile.modules.auth.service;
  * @param accountId 账号 ID
  * @param tenantId 租户 ID
  * @param organizationId 机构 ID
+ * @param username 当前用户名
+ * @param displayName 当前显示名称
  * @param appCode 应用编码
  * @param rememberMe 是否使用记住我
  * @param deviceId 设备稳定标识
@@ -21,6 +23,8 @@ public record TenantSessionContext(
         long accountId,
         long tenantId,
         long organizationId,
+        String username,
+        String displayName,
         String appCode,
         boolean rememberMe,
         String deviceId,

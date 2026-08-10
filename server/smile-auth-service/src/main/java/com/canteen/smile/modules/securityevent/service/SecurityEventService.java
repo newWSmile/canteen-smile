@@ -59,8 +59,10 @@ public class SecurityEventService {
         mapper.invalidatePermissionSnapshots(context.tenantId(), context.accountId());
         mapper.invalidateDeviceSessions(context.tenantId(), context.accountId());
         sessionInvalidator.invalidateAll(context.accountId());
-        if (mapper.insertSecurityAudit(context.tenantId(), context.accountId(),
-                "auth:session:invalidate:" + request.eventType(), request.traceId()) != 1) {
+        if (mapper.insertSecurityAudit(
+                context.tenantId(), context.accountId(), context.usernameSnapshot(), context.displayNameSnapshot(),
+                "auth:session:invalidate:" + request.eventType(), context.actionNameSnapshot(),
+                request.traceId()) != 1) {
             throw new IllegalStateException("Security event audit was not inserted");
         }
         return new SecurityEventResponse(request.eventId(), "SUCCESS", false);
@@ -80,7 +82,13 @@ public class SecurityEventService {
                 || !request.tenantId().equals(textField(request.payload(), "tenantId"))) {
             throw invalid("安全事件身份字段不一致");
         }
-        return new EventContext(tenantId, accountId);
+        return new EventContext(
+                tenantId,
+                accountId,
+                optionalTextField(request.payload(), "usernameSnapshot", 128),
+                optionalTextField(request.payload(), "displayNameSnapshot", 128),
+                requiredTextField(request.payload(), "actionNameSnapshot", 200)
+        );
     }
 
     /** 验证重复事件的类型和载荷摘要，禁止复用 eventId 表达其它命令。 */
@@ -108,6 +116,26 @@ public class SecurityEventService {
         return value.textValue();
     }
 
+    /** 读取 IAM 必需的中文动作名称快照并限制数据库字段长度。 */
+    private String requiredTextField(JsonNode payload, String name, int maxLength) {
+        JsonNode value = payload.get(name);
+        if (value == null || !value.isTextual()
+                || value.textValue().isBlank() || value.textValue().length() > maxLength) {
+            throw invalid("安全事件动作名称快照格式无效");
+        }
+        return value.textValue();
+    }
+
+    /** 读取 IAM 可选身份快照并限制数据库字段长度。 */
+    private String optionalTextField(JsonNode payload, String name, int maxLength) {
+        JsonNode value = payload.get(name);
+        if (value == null || value.isNull()) return null;
+        if (!value.isTextual() || value.textValue().isBlank() || value.textValue().length() > maxLength) {
+            throw invalid("安全事件身份快照格式无效");
+        }
+        return value.textValue();
+    }
+
     /** 解析正整数业务 ID。 */
     private long positiveLong(String value) {
         try {
@@ -125,6 +153,12 @@ public class SecurityEventService {
     }
 
     /** 已校验的租户账号上下文。 */
-    private record EventContext(long tenantId, long accountId) {
+    private record EventContext(
+            long tenantId,
+            long accountId,
+            String usernameSnapshot,
+            String displayNameSnapshot,
+            String actionNameSnapshot
+    ) {
     }
 }

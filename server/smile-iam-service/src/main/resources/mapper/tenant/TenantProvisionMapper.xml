@@ -179,11 +179,20 @@
     </insert>
     <insert id="insertCreateAudit">
         INSERT INTO public.iam_audit_log
-            (tenant_id, operator_type, operator_id, action_code, target_type, target_id, result,
-             masked_diff_json, created_by, updated_by)
-        VALUES (#{tenantId}, 'PLATFORM_IDENTITY', #{operatorId}, 'platform:tenant:create', 'TENANT',
-                CAST(#{tenantId} AS varchar), 'SUCCESS',
-                jsonb_build_object('tenantCode', #{tenantCode}), #{operatorId}, #{operatorId})
+            (tenant_id, operator_type, operator_id, operator_username_snapshot,
+             operator_display_name_snapshot, action_code, action_name_snapshot, target_type, target_id,
+             target_name_snapshot, target_code_snapshot, result, masked_diff_json,
+             created_by, updated_by)
+        SELECT #{tenantId}, 'PLATFORM_IDENTITY', #{operatorId}, identity.username,
+               COALESCE(identity.display_name, identity.username), 'platform:tenant:create',
+               COALESCE((SELECT permission.name FROM public.iam_permission_resource permission
+                         WHERE permission.permission_code = 'platform:tenant:create'
+                           AND permission.is_deleted = false), '创建租户'), 'TENANT',
+               CAST(#{tenantId} AS varchar), tenant.name, tenant.tenant_code, 'SUCCESS',
+               jsonb_build_object('tenantCode', #{tenantCode}), #{operatorId}, #{operatorId}
+        FROM public.iam_platform_identity identity
+        JOIN public.iam_tenant tenant ON tenant.id = #{tenantId}
+        WHERE identity.id = #{operatorId}
     </insert>
     <insert id="insertProvisionOutbox">
         INSERT INTO public.iam_outbox_event

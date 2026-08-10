@@ -61,6 +61,7 @@ public class TenantOwnerPasswordResetLinkService {
                     owner.tenantId(),
                     actorId,
                     "TENANT_OWNER_PASSWORD_RESET",
+                    "签发租户所有者密码恢复链接",
                     owner.accountId(),
                     request.reason(),
                     "SUCCESS"
@@ -76,6 +77,7 @@ public class TenantOwnerPasswordResetLinkService {
                     owner.tenantId(),
                     actorId,
                     "TENANT_OWNER_PASSWORD_RESET",
+                    "签发租户所有者密码恢复链接",
                     owner.accountId(),
                     request.reason(),
                     "FAILURE"

@@ -69,7 +69,7 @@ public class TenantUserCommandService {
             throw new BusinessException("IAM_2803", "用户名或工号已被占用，请刷新后重试", 409);
         }
         auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
-                "iam:user:create",
+                "iam:user:create", "新增用户",
                 "TENANT_ACCOUNT", Long.toString(accountId), request.reason().strip(), "SUCCESS");
         return new UserProvisionContext(accountId, actor.tenantId(), organizationId, outboxId, actor.accountId());
     }
@@ -101,7 +101,7 @@ public class TenantUserCommandService {
         mapper.insertRolesChangedOutbox(mapper.nextOutboxId(), UUID.randomUUID().toString(), actor.tenantId(),
                 accountId, actor.accountId());
         auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
-                "iam:user:role-assign", "TENANT_ACCOUNT", Long.toString(accountId),
+                "iam:user:role-assign", "分配用户角色", "TENANT_ACCOUNT", Long.toString(accountId),
                 request.reason().strip(), "SUCCESS");
     }
 
@@ -138,10 +138,11 @@ public class TenantUserCommandService {
             throw new BusinessException("IAM_2802", "工号已经在本机构永久占用", 409);
         }
         if (validityChanged) {
-            insertAccountChangedEvent(actor, accountId, "ACCOUNT_VALIDITY_CHANGED");
+            insertAccountChangedEvent(
+                    actor, accountId, "ACCOUNT_VALIDITY_CHANGED", "用户有效期变化，强制会话失效");
         }
         auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
-                "iam:user:update",
+                "iam:user:update", "修改用户",
                 "TENANT_ACCOUNT", Long.toString(accountId), request.reason().strip(), "SUCCESS");
     }
 
@@ -159,9 +160,11 @@ public class TenantUserCommandService {
                 targetStatus, request.version(), actor.accountId()) != 1) {
             throw concurrentChange();
         }
-        insertAccountChangedEvent(actor, accountId, enable ? "ACCOUNT_ENABLED" : "ACCOUNT_DISABLED");
+        insertAccountChangedEvent(actor, accountId, enable ? "ACCOUNT_ENABLED" : "ACCOUNT_DISABLED",
+                enable ? "用户被启用，刷新全部会话" : "用户被停用，强制会话失效");
         auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
-                enable ? "iam:user:enable" : "iam:user:disable", "TENANT_ACCOUNT", Long.toString(accountId),
+                enable ? "iam:user:enable" : "iam:user:disable", enable ? "启用用户" : "停用用户",
+                "TENANT_ACCOUNT", Long.toString(accountId),
                 request.reason().strip(), "SUCCESS");
     }
 
@@ -175,9 +178,9 @@ public class TenantUserCommandService {
         }
         mapper.disableUsernameLogin(accountId, actor.accountId());
         mapper.deactivateAccountRoles(actor.tenantId(), actor.organizationId(), accountId, actor.accountId());
-        insertAccountChangedEvent(actor, accountId, "ACCOUNT_CANCELLED");
+        insertAccountChangedEvent(actor, accountId, "ACCOUNT_CANCELLED", "用户被注销，强制会话失效");
         auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
-                "iam:user:cancel",
+                "iam:user:cancel", "注销用户",
                 "TENANT_ACCOUNT", Long.toString(accountId), request.reason().strip(), "SUCCESS");
     }
 
@@ -197,10 +200,22 @@ public class TenantUserCommandService {
         return account;
     }
 
-    /** 写入等待 Auth 幂等消费的账号安全变化事件。 */
-    private void insertAccountChangedEvent(TenantActorContext actor, long accountId, String eventType) {
+    /**
+     * 写入等待 Auth 幂等消费的账号安全变化事件。
+     *
+     * @param actor 当前租户操作者
+     * @param accountId 受影响账号 ID
+     * @param eventType 稳定事件类型
+     * @param actionNameSnapshot 中文动作名称快照
+     */
+    private void insertAccountChangedEvent(
+            TenantActorContext actor,
+            long accountId,
+            String eventType,
+            String actionNameSnapshot
+    ) {
         mapper.insertAccountChangedOutbox(mapper.nextOutboxId(), UUID.randomUUID().toString(), actor.tenantId(),
-                accountId, eventType, actor.accountId());
+                accountId, eventType, actionNameSnapshot, actor.accountId());
     }
 
     /** @return 统一乐观锁冲突异常 */

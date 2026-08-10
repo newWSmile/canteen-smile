@@ -99,7 +99,7 @@ public class TenantOrganizationTypeService {
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(TYPE_CONFLICT_CODE, "机构类型编码已经被永久占用", 409);
         }
-        audit(actor, "iam:org-type:create", "ORG_TYPE", entity.getId().toString(), null);
+        audit(actor, "iam:org-type:create", "新增机构类型", "ORG_TYPE", entity.getId().toString(), null);
         return toVO(requireType(actor.tenantId(), entity.getId()));
     }
 
@@ -113,7 +113,7 @@ public class TenantOrganizationTypeService {
                 request.version(), actor.accountId()) != 1) {
             throw conflict();
         }
-        audit(actor, "iam:org-type:update", "ORG_TYPE", Long.toString(typeId), null);
+        audit(actor, "iam:org-type:update", "修改机构类型", "ORG_TYPE", Long.toString(typeId), null);
         return toVO(requireType(actor.tenantId(), typeId));
     }
 
@@ -133,7 +133,7 @@ public class TenantOrganizationTypeService {
                 actor.tenantId(), typeId, request.status(), request.version(), actor.accountId()) != 1) {
             throw conflict();
         }
-        audit(actor, "iam:org-type:status", "ORG_TYPE", Long.toString(typeId), null);
+        audit(actor, "iam:org-type:status", "变更机构类型状态", "ORG_TYPE", Long.toString(typeId), null);
         return toVO(requireType(actor.tenantId(), typeId));
     }
 
@@ -180,7 +180,7 @@ public class TenantOrganizationTypeService {
         if (!relations.isEmpty()) {
             mapper.upsertOrganizationTypeRelations(actor.tenantId(), relations, actor.accountId());
         }
-        audit(actor, "iam:org-type:relations", "TENANT", Long.toString(actor.tenantId()), null);
+        audit(actor, "iam:org-type:relations", "调整机构类型关系", "TENANT", Long.toString(actor.tenantId()), null);
         return mapper.selectOrganizationTypeRelations(actor.tenantId()).stream()
                 .map(this::toRelationVO)
                 .toList();
@@ -226,10 +226,18 @@ public class TenantOrganizationTypeService {
         return row;
     }
 
-    /** 写入成功审计。 */
-    private void audit(TenantActorContext actor, String action, String targetType, String targetId, String reason) {
+    /**
+     * @param actor 当前租户操作者
+     * @param action 稳定动作编码
+     * @param actionName 中文动作名称
+     * @param targetType 目标类型
+     * @param targetId 目标 ID
+     * @param reason 敏感操作原因
+     */
+    private void audit(TenantActorContext actor, String action, String actionName,
+                       String targetType, String targetId, String reason) {
         auditLogService.recordTenantOrganizationAction(
-                actor.tenantId(), actor.organizationId(), actor.accountId(), action,
+                actor.tenantId(), actor.organizationId(), actor.accountId(), action, actionName,
                 targetType, targetId, reason, "SUCCESS"
         );
     }

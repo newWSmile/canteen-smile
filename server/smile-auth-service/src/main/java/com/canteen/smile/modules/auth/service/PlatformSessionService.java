@@ -131,16 +131,20 @@ public class PlatformSessionService {
         tokenSession.set(AUTHZ_VERSION_ATTRIBUTE, context.authzVersion());
 
         try {
-            persistenceService.create(toEntity(
-                    context,
-                    tokenInfo.getTokenValue(),
-                    sessionId,
-                    loginMethod,
-                    loginIp,
-                    now,
-                    idleExpiresAt,
-                    absoluteExpiresAt
-            ));
+            persistenceService.create(
+                    toEntity(
+                            context,
+                            tokenInfo.getTokenValue(),
+                            sessionId,
+                            loginMethod,
+                            loginIp,
+                            now,
+                            idleExpiresAt,
+                            absoluteExpiresAt
+                    ),
+                    context.username(),
+                    context.displayName()
+            );
         } catch (RuntimeException exception) {
             StpUtil.logoutByTokenValue(tokenInfo.getTokenValue());
             throw exception;

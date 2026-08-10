@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -98,6 +99,40 @@ class AuditLogQueryServiceTest {
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
         );
+    }
+
+    /** 验证认证审计响应会补充中文语义，并保留原始编码与身份快照。 */
+    @Test
+    void shouldMapAuthAuditToChinesePresentationFields() {
+        TenantActorContext actor = actor(true);
+        AuditLogPageQuery query = new AuditLogPageQuery();
+        query.setSource("AUTH");
+        OffsetDateTime occurredTime = OffsetDateTime.now();
+        AuthAuditLogInternalResponse row = new AuthAuditLogInternalResponse(
+                "101", "2", "TENANT_ACCOUNT", "9", "audit_user", "审计用户",
+                "TENANT_ACCOUNT", "9", "audit_user", "审计用户",
+                "auth:login:password", "用户名密码登录", "SUCCESS", "PASSWORD", null,
+                "138****0000", "Web / Chrome", "trace-1", occurredTime
+        );
+        when(tenantActorService.current()).thenReturn(actor);
+        when(authClient.page(org.mockito.ArgumentMatchers.any())).thenReturn(
+                new PageResult<>(List.of(row), 1, 20, 1)
+        );
+
+        PageResult<com.canteen.smile.modules.audit.vo.AuditLogVO> result = service.pageTenant(query);
+
+        assertThat(result.items()).singleElement().satisfies(item -> {
+            assertThat(item.actionName()).isEqualTo("用户名密码登录");
+            assertThat(item.operatorTypeName()).isEqualTo("租户账号");
+            assertThat(item.operatorUsername()).isEqualTo("audit_user");
+            assertThat(item.operatorDisplayName()).isEqualTo("审计用户");
+            assertThat(item.targetTypeName()).isEqualTo("租户账号");
+            assertThat(item.targetName()).isEqualTo("审计用户");
+            assertThat(item.targetCode()).isEqualTo("audit_user");
+            assertThat(item.loginMethodName()).isEqualTo("用户名密码");
+            assertThat(item.actionCode()).isEqualTo("auth:login:password");
+            assertThat(item.traceId()).isEqualTo("trace-1");
+        });
     }
 
     /** @param rootOwner 是否根机构所有者 @return 测试租户身份 */

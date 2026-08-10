@@ -96,6 +96,7 @@ public interface TenantUserMapper {
     int insertAccountChangedOutbox(@Param("outboxId") long outboxId, @Param("eventId") String eventId,
                                    @Param("tenantId") long tenantId, @Param("accountId") long accountId,
                                    @Param("eventType") String eventType,
+                                   @Param("actionNameSnapshot") String actionNameSnapshot,
                                    @Param("operatorId") long operatorId);
 
     /** 用户分页投影。 */

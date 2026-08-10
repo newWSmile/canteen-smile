@@ -10,6 +10,7 @@ import com.canteen.smile.modules.account.service.TenantActorService;
 import com.canteen.smile.modules.audit.dto.AuditLogPageQuery;
 import com.canteen.smile.modules.audit.entity.IamAuditLogEntity;
 import com.canteen.smile.modules.audit.mapper.IamAuditLogMapper;
+import com.canteen.smile.modules.audit.model.AuditDisplayCatalog;
 import com.canteen.smile.modules.audit.vo.AuditLogVO;
 import com.canteen.smile.modules.platform.service.PlatformActorService;
 import lombok.RequiredArgsConstructor;
@@ -111,9 +112,13 @@ public class AuditLogQueryService {
     private AuditLogVO toIamVO(IamAuditLogEntity row) {
         return new AuditLogVO(
                 Long.toString(row.getId()), "IAM", nullableId(row.getTenantId()),
-                row.getOperatorType(), nullableId(row.getOperatorId()), row.getActionCode(),
-                row.getTargetType(), row.getTargetId(), row.getResult(), row.getReason(),
-                null, null, null, null, row.getTraceId(), row.getOccurredTime()
+                row.getOperatorType(), AuditDisplayCatalog.identityTypeName(row.getOperatorType()),
+                nullableId(row.getOperatorId()), row.getOperatorUsernameSnapshot(),
+                row.getOperatorDisplayNameSnapshot(), row.getActionCode(),
+                AuditDisplayCatalog.actionName(row.getActionNameSnapshot()), row.getTargetType(),
+                AuditDisplayCatalog.targetTypeName(row.getTargetType()), row.getTargetId(),
+                row.getTargetNameSnapshot(), row.getTargetCodeSnapshot(), row.getResult(), row.getReason(),
+                null, null, null, null, null, null, row.getTraceId(), row.getOccurredTime()
         );
     }
 
@@ -121,10 +126,15 @@ public class AuditLogQueryService {
     private PageResult<AuditLogVO> mapAuthPage(PageResult<AuthAuditLogInternalResponse> page) {
         /** 转换后的统一 Auth 审计视图。 */
         List<AuditLogVO> items = page.items().stream().map(row -> new AuditLogVO(
-                row.id(), "AUTH", row.tenantId(), row.operatorType(), row.operatorId(),
-                row.actionCode(), row.subjectType(), row.subjectId(), row.result(), null,
-                row.loginMethod(), row.failureReasonCode(), row.maskedMobile(), row.deviceSummary(),
-                row.traceId(), row.occurredTime()
+                row.id(), "AUTH", row.tenantId(), row.operatorType(),
+                AuditDisplayCatalog.identityTypeName(row.operatorType()), row.operatorId(),
+                row.operatorUsernameSnapshot(), row.operatorDisplayNameSnapshot(), row.actionCode(),
+                AuditDisplayCatalog.actionName(row.actionNameSnapshot()), row.subjectType(),
+                AuditDisplayCatalog.targetTypeName(row.subjectType()), row.subjectId(),
+                row.subjectDisplayNameSnapshot(), row.subjectUsernameSnapshot(), row.result(), null,
+                row.loginMethod(), AuditDisplayCatalog.loginMethodName(row.loginMethod()),
+                row.failureReasonCode(), AuditDisplayCatalog.failureReasonName(row.failureReasonCode()),
+                row.maskedMobile(), row.deviceSummary(), row.traceId(), row.occurredTime()
         )).toList();
         return new PageResult<>(items, page.pageNo(), page.pageSize(), page.total());
     }

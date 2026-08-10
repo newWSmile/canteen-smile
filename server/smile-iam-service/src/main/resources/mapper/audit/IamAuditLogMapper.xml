@@ -7,10 +7,15 @@
         <result property="tenantId" column="tenant_id"/>
         <result property="operatorType" column="operator_type"/>
         <result property="operatorId" column="operator_id"/>
+        <result property="operatorUsernameSnapshot" column="operator_username_snapshot"/>
+        <result property="operatorDisplayNameSnapshot" column="operator_display_name_snapshot"/>
         <result property="operatorOrganizationId" column="operator_organization_id"/>
         <result property="actionCode" column="action_code"/>
+        <result property="actionNameSnapshot" column="action_name_snapshot"/>
         <result property="targetType" column="target_type"/>
         <result property="targetId" column="target_id"/>
+        <result property="targetNameSnapshot" column="target_name_snapshot"/>
+        <result property="targetCodeSnapshot" column="target_code_snapshot"/>
         <result property="reason" column="reason"/>
         <result property="result" column="result"/>
         <result property="traceId" column="trace_id"/>
@@ -54,10 +59,15 @@
             tenant_id,
             operator_type,
             operator_id,
+            operator_username_snapshot,
+            operator_display_name_snapshot,
             operator_organization_id,
             action_code,
+            action_name_snapshot,
             target_type,
             target_id,
+            target_name_snapshot,
+            target_code_snapshot,
             reason,
             result,
             trace_id,
@@ -67,10 +77,56 @@
             #{tenantId},
             #{operatorType},
             #{operatorId},
+            CASE #{operatorType}
+                WHEN 'PLATFORM_IDENTITY' THEN (
+                    SELECT identity.username FROM public.iam_platform_identity identity
+                    WHERE identity.id = #{operatorId}
+                )
+                WHEN 'TENANT_ACCOUNT' THEN (
+                    SELECT account.username FROM public.iam_account account
+                    WHERE account.id = #{operatorId}
+                )
+                ELSE NULL
+            END,
+            CASE #{operatorType}
+                WHEN 'PLATFORM_IDENTITY' THEN (
+                    SELECT COALESCE(identity.display_name, identity.username)
+                    FROM public.iam_platform_identity identity WHERE identity.id = #{operatorId}
+                )
+                WHEN 'TENANT_ACCOUNT' THEN (
+                    SELECT COALESCE(account.display_name, account.username)
+                    FROM public.iam_account account WHERE account.id = #{operatorId}
+                )
+                ELSE NULL
+            END,
             #{operatorOrganizationId},
             #{actionCode},
+            COALESCE(
+                (SELECT permission.name
+                 FROM public.iam_permission_resource permission
+                 WHERE permission.permission_code = #{actionCode} AND permission.is_deleted = false),
+                #{actionNameSnapshot}
+            ),
             #{targetType},
             #{targetId},
+            CASE #{targetType}
+                WHEN 'TENANT_ACCOUNT' THEN (SELECT COALESCE(account.display_name, account.username) FROM public.iam_account account WHERE account.id = CAST(#{targetId} AS bigint))
+                WHEN 'TENANT' THEN (SELECT tenant.name FROM public.iam_tenant tenant WHERE tenant.id = CAST(#{targetId} AS bigint))
+                WHEN 'ORGANIZATION' THEN (SELECT organization.name FROM public.iam_organization organization WHERE organization.id = CAST(#{targetId} AS bigint))
+                WHEN 'ORG_TYPE' THEN (SELECT org_type.name FROM public.iam_org_type org_type WHERE org_type.id = CAST(#{targetId} AS bigint))
+                WHEN 'ROLE' THEN (SELECT role.name FROM public.iam_role role WHERE role.id = CAST(#{targetId} AS bigint))
+                WHEN 'PERMISSION_RESOURCE' THEN (SELECT permission.name FROM public.iam_permission_resource permission WHERE permission.id = CAST(#{targetId} AS bigint))
+                ELSE NULL
+            END,
+            CASE #{targetType}
+                WHEN 'TENANT_ACCOUNT' THEN (SELECT account.username FROM public.iam_account account WHERE account.id = CAST(#{targetId} AS bigint))
+                WHEN 'TENANT' THEN (SELECT tenant.tenant_code FROM public.iam_tenant tenant WHERE tenant.id = CAST(#{targetId} AS bigint))
+                WHEN 'ORGANIZATION' THEN (SELECT organization.business_code FROM public.iam_organization organization WHERE organization.id = CAST(#{targetId} AS bigint))
+                WHEN 'ORG_TYPE' THEN (SELECT org_type.type_code FROM public.iam_org_type org_type WHERE org_type.id = CAST(#{targetId} AS bigint))
+                WHEN 'ROLE' THEN (SELECT role.role_code FROM public.iam_role role WHERE role.id = CAST(#{targetId} AS bigint))
+                WHEN 'PERMISSION_RESOURCE' THEN (SELECT permission.permission_code FROM public.iam_permission_resource permission WHERE permission.id = CAST(#{targetId} AS bigint))
+                ELSE NULL
+            END,
             #{reason},
             #{result},
             #{traceId},
@@ -86,8 +142,11 @@
     </select>
 
     <select id="selectPage" resultMap="auditLogResultMap">
-        SELECT id, tenant_id, operator_type, operator_id, operator_organization_id,
-               action_code, target_type, target_id, reason, result, trace_id,
+        SELECT id, tenant_id, operator_type, operator_id,
+               operator_username_snapshot, operator_display_name_snapshot, operator_organization_id,
+               action_code, action_name_snapshot, target_type, target_id,
+               target_name_snapshot, target_code_snapshot,
+               reason, result, trace_id,
                occurred_time, created_time
         FROM public.iam_audit_log
         WHERE <include refid="auditScopeAndFilters"/>
