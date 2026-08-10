@@ -7,6 +7,7 @@ import com.canteen.smile.internal.client.dto.TenantAccountProvisionInternalRespo
 import com.canteen.smile.internal.client.dto.TenantActivationTicketInternalResponse;
 import com.canteen.smile.internal.client.dto.TenantPasswordResetTicketInternalRequest;
 import com.canteen.smile.internal.client.dto.TenantPasswordResetTicketInternalResponse;
+import com.canteen.smile.internal.client.dto.ConsumeReauthTicketInternalRequest;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,10 @@ public class AuthTenantAccountClient {
     /** 密码恢复票据签发内部路径。 */
     private static final String PASSWORD_RESET_TICKETS_PATH =
             "/internal/auth/v1/tenant-accounts/{accountId}/password-reset-tickets";
+
+    /** 再认证票据原子消费内部路径。 */
+    private static final String REAUTH_TICKET_CONSUME_PATH =
+            "/internal/auth/v1/reauth-tickets/actions/consume";
 
     /** 已配置 HMAC 与超时的 Auth RestClient。 */
     private final RestClient authRestClient;
@@ -126,6 +131,38 @@ public class AuthTenantAccountClient {
             log.warn("Auth password reset ticket request failed: {}", exception.getClass().getSimpleName());
             throw unavailable();
         }
+    }
+
+    /**
+     * 原子消费当前租户管理员绑定单一动作的再认证票据。
+     *
+     * @param accountId 当前租户管理员账号 ID
+     * @param reauthTicket 五分钟一次性票据
+     * @param allowedAction 票据绑定动作
+     */
+    public void consumeTenantReauthTicket(long accountId, String reauthTicket, String allowedAction) {
+        try {
+            ApiResponse<Void> response = authRestClient.post()
+                    .uri(REAUTH_TICKET_CONSUME_PATH)
+                    .body(new ConsumeReauthTicketInternalRequest(
+                            reauthTicket, "TENANT_ACCOUNT", Long.toString(accountId), allowedAction
+                    ))
+                    .retrieve().body(new ParameterizedTypeReference<>() { });
+            if (response == null || !"0".equals(response.code())) throw unavailable();
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() == 401) {
+                throw new BusinessException("IAM_2806", "管理员再认证已失效，请重新验证当前密码", 401);
+            }
+            throw authUnavailable();
+        } catch (RestClientException exception) {
+            log.warn("Auth tenant reauth consume failed: {}", exception.getClass().getSimpleName());
+            throw authUnavailable();
+        }
+    }
+
+    /** @return 不带错误编排语义的 Auth 暂时不可用异常 */
+    private BusinessException authUnavailable() {
+        return new BusinessException(AUTH_UNAVAILABLE_CODE, "认证服务暂时不可用，请稍后重试", 502);
     }
 
     /** @return 统一 Auth 暂时不可用异常 */

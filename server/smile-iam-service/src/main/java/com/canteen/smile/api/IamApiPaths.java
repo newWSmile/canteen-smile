@@ -63,6 +63,9 @@ public final class IamApiPaths {
     /** 租户当前授权上限路径。 */
     public static final String TENANT_GRANT_BOUNDARY = EXTERNAL_V1 + "/tenant/grant-boundary";
 
+    /** 租户本机构用户资源路径。 */
+    public static final String TENANT_USERS = EXTERNAL_V1 + "/tenant/users";
+
     /** 禁止实例化 API 路径常量类。 */
     private IamApiPaths() {
     }

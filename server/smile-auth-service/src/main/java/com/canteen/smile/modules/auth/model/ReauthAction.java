@@ -6,5 +6,11 @@ package com.canteen.smile.modules.auth.model;
 public enum ReauthAction {
 
     /** 平台身份为租户根机构所有者发起密码恢复。 */
-    TENANT_OWNER_PASSWORD_RESET
+    TENANT_OWNER_PASSWORD_RESET,
+
+    /** 租户管理员创建账号并授予初始角色。 */
+    TENANT_USER_CREATE,
+
+    /** 租户管理员替换账号角色集合。 */
+    TENANT_USER_ROLE_ASSIGN
 }

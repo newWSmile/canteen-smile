@@ -3,6 +3,7 @@ export type PasswordEnvelopePurpose =
   | 'TENANT_ACCOUNT_ACTIVATION'
   | 'TENANT_PASSWORD_LOGIN'
   | 'TENANT_PASSWORD_RESET'
+  | 'TENANT_REAUTH_PASSWORD'
 
 /** Auth 签发的短期密码加密挑战。 */
 export interface PasswordEncryptionChallenge {
@@ -93,4 +94,19 @@ export interface LoginResult {
   nextStep: 'AUTHENTICATED'
   session: TenantSession
   secondFactorTicket?: null
+}
+
+/** 租户管理员敏感操作再认证允许的动作。 */
+export type ReauthAction = 'TENANT_USER_CREATE' | 'TENANT_USER_ROLE_ASSIGN'
+
+/** 当前密码再认证请求。 */
+export interface PasswordReauthRequest {
+  passwordEnvelope: PasswordEnvelopeRequest
+  allowedAction: ReauthAction
+}
+
+/** 五分钟有效且只能消费一次的敏感操作票据。 */
+export interface ReauthTicket {
+  reauthTicket: string
+  expiresAt: string
 }

@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 平台身份敏感操作密码再认证接口。 */
+/** 当前登录身份敏感操作密码再认证接口。 */
 @RestController
 @RequiredArgsConstructor
 public class PasswordReauthController {
@@ -33,10 +33,8 @@ public class PasswordReauthController {
     @PostMapping(AuthApiPaths.PASSWORD_REAUTH)
     public ApiResponse<ReauthTicketVO> reauthenticate(@Valid @RequestBody PasswordReauthRequest request) {
         /** 仅在当前调用栈短暂存在的当前密码明文。 */
-        String password = passwordEnvelopeService.decrypt(
-                request.passwordEnvelope(),
-                PasswordEnvelopePurpose.PLATFORM_REAUTH_PASSWORD
-        );
+        PasswordEnvelopePurpose purpose = reauthService.currentPasswordPurpose();
+        String password = passwordEnvelopeService.decrypt(request.passwordEnvelope(), purpose);
         return ApiResponse.success(reauthService.issue(password, request.allowedAction()));
     }
 }

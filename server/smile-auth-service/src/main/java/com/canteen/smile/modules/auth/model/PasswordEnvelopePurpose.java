@@ -18,6 +18,9 @@ public enum PasswordEnvelopePurpose {
     /** 平台身份为敏感管理操作再次验证当前密码。 */
     PLATFORM_REAUTH_PASSWORD,
 
+    /** 租户账号为敏感授权操作再次验证当前密码。 */
+    TENANT_REAUTH_PASSWORD,
+
     /** 租户账号通过一次性恢复链接设置新密码。 */
     TENANT_PASSWORD_RESET
 }

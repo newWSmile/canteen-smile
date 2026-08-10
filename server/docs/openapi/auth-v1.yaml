@@ -253,7 +253,7 @@ components:
       properties:
         purpose:
           type: string
-          enum: [PLATFORM_BOOTSTRAP, PLATFORM_PASSWORD_LOGIN, PLATFORM_REAUTH_PASSWORD, TENANT_ACCOUNT_ACTIVATION, TENANT_PASSWORD_LOGIN, TENANT_PASSWORD_RESET]
+          enum: [PLATFORM_BOOTSTRAP, PLATFORM_PASSWORD_LOGIN, PLATFORM_REAUTH_PASSWORD, TENANT_ACCOUNT_ACTIVATION, TENANT_PASSWORD_LOGIN, TENANT_PASSWORD_RESET, TENANT_REAUTH_PASSWORD]
     PasswordEncryptionChallenge:
       type: object
       additionalProperties: false
@@ -261,7 +261,7 @@ components:
       properties:
         purpose:
           type: string
-          enum: [PLATFORM_BOOTSTRAP, PLATFORM_PASSWORD_LOGIN, PLATFORM_REAUTH_PASSWORD, TENANT_ACCOUNT_ACTIVATION, TENANT_PASSWORD_LOGIN, TENANT_PASSWORD_RESET]
+          enum: [PLATFORM_BOOTSTRAP, PLATFORM_PASSWORD_LOGIN, PLATFORM_REAUTH_PASSWORD, TENANT_ACCOUNT_ACTIVATION, TENANT_PASSWORD_LOGIN, TENANT_PASSWORD_RESET, TENANT_REAUTH_PASSWORD]
         keyId: {type: string, format: uuid}
         publicKey:
           type: string
@@ -325,7 +325,9 @@ components:
       required: [passwordEnvelope, allowedAction]
       properties:
         passwordEnvelope: {$ref: '#/components/schemas/PasswordEnvelopeRequest'}
-        allowedAction: {type: string, const: TENANT_OWNER_PASSWORD_RESET}
+        allowedAction:
+          type: string
+          enum: [TENANT_OWNER_PASSWORD_RESET, TENANT_USER_CREATE, TENANT_USER_ROLE_ASSIGN]
     CompletePasswordResetRequest:
       type: object
       additionalProperties: false

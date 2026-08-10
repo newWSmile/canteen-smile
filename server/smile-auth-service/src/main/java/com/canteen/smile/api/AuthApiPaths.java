@@ -55,6 +55,10 @@ public final class AuthApiPaths {
     public static final String INTERNAL_TENANT_ACCOUNT_PASSWORD_RESET_TICKETS =
             "/internal/auth/v1/tenant-accounts/{accountId}/password-reset-tickets";
 
+    /** IAM 原子消费敏感操作再认证票据的内部接口。 */
+    public static final String INTERNAL_REAUTH_TICKET_CONSUME =
+            "/internal/auth/v1/reauth-tickets/actions/consume";
+
     /** 禁止实例化 API 路径常量类。 */
     private AuthApiPaths() {
     }

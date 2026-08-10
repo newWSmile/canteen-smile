@@ -78,7 +78,14 @@ public class IamStpInterface implements StpInterface {
                         IamPermissionCodes.IAM_ROLE_STATUS,
                         IamPermissionCodes.IAM_ROLE_DELETE,
                         IamPermissionCodes.IAM_ROLE_GRANT,
-                        IamPermissionCodes.IAM_ROLE_DATA_SCOPE
+                        IamPermissionCodes.IAM_ROLE_DATA_SCOPE,
+                        IamPermissionCodes.IAM_USER_VIEW,
+                        IamPermissionCodes.IAM_USER_CREATE,
+                        IamPermissionCodes.IAM_USER_UPDATE,
+                        IamPermissionCodes.IAM_USER_STATUS,
+                        IamPermissionCodes.IAM_USER_CANCEL,
+                        IamPermissionCodes.IAM_USER_ROLE_ASSIGN,
+                        IamPermissionCodes.IAM_USER_PASSWORD_RESET
                 ));
         roleMapper.selectGrantablePermissions(context.tenantId(), context.accountId(), true)
                 .forEach(resource -> permissions.add(resource.permissionCode()));

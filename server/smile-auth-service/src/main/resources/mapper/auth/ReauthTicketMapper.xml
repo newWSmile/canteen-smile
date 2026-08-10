@@ -43,7 +43,7 @@
             updated_time = CURRENT_TIMESTAMP,
             version = version + 1
         WHERE id = #{ticketId}
-          AND subject_type = 'PLATFORM_IDENTITY'
+          AND subject_type = #{subjectType}
           AND subject_id = #{subjectId}
           AND allowed_action = #{allowedAction}
           AND status = 'ACTIVE'

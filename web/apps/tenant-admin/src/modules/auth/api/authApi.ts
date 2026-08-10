@@ -11,6 +11,8 @@ import type {
   TenantSession,
   PasswordResetContext,
   PasswordResetCompleteResult,
+  PasswordReauthRequest,
+  ReauthTicket,
 } from '../types'
 
 /** 创建绑定业务用途的一次性密码加密挑战。 */
@@ -79,6 +81,12 @@ export async function getCurrentSession(): Promise<TenantSession> {
 /** 退出当前设备会话。 */
 export async function logoutCurrentSession(): Promise<void> {
   await http.post<ApiResponse<null>>('/auth/v1/logout')
+}
+
+/** 使用当前密码取得绑定单一敏感操作的五分钟一次性票据。 */
+export async function reauthenticatePassword(request: PasswordReauthRequest): Promise<ReauthTicket> {
+  const response = await http.post<ApiResponse<ReauthTicket>>('/auth/v1/reauth/password', request)
+  return requireData(response.data)
 }
 
 /** @param response 统一响应 @return 非空数据 */

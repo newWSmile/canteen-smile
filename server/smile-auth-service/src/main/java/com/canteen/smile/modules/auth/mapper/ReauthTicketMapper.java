@@ -17,13 +17,15 @@ public interface ReauthTicketMapper {
      *
      * @param ticketId 票据主键
      * @param version 乐观锁版本
-     * @param subjectId 发起平台身份 ID
+     * @param subjectType 再认证主体类型
+     * @param subjectId 再认证主体 ID
      * @param allowedAction 允许执行的敏感操作
      * @return 更新行数
      */
     int consume(
             @Param("ticketId") long ticketId,
             @Param("version") long version,
+            @Param("subjectType") String subjectType,
             @Param("subjectId") long subjectId,
             @Param("allowedAction") String allowedAction
     );

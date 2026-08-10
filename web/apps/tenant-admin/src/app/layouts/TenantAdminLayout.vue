@@ -73,7 +73,11 @@ const logoutFlight = useSingleFlight(async () => {
           :class="{ active: route.name === 'roles' }"
           :to="{ name: 'roles' }"
         >角色与授权</RouterLink>
-        <span class="coming">用户管理 · 下一阶段切片</span>
+        <RouterLink
+          v-if="tenantContext.hasPermission('iam:user:view')"
+          :class="{ active: route.name === 'users' }"
+          :to="{ name: 'users' }"
+        >用户管理</RouterLink>
       </nav>
       <div class="boundary">
         <strong>租户隔离边界</strong>

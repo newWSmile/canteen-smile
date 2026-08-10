@@ -50,6 +50,12 @@ export const router = createRouter({
           component: () => import('@/modules/role/pages/RolesPage.vue'),
           meta: { title: '角色与授权' },
         },
+        {
+          path: 'users',
+          name: 'users',
+          component: () => import('@/modules/user/pages/UsersPage.vue'),
+          meta: { title: '用户管理' },
+        },
       ],
     },
   ],

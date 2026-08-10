@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.account.mapper.TenantUserMapper">
+    <select id="nextAccountId" resultType="long">SELECT nextval('public.iam_account_seq')</select>
+    <select id="nextOutboxId" resultType="long">SELECT nextval('public.iam_outbox_event_seq')</select>
+
+    <sql id="userWhere">
+        account.tenant_id = #{tenantId} AND account.organization_id = #{organizationId}
+        AND account.is_deleted = false
+        <if test="status != null and status != ''">AND account.status = #{status}</if>
+        <if test="keyword != null and keyword != ''">
+            AND (account.normalized_username LIKE CONCAT(#{keyword}, '%')
+                 OR account.display_name ILIKE CONCAT(#{keyword}, '%'))
+        </if>
+    </sql>
+
+    <select id="countUsers" resultType="long">
+        SELECT COUNT(*) FROM public.iam_account account WHERE <include refid="userWhere"/>
+    </select>
+
+    <sql id="userColumns">
+        account.id, account.username, account.display_name, account.employee_number,
+        account.organization_id, organization.name AS organization_name, account.status,
+        account.validity_mode, account.effective_at, account.expires_at,
+        EXISTS (SELECT 1 FROM public.iam_org_owner owner
+                WHERE owner.tenant_id = account.tenant_id AND owner.organization_id = account.organization_id
+                  AND owner.account_id = account.id AND owner.is_deleted = false) AS owner,
+        account.authz_version, account.created_time, account.version
+    </sql>
+
+    <select id="selectUsers" resultType="com.canteen.smile.modules.account.mapper.TenantUserMapper$UserRow">
+        SELECT <include refid="userColumns"/>
+        FROM public.iam_account account
+        JOIN public.iam_organization organization ON organization.tenant_id = account.tenant_id
+         AND organization.id = account.organization_id AND organization.is_deleted = false
+        WHERE <include refid="userWhere"/>
+        ORDER BY account.id DESC LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="selectUser" resultType="com.canteen.smile.modules.account.mapper.TenantUserMapper$UserRow">
+        SELECT <include refid="userColumns"/>
+        FROM public.iam_account account
+        JOIN public.iam_organization organization ON organization.tenant_id = account.tenant_id
+         AND organization.id = account.organization_id AND organization.is_deleted = false
+        WHERE account.tenant_id = #{tenantId} AND account.organization_id = #{organizationId}
+          AND account.id = #{accountId} AND account.is_deleted = false LIMIT 1
+    </select>
+
+    <select id="selectUserRoles" resultType="com.canteen.smile.modules.account.mapper.TenantUserMapper$UserRoleRow">
+        SELECT binding.account_id, role.id AS role_id, role.name AS role_name
+        FROM public.iam_account_role binding
+        JOIN public.iam_role role ON role.tenant_id = binding.tenant_id
+         AND role.organization_id = binding.organization_id AND role.id = binding.role_id
+         AND role.is_deleted = false
+        WHERE binding.tenant_id = #{tenantId} AND binding.organization_id = #{organizationId}
+          AND binding.account_id IN
+          <foreach collection="accountIds" item="accountId" open="(" separator="," close=")">#{accountId}</foreach>
+          AND binding.is_deleted = false ORDER BY binding.account_id, role.id
+    </select>
+
+    <select id="countReservedUsername" resultType="long">
+        SELECT COUNT(*) FROM public.iam_username_registry
+        WHERE normalized_username = #{normalizedUsername} AND is_deleted = false
+    </select>
+    <select id="countReservedEmployeeNumber" resultType="long">
+        SELECT COUNT(*) FROM public.iam_employee_number_registry
+        WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId}
+          AND normalized_employee_number = #{normalizedEmployeeNumber} AND is_deleted = false
+    </select>
+
+    <select id="countAssignableRoles" resultType="long">
+        SELECT COUNT(DISTINCT role.id) FROM public.iam_role role
+        WHERE role.tenant_id = #{tenantId} AND role.organization_id = #{organizationId}
+          AND role.id IN <foreach collection="roleIds" item="roleId" open="(" separator="," close=")">#{roleId}</foreach>
+          AND role.role_type = 'CUSTOM' AND role.status = 'ACTIVE' AND role.is_deleted = false
+          AND (#{rootOwner} = true OR (
+            NOT EXISTS (
+              SELECT 1 FROM public.iam_role_permission target_permission
+              WHERE target_permission.tenant_id = role.tenant_id
+                AND target_permission.organization_id = role.organization_id
+                AND target_permission.role_id = role.id AND target_permission.is_deleted = false
+                AND NOT EXISTS (
+                  SELECT 1 FROM public.iam_account_role actor_binding
+                  JOIN public.iam_role actor_role ON actor_role.id = actor_binding.role_id
+                   AND actor_role.tenant_id = actor_binding.tenant_id
+                   AND actor_role.organization_id = actor_binding.organization_id
+                   AND actor_role.status = 'ACTIVE' AND actor_role.is_deleted = false
+                  JOIN public.iam_role_permission actor_permission
+                    ON actor_permission.tenant_id = actor_role.tenant_id
+                   AND actor_permission.organization_id = actor_role.organization_id
+                   AND actor_permission.role_id = actor_role.id AND actor_permission.is_deleted = false
+                  WHERE actor_binding.tenant_id = #{tenantId}
+                    AND actor_binding.organization_id = #{organizationId}
+                    AND actor_binding.account_id = #{actorAccountId}
+                    AND actor_binding.is_deleted = false
+                    AND actor_permission.permission_id = target_permission.permission_id
+                )
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM public.iam_role_data_policy policy
+              WHERE policy.tenant_id = role.tenant_id AND policy.organization_id = role.organization_id
+                AND policy.role_id = role.id AND policy.is_deleted = false
+                AND policy.scope_type NOT IN ('SELF', 'CURRENT_ORG')
+            )
+          ))
+    </select>
+
+    <insert id="insertAccount">
+        INSERT INTO public.iam_account (id, tenant_id, organization_id, username, normalized_username,
+          display_name, employee_number, status, validity_mode, effective_at, expires_at, created_by, updated_by)
+        VALUES (#{accountId}, #{tenantId}, #{organizationId}, #{username}, #{normalizedUsername},
+          #{displayName}, #{employeeNumber}, 'PENDING_ACTIVATION', #{validityMode}, #{effectiveAt}, #{expiresAt},
+          #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertUsernameRegistry">
+        INSERT INTO public.iam_username_registry (normalized_username, subject_type, subject_id,
+          original_username, login_enabled, created_by, updated_by)
+        VALUES (#{normalizedUsername}, 'TENANT_ACCOUNT', #{accountId}, #{username}, true, #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertEmployeeNumberRegistry">
+        INSERT INTO public.iam_employee_number_registry (tenant_id, organization_id, normalized_employee_number,
+          account_id, original_employee_number, created_by, updated_by)
+        VALUES (#{tenantId}, #{organizationId}, #{normalizedEmployeeNumber}, #{accountId}, #{employeeNumber},
+          #{operatorId}, #{operatorId})
+    </insert>
+    <insert id="insertAccountRoles">
+        INSERT INTO public.iam_account_role (id, tenant_id, organization_id, account_id, role_id,
+          assigned_by, created_by, updated_by)
+        VALUES <foreach collection="roleIds" item="roleId" separator=",">
+          (nextval('public.iam_account_role_seq'), #{tenantId}, #{organizationId}, #{accountId}, #{roleId},
+           #{operatorId}, #{operatorId}, #{operatorId})
+        </foreach>
+    </insert>
+    <insert id="insertProvisionOutbox">
+        INSERT INTO public.iam_outbox_event (id, event_id, aggregate_type, aggregate_id, tenant_id,
+          event_type, payload_json, status, created_by, updated_by)
+        VALUES (#{outboxId}, #{eventId}, 'TENANT_ACCOUNT', CAST(#{accountId} AS varchar), #{tenantId},
+          'ACCOUNT_PROVISION_REQUESTED', jsonb_build_object('accountId', CAST(#{accountId} AS varchar),
+          'tenantId', CAST(#{tenantId} AS varchar), 'organizationId', CAST(#{organizationId} AS varchar)),
+          'PENDING', #{operatorId}, #{operatorId})
+    </insert>
+    <update id="markProvisionPublished">
+        UPDATE public.iam_outbox_event SET status='PUBLISHED', published_time=CURRENT_TIMESTAMP,
+          updated_by=#{operatorId}, updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE id=#{outboxId} AND status IN ('PENDING','RETRY') AND is_deleted=false
+    </update>
+    <update id="markProvisionRetry">
+        UPDATE public.iam_outbox_event SET status='RETRY', retry_count=retry_count+1,
+          next_retry_time=CURRENT_TIMESTAMP + INTERVAL '1 minute', last_error_code=#{errorCode},
+          updated_by=#{operatorId}, updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE id=#{outboxId} AND status IN ('PENDING','RETRY') AND is_deleted=false
+    </update>
+    <update id="bumpAuthzVersion">
+        UPDATE public.iam_account SET authz_version=authz_version+1, updated_by=#{operatorId},
+          updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE tenant_id=#{tenantId} AND organization_id=#{organizationId} AND id=#{accountId}
+          AND version=#{version} AND status NOT IN ('CANCELLED') AND is_deleted=false
+    </update>
+    <update id="deactivateAccountRoles">
+        UPDATE public.iam_account_role SET is_deleted=true, updated_by=#{operatorId},
+          updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE tenant_id=#{tenantId} AND organization_id=#{organizationId} AND account_id=#{accountId}
+          AND is_deleted=false
+    </update>
+    <insert id="insertRolesChangedOutbox">
+        INSERT INTO public.iam_outbox_event (id,event_id,aggregate_type,aggregate_id,tenant_id,event_type,
+          payload_json,status,created_by,updated_by)
+        VALUES (#{outboxId},#{eventId},'TENANT_ACCOUNT',CAST(#{accountId} AS varchar),#{tenantId},
+          'ACCOUNT_ROLES_CHANGED',jsonb_build_object('accountId',CAST(#{accountId} AS varchar),
+          'tenantId',CAST(#{tenantId} AS varchar)),'PENDING',#{operatorId},#{operatorId})
+    </insert>
+    <update id="updateUserProfile">
+        UPDATE public.iam_account
+        SET display_name=#{displayName}, employee_number=#{employeeNumber}, validity_mode=#{validityMode},
+          effective_at=#{effectiveAt}, expires_at=#{expiresAt}, profile_version=profile_version+1,
+          authz_version=authz_version + CASE WHEN #{authzChanged} THEN 1 ELSE 0 END,
+          updated_by=#{operatorId}, updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE tenant_id=#{tenantId} AND organization_id=#{organizationId} AND id=#{accountId}
+          AND version=#{version} AND status &lt;&gt; 'CANCELLED' AND is_deleted=false
+    </update>
+    <update id="changeUserStatus">
+        UPDATE public.iam_account
+        SET status=#{targetStatus}, authz_version=authz_version+1, updated_by=#{operatorId},
+          updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE tenant_id=#{tenantId} AND organization_id=#{organizationId} AND id=#{accountId}
+          AND status=#{currentStatus} AND version=#{version} AND is_deleted=false
+    </update>
+    <update id="disableUsernameLogin">
+        UPDATE public.iam_username_registry
+        SET login_enabled=false, updated_by=#{operatorId}, updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE subject_type='TENANT_ACCOUNT' AND subject_id=#{accountId} AND login_enabled=true AND is_deleted=false
+    </update>
+    <insert id="insertAccountChangedOutbox">
+        INSERT INTO public.iam_outbox_event (id,event_id,aggregate_type,aggregate_id,tenant_id,event_type,
+          payload_json,status,created_by,updated_by)
+        VALUES (#{outboxId},#{eventId},'TENANT_ACCOUNT',CAST(#{accountId} AS varchar),#{tenantId},
+          #{eventType},jsonb_build_object('accountId',CAST(#{accountId} AS varchar),
+          'tenantId',CAST(#{tenantId} AS varchar)),'PENDING',#{operatorId},#{operatorId})
+    </insert>
+</mapper>

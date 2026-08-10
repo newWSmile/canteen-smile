@@ -15,6 +15,24 @@ public final class IamPermissionCodes {
     /** 重置授权范围内租户账号密码。 */
     public static final String IAM_USER_PASSWORD_RESET = "iam:user:password-reset";
 
+    /** 查看本机构用户。 */
+    public static final String IAM_USER_VIEW = "iam:user:view";
+
+    /** 创建本机构用户。 */
+    public static final String IAM_USER_CREATE = "iam:user:create";
+
+    /** 修改本机构用户资料。 */
+    public static final String IAM_USER_UPDATE = "iam:user:update";
+
+    /** 停用或恢复本机构用户。 */
+    public static final String IAM_USER_STATUS = "iam:user:status";
+
+    /** 不可恢复注销本机构用户。 */
+    public static final String IAM_USER_CANCEL = "iam:user:cancel";
+
+    /** 替换本机构用户角色集合。 */
+    public static final String IAM_USER_ROLE_ASSIGN = "iam:user:role-assign";
+
     /** 平台端维护机构类型模板。 */
     public static final String PLATFORM_ORG_TEMPLATE_MANAGE = "platform:org-template:manage";
 

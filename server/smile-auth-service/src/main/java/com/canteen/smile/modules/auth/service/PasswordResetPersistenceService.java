@@ -47,6 +47,7 @@ public class PasswordResetPersistenceService {
         int reauthRows = reauthTicketMapper.consume(
                 reauthTicket.getId(),
                 reauthTicket.getVersion(),
+                reauthTicket.getSubjectType(),
                 reauthTicket.getSubjectId(),
                 reauthTicket.getAllowedAction()
         );

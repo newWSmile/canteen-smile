@@ -561,6 +561,85 @@ paths:
           description: 废弃成功，原权限码仍永久保留。
           content: {application/json: {schema: {$ref: '#/components/schemas/PermissionResourceApiResponse'}}}
         '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/users:
+    get:
+      operationId: pageTenantUsers
+      summary: 分页查询当前机构用户
+      description: 数据范围强制限制为当前登录账号所属机构，用户名和显示名只执行前缀查询。
+      tags: [TenantUser]
+      parameters:
+        - {$ref: '#/components/parameters/PageNo'}
+        - {$ref: '#/components/parameters/PageSize'}
+        - {name: keyword, in: query, schema: {type: string, maxLength: 128}}
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/TenantUserStatus'}}
+      responses:
+        '200': {description: 查询成功。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantUserPageApiResponse'}}}}
+    post:
+      operationId: createTenantUser
+      summary: 创建本机构待激活用户
+      description: 要求 iam:user:create 权限、原因和绑定 TENANT_USER_CREATE 的一次性再认证票据。
+      tags: [TenantUser]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateTenantUserRequest'}}}}
+      responses:
+        '201': {description: 用户已创建并等待本人激活。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantUserApiResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/users/{accountId}:
+    get:
+      operationId: getTenantUser
+      summary: 查询当前机构用户详情
+      tags: [TenantUser]
+      parameters: [{$ref: '#/components/parameters/AccountId'}]
+      responses:
+        '200': {description: 查询成功。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantUserApiResponse'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+    patch:
+      operationId: updateTenantUser
+      summary: 修改显示名、工号和有效期
+      description: 所属机构和用户名不在此接口变更；历史工号永久保留。
+      tags: [TenantUser]
+      parameters: [{$ref: '#/components/parameters/AccountId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UpdateTenantUserRequest'}}}}
+      responses:
+        '200': {description: 修改成功。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantUserApiResponse'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/users/{accountId}/roles:
+    put:
+      operationId: replaceTenantUserRoles
+      summary: 整版替换用户角色
+      description: 要求 iam:user:role-assign 权限、原因和绑定 TENANT_USER_ROLE_ASSIGN 的一次性再认证票据；写入 Outbox 等待 Auth 使全部会话失效。
+      tags: [TenantUser]
+      parameters: [{$ref: '#/components/parameters/AccountId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReplaceTenantUserRolesRequest'}}}}
+      responses:
+        '200': {description: 角色已替换并提升授权版本。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantUserApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/users/{accountId}/actions/{action}:
+    post:
+      operationId: executeTenantUserLifecycleAction
+      summary: 停用、恢复或不可恢复注销用户
+      description: action 仅允许 disable、enable、cancel；机构所有者不能通过普通用户管理修改。
+      tags: [TenantUser]
+      parameters:
+        - {$ref: '#/components/parameters/AccountId'}
+        - {name: action, in: path, required: true, schema: {type: string, enum: [disable, enable, cancel]}}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TenantUserStatusRequest'}}}}
+      responses:
+        '200': {description: 命令执行成功。}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/users/{accountId}/activation-links:
+    post:
+      operationId: issueTenantUserActivationLink
+      summary: 为待激活用户生成一次性 24 小时激活票据
+      tags: [TenantUser]
+      parameters: [{$ref: '#/components/parameters/AccountId'}]
+      responses:
+        '200': {description: 票据仅在本次响应展示。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantUserActivationLinkApiResponse'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
   /tenant/roles:
     get:
       operationId: pageTenantRoles
@@ -693,6 +772,11 @@ components:
       schema: {$ref: '#/components/schemas/BigintId'}
     RoleId:
       name: roleId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/BigintId'}
+    AccountId:
+      name: accountId
       in: path
       required: true
       schema: {$ref: '#/components/schemas/BigintId'}
@@ -1605,3 +1689,119 @@ components:
           type:
             - string
             - 'null'
+    TenantUserStatus:
+      type: string
+      enum: [PENDING_ACTIVATION, ACTIVE, PASSWORD_RESET_REQUIRED, DISABLED, CANCELLED]
+    TenantUserRole:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id: {$ref: '#/components/schemas/BigintId'}
+        name: {type: string}
+    TenantUser:
+      type: object
+      additionalProperties: false
+      required: [id, username, organizationId, organizationName, status, validityMode, roles, owner, authzVersion, createdTime, version]
+      properties:
+        id: {$ref: '#/components/schemas/BigintId'}
+        username: {type: string}
+        displayName: {type: [string, 'null']}
+        employeeNumber: {type: [string, 'null']}
+        organizationId: {$ref: '#/components/schemas/BigintId'}
+        organizationName: {type: string}
+        status: {$ref: '#/components/schemas/TenantUserStatus'}
+        validityMode: {type: string, enum: [LONG_TERM, FIXED_PERIOD]}
+        effectiveAt: {type: [string, 'null'], format: date-time}
+        expiresAt: {type: [string, 'null'], format: date-time}
+        roles: {type: array, items: {$ref: '#/components/schemas/TenantUserRole'}}
+        owner: {type: boolean}
+        authzVersion: {type: integer, format: int64, minimum: 0}
+        createdTime: {type: string, format: date-time}
+        version: {type: integer, format: int64, minimum: 0}
+    CreateTenantUserRequest:
+      type: object
+      additionalProperties: false
+      required: [username, organizationId, roleIds, validityMode, reauthTicket, reason]
+      properties:
+        username: {type: string, minLength: 1, maxLength: 128}
+        displayName: {type: [string, 'null'], maxLength: 128}
+        employeeNumber: {type: [string, 'null'], maxLength: 64}
+        organizationId: {$ref: '#/components/schemas/BigintId'}
+        roleIds: {type: array, minItems: 1, items: {$ref: '#/components/schemas/BigintId'}}
+        validityMode: {type: string, enum: [LONG_TERM, FIXED_PERIOD]}
+        effectiveAt: {type: [string, 'null'], format: date-time}
+        expiresAt: {type: [string, 'null'], format: date-time}
+        reauthTicket: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    UpdateTenantUserRequest:
+      type: object
+      additionalProperties: false
+      required: [validityMode, reason, version]
+      properties:
+        displayName: {type: [string, 'null'], maxLength: 128}
+        employeeNumber: {type: [string, 'null'], maxLength: 64}
+        validityMode: {type: string, enum: [LONG_TERM, FIXED_PERIOD]}
+        effectiveAt: {type: [string, 'null'], format: date-time}
+        expiresAt: {type: [string, 'null'], format: date-time}
+        reason: {type: string, minLength: 1, maxLength: 500}
+        version: {type: integer, format: int64, minimum: 0}
+    ReplaceTenantUserRolesRequest:
+      type: object
+      additionalProperties: false
+      required: [roleIds, reauthTicket, reason, version]
+      properties:
+        roleIds: {type: array, minItems: 1, items: {$ref: '#/components/schemas/BigintId'}}
+        reauthTicket: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+        reason: {type: string, minLength: 1, maxLength: 500}
+        version: {type: integer, format: int64, minimum: 0}
+    TenantUserStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, version]
+      properties:
+        reason: {type: string, minLength: 1, maxLength: 500}
+        version: {type: integer, format: int64, minimum: 0}
+    TenantUserActivationLink:
+      type: object
+      additionalProperties: false
+      required: [activationTicket, expiresAt]
+      properties:
+        activationTicket: {type: string, writeOnly: true}
+        expiresAt: {type: string, format: date-time}
+    TenantUserPage:
+      type: object
+      additionalProperties: false
+      required: [items, pageNo, pageSize, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/TenantUser'}}
+        pageNo: {type: integer, minimum: 1}
+        pageSize: {type: integer, minimum: 1, maximum: 100}
+        total: {type: integer, format: int64, minimum: 0}
+    TenantUserApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/TenantUser'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    TenantUserPageApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/TenantUserPage'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    TenantUserActivationLinkApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/TenantUserActivationLink'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
