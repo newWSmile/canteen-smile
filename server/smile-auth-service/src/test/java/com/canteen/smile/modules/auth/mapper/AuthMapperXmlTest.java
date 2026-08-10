@@ -28,7 +28,8 @@ class AuthMapperXmlTest {
                 "mapper/auth/ReauthTicketMapper.xml",
                 "mapper/auth/PasswordResetTicketMapper.xml",
                 "mapper/auth/PasswordHistoryMapper.xml",
-                "mapper/securityevent/SecurityEventMapper.xml"
+                "mapper/securityevent/SecurityEventMapper.xml",
+                "mapper/audit/AuthAuditLogMapper.xml"
         );
         for (String resource : resources) {
             parse(configuration, resource);
@@ -51,6 +52,10 @@ class AuthMapperXmlTest {
                 + ".insertConsumedEvent")).isTrue();
         assertThat(configuration.hasStatement("com.canteen.smile.modules.securityevent.mapper.SecurityEventMapper"
                 + ".invalidateDeviceSessions")).isTrue();
+        assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
+                + ".selectPage")).isTrue();
+        assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
+                + ".insertSessionCreatedAudit")).isTrue();
     }
 
     /** 将一个 Mapper XML 注册到测试配置。 */

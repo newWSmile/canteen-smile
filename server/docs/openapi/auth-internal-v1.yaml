@@ -1,0 +1,99 @@
+openapi: 3.1.0
+info:
+  title: Canteen Smile Auth Internal API
+  version: 1.0.0
+  description: 仅允许内部网络与 HMAC 签名调用的 Auth v1 契约；不得通过 Gateway 暴露。
+servers:
+  - url: /internal/auth/v1
+paths:
+  /audit-logs/search:
+    post:
+      operationId: searchAuthAuditLogs
+      summary: 按 IAM 已收敛的权限边界分页查询 Auth 审计
+      tags: [InternalAudit]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AuthAuditLogSearchRequest'}
+      responses:
+        '200':
+          description: 查询成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthAuditLogPageApiResponse'}
+        '400':
+          description: 作用域或时间范围不合法。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorApiResponse'}
+        '401':
+          description: HMAC 签名无效或请求过期。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorApiResponse'}
+components:
+  schemas:
+    AuthAuditLogSearchRequest:
+      type: object
+      additionalProperties: false
+      required: [pageNo, pageSize, scopeType, tenantWide]
+      properties:
+        pageNo: {type: integer, minimum: 1}
+        pageSize: {type: integer, minimum: 1, maximum: 100}
+        scopeType: {type: string, enum: [PLATFORM, TENANT]}
+        tenantId: {type: [integer, 'null'], format: int64, minimum: 1}
+        accountId: {type: [integer, 'null'], format: int64, minimum: 1}
+        tenantWide: {type: boolean}
+        actionCode: {type: [string, 'null'], maxLength: 128, pattern: '^[A-Za-z0-9:_-]+$'}
+        result: {type: [string, 'null'], enum: [SUCCESS, FAILURE, DENIED, null]}
+        operatorId: {type: [integer, 'null'], format: int64, minimum: 0}
+        startTime: {type: [string, 'null'], format: date-time}
+        endTime: {type: [string, 'null'], format: date-time}
+    AuthAuditLog:
+      type: object
+      additionalProperties: false
+      required: [id, operatorType, operatorId, actionCode, result, occurredTime]
+      properties:
+        id: {type: string, pattern: '^[1-9][0-9]*$'}
+        tenantId: {type: [string, 'null'], pattern: '^[1-9][0-9]*$'}
+        subjectType: {type: [string, 'null'], enum: [PLATFORM_IDENTITY, TENANT_ACCOUNT, null]}
+        subjectId: {type: [string, 'null'], pattern: '^[1-9][0-9]*$'}
+        operatorType: {type: string, enum: [PLATFORM_IDENTITY, TENANT_ACCOUNT, ANONYMOUS, SYSTEM]}
+        operatorId: {type: string, pattern: '^[0-9]+$'}
+        actionCode: {type: string}
+        result: {type: string, enum: [SUCCESS, FAILURE, DENIED]}
+        loginMethod: {type: [string, 'null'], enum: [PASSWORD, SMS, PASSWORD_SMS, RECOVERY_CODE, null]}
+        failureReasonCode: {type: [string, 'null']}
+        maskedMobile: {type: [string, 'null']}
+        deviceSummary: {type: [string, 'null']}
+        traceId: {type: [string, 'null']}
+        occurredTime: {type: string, format: date-time}
+    AuthAuditLogPage:
+      type: object
+      additionalProperties: false
+      required: [items, pageNo, pageSize, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/AuthAuditLog'}}
+        pageNo: {type: integer, minimum: 1}
+        pageSize: {type: integer, minimum: 1, maximum: 100}
+        total: {type: integer, format: int64, minimum: 0}
+    AuthAuditLogPageApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/AuthAuditLogPage'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    ErrorApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, timestamp]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}

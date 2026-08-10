@@ -55,7 +55,7 @@ const logoutFlight = useSingleFlight(async () => {
   <div class="tenant-shell" v-loading="tenantContext.loading">
     <aside class="tenant-sidebar">
       <div class="brand"><span>CS</span><strong>Canteen Smile</strong></div>
-      <p class="workspace">TENANT ADMINISTRATION</p>
+      <p class="workspace">租户管理</p>
       <nav aria-label="租户管理端主导航">
         <RouterLink :class="{ active: route.name === 'home' }" :to="{ name: 'home' }">管理概览</RouterLink>
         <RouterLink
@@ -78,6 +78,11 @@ const logoutFlight = useSingleFlight(async () => {
           :class="{ active: route.name === 'users' }"
           :to="{ name: 'users' }"
         >用户管理</RouterLink>
+        <RouterLink
+          v-if="tenantContext.hasPermission('iam:audit:view')"
+          :class="{ active: route.name === 'tenant-audit' }"
+          :to="{ name: 'tenant-audit' }"
+        >审计日志</RouterLink>
       </nav>
       <div class="boundary">
         <strong>租户隔离边界</strong>

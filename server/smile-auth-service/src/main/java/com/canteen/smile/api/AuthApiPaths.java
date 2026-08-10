@@ -65,6 +65,9 @@ public final class AuthApiPaths {
     /** IAM Outbox 安全事件幂等消费路径。 */
     public static final String INTERNAL_SECURITY_EVENTS = INTERNAL_V1 + "/security-events";
 
+    /** IAM 经 HMAC 查询 Auth 自有认证审计日志的内部路径。 */
+    public static final String INTERNAL_AUDIT_LOG_SEARCH = INTERNAL_V1 + "/audit-logs/search";
+
     /** 禁止实例化 API 路径常量类。 */
     private AuthApiPaths() {
     }

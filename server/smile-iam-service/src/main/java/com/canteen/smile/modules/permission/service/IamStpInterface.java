@@ -55,7 +55,8 @@ public class IamStpInterface implements StpInterface {
                         IamPermissionCodes.PLATFORM_TENANT_OWNER_ACTIVATE,
                         IamPermissionCodes.IAM_USER_PASSWORD_RESET,
                         IamPermissionCodes.PLATFORM_ORG_TEMPLATE_MANAGE,
-                        IamPermissionCodes.PLATFORM_PERMISSION_MANAGE
+                        IamPermissionCodes.PLATFORM_PERMISSION_MANAGE,
+                        IamPermissionCodes.PLATFORM_AUDIT_VIEW
                 );
         }
         AccountLifecycleMapper.TenantPermissionContextRow context = activeTenantContext(loginId);
@@ -85,7 +86,8 @@ public class IamStpInterface implements StpInterface {
                         IamPermissionCodes.IAM_USER_STATUS,
                         IamPermissionCodes.IAM_USER_CANCEL,
                         IamPermissionCodes.IAM_USER_ROLE_ASSIGN,
-                        IamPermissionCodes.IAM_USER_PASSWORD_RESET
+                        IamPermissionCodes.IAM_USER_PASSWORD_RESET,
+                        IamPermissionCodes.IAM_AUDIT_VIEW
                 ));
         roleMapper.selectGrantablePermissions(context.tenantId(), context.accountId(), true)
                 .forEach(resource -> permissions.add(resource.permissionCode()));

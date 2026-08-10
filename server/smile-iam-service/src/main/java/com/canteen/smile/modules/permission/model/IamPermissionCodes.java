@@ -33,11 +33,17 @@ public final class IamPermissionCodes {
     /** 替换本机构用户角色集合。 */
     public static final String IAM_USER_ROLE_ASSIGN = "iam:user:role-assign";
 
+    /** 查看授权范围内的租户管理和认证审计。 */
+    public static final String IAM_AUDIT_VIEW = "iam:audit:view";
+
     /** 平台端维护机构类型模板。 */
     public static final String PLATFORM_ORG_TEMPLATE_MANAGE = "platform:org-template:manage";
 
     /** 平台端维护和发布永久权限资源。 */
     public static final String PLATFORM_PERMISSION_MANAGE = "platform:permission:manage";
+
+    /** 查看平台治理与平台身份认证审计。 */
+    public static final String PLATFORM_AUDIT_VIEW = "platform:audit:view";
 
     /** 查看本租户机构类型。 */
     public static final String IAM_ORG_TYPE_VIEW = "iam:org-type:view";

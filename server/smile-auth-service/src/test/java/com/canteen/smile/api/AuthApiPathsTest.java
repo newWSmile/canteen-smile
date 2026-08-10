@@ -21,5 +21,7 @@ class AuthApiPathsTest {
                 .isEqualTo(AuthPublicApiPaths.PLATFORM_RECOVERY_LOGIN);
         assertThat(AuthApiPaths.INTERNAL_SECURITY_EVENTS)
                 .isEqualTo("/internal/auth/v1/security-events");
+        assertThat(AuthApiPaths.INTERNAL_AUDIT_LOG_SEARCH)
+                .isEqualTo("/internal/auth/v1/audit-logs/search");
     }
 }

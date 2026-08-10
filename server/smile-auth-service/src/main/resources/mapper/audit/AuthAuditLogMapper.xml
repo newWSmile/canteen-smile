@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper">
+
+    <insert id="insertSessionCreatedAudit">
+        INSERT INTO public.auth_audit_log (
+            tenant_id, subject_type, subject_id, operator_type, operator_id,
+            action_code, result, login_method, device_summary, trace_id,
+            created_by, updated_by
+        ) VALUES (
+            #{entity.tenantId}, #{entity.subjectType}, #{entity.subjectId},
+            #{entity.subjectType}, #{entity.subjectId},
+            #{actionCode}, 'SUCCESS', #{entity.loginMethod},
+            LEFT(CONCAT(#{entity.deviceType}, ' / ', #{entity.deviceName}), 256),
+            #{traceId}, #{entity.subjectId}, #{entity.subjectId}
+        )
+    </insert>
+
+    <sql id="scopeAndFilters">
+        is_deleted = false
+        <choose>
+            <when test="query.scopeType == 'PLATFORM'">
+                AND (subject_type = 'PLATFORM_IDENTITY' OR operator_type = 'PLATFORM_IDENTITY')
+            </when>
+            <otherwise>
+                AND tenant_id = #{query.tenantId}
+                <if test="!query.tenantWide">
+                    AND (
+                        (subject_type = 'TENANT_ACCOUNT' AND subject_id = #{query.accountId})
+                        OR (operator_type = 'TENANT_ACCOUNT' AND operator_id = #{query.accountId})
+                    )
+                </if>
+            </otherwise>
+        </choose>
+        <if test="query.actionCode != null">
+            AND action_code = #{query.actionCode}
+        </if>
+        <if test="query.result != null">
+            AND result = #{query.result}
+        </if>
+        <if test="query.operatorId != null">
+            AND operator_id = #{query.operatorId}
+        </if>
+        <if test="query.startTime != null">
+            AND occurred_time &gt;= #{query.startTime}
+        </if>
+        <if test="query.endTime != null">
+            AND occurred_time &lt;= #{query.endTime}
+        </if>
+    </sql>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(1)
+        FROM public.auth_audit_log
+        WHERE <include refid="scopeAndFilters"/>
+    </select>
+
+    <select id="selectPage" resultType="com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper$AuthAuditLogRow">
+        SELECT id, tenant_id, subject_type, subject_id, operator_type, operator_id,
+               action_code, result, login_method, failure_reason_code, masked_mobile,
+               device_summary, trace_id, occurred_time
+        FROM public.auth_audit_log
+        WHERE <include refid="scopeAndFilters"/>
+        ORDER BY occurred_time DESC, id DESC
+        LIMIT #{limit}
+        OFFSET #{offset}
+    </select>
+</mapper>

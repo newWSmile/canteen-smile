@@ -37,6 +37,7 @@ class TenantMapperXmlTest {
         assertThat(configuration.hasStatement(AccountLifecycleMapper.class.getName()
                 + ".selectTenantPermissionContext")).isTrue();
         assertThat(configuration.hasStatement(IamAuditLogMapper.class.getName() + ".insert")).isTrue();
+        assertThat(configuration.hasStatement(IamAuditLogMapper.class.getName() + ".selectPage")).isTrue();
     }
 
     /** 解析一个 Mapper XML 资源。 */

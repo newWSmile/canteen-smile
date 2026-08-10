@@ -68,7 +68,8 @@ public class TenantUserCommandService {
         } catch (DuplicateKeyException exception) {
             throw new BusinessException("IAM_2803", "用户名或工号已被占用，请刷新后重试", 409);
         }
-        auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.accountId(), "iam:user:create",
+        auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
+                "iam:user:create",
                 "TENANT_ACCOUNT", Long.toString(accountId), request.reason().strip(), "SUCCESS");
         return new UserProvisionContext(accountId, actor.tenantId(), organizationId, outboxId, actor.accountId());
     }
@@ -99,7 +100,7 @@ public class TenantUserCommandService {
         mapper.insertAccountRoles(actor.tenantId(), actor.organizationId(), accountId, roleIds, actor.accountId());
         mapper.insertRolesChangedOutbox(mapper.nextOutboxId(), UUID.randomUUID().toString(), actor.tenantId(),
                 accountId, actor.accountId());
-        auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.accountId(),
+        auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
                 "iam:user:role-assign", "TENANT_ACCOUNT", Long.toString(accountId),
                 request.reason().strip(), "SUCCESS");
     }
@@ -139,7 +140,8 @@ public class TenantUserCommandService {
         if (validityChanged) {
             insertAccountChangedEvent(actor, accountId, "ACCOUNT_VALIDITY_CHANGED");
         }
-        auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.accountId(), "iam:user:update",
+        auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
+                "iam:user:update",
                 "TENANT_ACCOUNT", Long.toString(accountId), request.reason().strip(), "SUCCESS");
     }
 
@@ -158,7 +160,7 @@ public class TenantUserCommandService {
             throw concurrentChange();
         }
         insertAccountChangedEvent(actor, accountId, enable ? "ACCOUNT_ENABLED" : "ACCOUNT_DISABLED");
-        auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.accountId(),
+        auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
                 enable ? "iam:user:enable" : "iam:user:disable", "TENANT_ACCOUNT", Long.toString(accountId),
                 request.reason().strip(), "SUCCESS");
     }
@@ -174,7 +176,8 @@ public class TenantUserCommandService {
         mapper.disableUsernameLogin(accountId, actor.accountId());
         mapper.deactivateAccountRoles(actor.tenantId(), actor.organizationId(), accountId, actor.accountId());
         insertAccountChangedEvent(actor, accountId, "ACCOUNT_CANCELLED");
-        auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.accountId(), "iam:user:cancel",
+        auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
+                "iam:user:cancel",
                 "TENANT_ACCOUNT", Long.toString(accountId), request.reason().strip(), "SUCCESS");
     }
 

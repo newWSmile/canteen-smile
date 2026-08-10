@@ -180,6 +180,56 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /platform/audit-logs:
+    get:
+      operationId: pagePlatformAuditLogs
+      summary: 分页查询平台审计日志
+      description: 要求 platform:audit:view；IAM 管理审计限定平台身份，AUTH 认证审计由 IAM 经 HMAC 查询 Auth。
+      tags: [PlatformAudit]
+      parameters:
+        - {$ref: '#/components/parameters/PageNo'}
+        - {$ref: '#/components/parameters/PageSize'}
+        - {$ref: '#/components/parameters/AuditSource'}
+        - {$ref: '#/components/parameters/AuditActionCode'}
+        - {$ref: '#/components/parameters/AuditResult'}
+        - {$ref: '#/components/parameters/AuditOperatorId'}
+        - {$ref: '#/components/parameters/AuditStartTime'}
+        - {$ref: '#/components/parameters/AuditEndTime'}
+      responses:
+        '200':
+          description: 查询成功。
+          content: {application/json: {schema: {$ref: '#/components/schemas/AuditLogPageApiResponse'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '502':
+          description: 选择 AUTH 来源时认证审计服务暂时不可用。
+          content: {application/json: {schema: {$ref: '#/components/schemas/ErrorApiResponse'}}}
+  /tenant/audit-logs:
+    get:
+      operationId: pageTenantAuditLogs
+      summary: 分页查询租户授权范围审计日志
+      description: 要求 iam:audit:view；机构所有者可看租户全部，普通管理员的 IAM 记录限定本机构或本人，AUTH 记录限定本人。
+      tags: [TenantAudit]
+      parameters:
+        - {$ref: '#/components/parameters/PageNo'}
+        - {$ref: '#/components/parameters/PageSize'}
+        - {$ref: '#/components/parameters/AuditSource'}
+        - {$ref: '#/components/parameters/AuditActionCode'}
+        - {$ref: '#/components/parameters/AuditResult'}
+        - {$ref: '#/components/parameters/AuditOperatorId'}
+        - {$ref: '#/components/parameters/AuditStartTime'}
+        - {$ref: '#/components/parameters/AuditEndTime'}
+      responses:
+        '200':
+          description: 查询成功。
+          content: {application/json: {schema: {$ref: '#/components/schemas/AuditLogPageApiResponse'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '502':
+          description: 选择 AUTH 来源时认证审计服务暂时不可用。
+          content: {application/json: {schema: {$ref: '#/components/schemas/ErrorApiResponse'}}}
   /tenant/context:
     get:
       operationId: getTenantManagementContext
@@ -750,6 +800,39 @@ paths:
         '200': {description: 查询成功。, content: {application/json: {schema: {$ref: '#/components/schemas/RolePermissionListApiResponse'}}}}
 components:
   parameters:
+    AuditSource:
+      name: source
+      in: query
+      required: false
+      description: 审计数据所有者；默认 IAM。
+      schema: {type: string, enum: [IAM, AUTH], default: IAM}
+    AuditActionCode:
+      name: actionCode
+      in: query
+      required: false
+      description: 精确动作编码，不执行无条件模糊查询。
+      schema: {type: string, maxLength: 128, pattern: '^[A-Za-z0-9:_-]+$'}
+    AuditResult:
+      name: result
+      in: query
+      required: false
+      schema: {type: string, enum: [SUCCESS, FAILURE, DENIED]}
+    AuditOperatorId:
+      name: operatorId
+      in: query
+      required: false
+      description: 精确操作者 bigint ID。
+      schema: {type: integer, format: int64, minimum: 0}
+    AuditStartTime:
+      name: startTime
+      in: query
+      required: false
+      schema: {type: string, format: date-time}
+    AuditEndTime:
+      name: endTime
+      in: query
+      required: false
+      schema: {type: string, format: date-time}
     PageNo:
       name: pageNo
       in: query
@@ -1689,6 +1772,46 @@ components:
           type:
             - string
             - 'null'
+    AuditLog:
+      type: object
+      additionalProperties: false
+      required: [id, source, operatorType, actionCode, result, occurredTime]
+      properties:
+        id: {$ref: '#/components/schemas/BigintId'}
+        source: {type: string, enum: [IAM, AUTH]}
+        tenantId: {type: [string, 'null'], pattern: '^[1-9][0-9]*$'}
+        operatorType: {type: string}
+        operatorId: {type: [string, 'null'], pattern: '^[0-9]+$'}
+        actionCode: {type: string, maxLength: 128}
+        targetType: {type: [string, 'null']}
+        targetId: {type: [string, 'null']}
+        result: {type: string, enum: [SUCCESS, FAILURE, DENIED]}
+        reason: {type: [string, 'null'], maxLength: 500}
+        loginMethod: {type: [string, 'null'], enum: [PASSWORD, SMS, PASSWORD_SMS, RECOVERY_CODE, null]}
+        failureReasonCode: {type: [string, 'null'], maxLength: 128}
+        maskedMobile: {type: [string, 'null'], maxLength: 32}
+        deviceSummary: {type: [string, 'null'], maxLength: 256}
+        traceId: {type: [string, 'null'], maxLength: 128}
+        occurredTime: {type: string, format: date-time}
+    AuditLogPage:
+      type: object
+      additionalProperties: false
+      required: [items, pageNo, pageSize, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/AuditLog'}}
+        pageNo: {type: integer, minimum: 1}
+        pageSize: {type: integer, minimum: 1, maximum: 100}
+        total: {type: integer, format: int64, minimum: 0}
+    AuditLogPageApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/AuditLogPage'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
     TenantUserStatus:
       type: string
       enum: [PENDING_ACTIVATION, ACTIVE, PASSWORD_RESET_REQUIRED, DISABLED, CANCELLED]

@@ -29,6 +29,12 @@ export const router = createRouter({
           component: () => import('@/modules/permission/pages/PermissionResourcesPage.vue'),
           meta: { requiresAuth: true, title: '权限资源' },
         },
+        {
+          path: 'audit',
+          name: 'platform-audit',
+          component: () => import('@/modules/audit/pages/AuditLogsPage.vue'),
+          meta: { requiresAuth: true, title: '平台审计' },
+        },
       ],
     },
     {

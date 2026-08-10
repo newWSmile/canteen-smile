@@ -41,6 +41,9 @@ public final class IamApiPaths {
     /** 平台权限资源发布路径。 */
     public static final String PLATFORM_PERMISSION_RESOURCES = EXTERNAL_V1 + "/platform/permission-resources";
 
+    /** 平台身份查看平台治理与认证安全审计日志的资源路径。 */
+    public static final String PLATFORM_AUDIT_LOGS = EXTERNAL_V1 + "/platform/audit-logs";
+
     /** 租户管理端当前身份与租户上下文。 */
     public static final String TENANT_CONTEXT = EXTERNAL_V1 + "/tenant/context";
 
@@ -65,6 +68,9 @@ public final class IamApiPaths {
 
     /** 租户本机构用户资源路径。 */
     public static final String TENANT_USERS = EXTERNAL_V1 + "/tenant/users";
+
+    /** 租户管理端查看授权范围内审计日志的资源路径。 */
+    public static final String TENANT_AUDIT_LOGS = EXTERNAL_V1 + "/tenant/audit-logs";
 
     /** 禁止实例化 API 路径常量类。 */
     private IamApiPaths() {

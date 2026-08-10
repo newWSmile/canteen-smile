@@ -63,7 +63,7 @@ const logoutFlight = useSingleFlight(async () => {
         <RouterLink :class="{ active: route.name === 'org-type-templates' }" :to="{ name: 'org-type-templates' }"><span>⌘</span>机构类型模板</RouterLink>
         <RouterLink :class="{ active: route.name === 'permission-resources' }" :to="{ name: 'permission-resources' }"><span>◆</span>权限资源</RouterLink>
         <span class="disabled"><b>◇</b>平台身份</span>
-        <span class="disabled"><b>◎</b>平台审计</span>
+        <RouterLink :class="{ active: route.name === 'platform-audit' }" :to="{ name: 'platform-audit' }"><span>◎</span>平台审计</RouterLink>
         <span class="disabled"><b>⚙</b>安全配置</span>
       </nav>
       <div class="boundary-note">

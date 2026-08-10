@@ -285,7 +285,7 @@ public class TenantOrganizationService {
     /** 写入成功审计。 */
     private void audit(TenantActorContext actor, String action, long targetId, String reason) {
         auditLogService.recordTenantOrganizationAction(
-                actor.tenantId(), actor.accountId(), action, "ORGANIZATION",
+                actor.tenantId(), actor.organizationId(), actor.accountId(), action, "ORGANIZATION",
                 Long.toString(targetId), reason, "SUCCESS"
         );
     }

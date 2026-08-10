@@ -17,5 +17,7 @@ class IamApiPathsTest {
         assertThat(IamApiPaths.TENANT_CONTEXT).startsWith(IamApiPaths.EXTERNAL_V1 + "/tenant/");
         assertThat(IamApiPaths.TENANT_ORGANIZATION_TYPES).startsWith(IamApiPaths.EXTERNAL_V1 + "/tenant/");
         assertThat(IamApiPaths.TENANT_ORGANIZATIONS).startsWith(IamApiPaths.EXTERNAL_V1 + "/tenant/");
+        assertThat(IamApiPaths.PLATFORM_AUDIT_LOGS).isEqualTo("/api/iam/v1/platform/audit-logs");
+        assertThat(IamApiPaths.TENANT_AUDIT_LOGS).isEqualTo("/api/iam/v1/tenant/audit-logs");
     }
 }

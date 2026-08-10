@@ -327,7 +327,8 @@ public class RoleService {
     /** 写入成功审计。 */
     private void audit(TenantActorContext actor, String action, long roleId, String reason) {
         auditLogService.recordTenantOrganizationAction(
-                actor.tenantId(), actor.accountId(), action, "ROLE", Long.toString(roleId), reason, "SUCCESS"
+                actor.tenantId(), actor.organizationId(), actor.accountId(), action,
+                "ROLE", Long.toString(roleId), reason, "SUCCESS"
         );
     }
 

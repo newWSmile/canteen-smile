@@ -56,6 +56,12 @@ export const router = createRouter({
           component: () => import('@/modules/user/pages/UsersPage.vue'),
           meta: { title: '用户管理' },
         },
+        {
+          path: 'audit',
+          name: 'tenant-audit',
+          component: () => import('@/modules/audit/pages/AuditLogsPage.vue'),
+          meta: { title: '审计日志' },
+        },
       ],
     },
   ],

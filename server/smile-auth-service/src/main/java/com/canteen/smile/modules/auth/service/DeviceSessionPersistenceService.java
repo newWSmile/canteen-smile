@@ -2,7 +2,9 @@ package com.canteen.smile.modules.auth.service;
 
 import com.canteen.smile.modules.auth.entity.DeviceSessionEntity;
 import com.canteen.smile.modules.auth.mapper.DeviceSessionMapper;
+import com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,11 +16,21 @@ public class DeviceSessionPersistenceService {
     /** 设备会话数据访问接口。 */
     private final DeviceSessionMapper deviceSessionMapper;
 
+    /** Auth 登录审计数据访问接口。 */
+    private final AuthAuditLogMapper auditLogMapper;
+
     /** @param entity 设备会话实体 */
     @Transactional
     public void create(DeviceSessionEntity entity) {
         if (deviceSessionMapper.insertDeviceSession(entity) != 1) {
             throw new IllegalStateException("Device session was not inserted");
+        }
+        /** 与已确认登录方式对应的审计动作编码。 */
+        String actionCode = "RECOVERY_CODE".equals(entity.getLoginMethod())
+                ? "auth:login:recovery-code"
+                : "auth:login:password";
+        if (auditLogMapper.insertSessionCreatedAudit(entity, actionCode, MDC.get("traceId")) != 1) {
+            throw new IllegalStateException("Auth login audit was not inserted");
         }
     }
 

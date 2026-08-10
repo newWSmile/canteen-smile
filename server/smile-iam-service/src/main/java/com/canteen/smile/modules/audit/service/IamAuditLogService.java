@@ -87,6 +87,7 @@ public class IamAuditLogService {
      * 记录租户账号执行的机构治理操作。
      *
      * @param tenantId 租户 ID
+     * @param operatorOrganizationId 操作者所属机构 ID
      * @param operatorId 租户账号 ID
      * @param actionCode 动作编码
      * @param targetType 目标类型
@@ -97,6 +98,7 @@ public class IamAuditLogService {
     @Transactional
     public void recordTenantOrganizationAction(
             long tenantId,
+            long operatorOrganizationId,
             long operatorId,
             String actionCode,
             String targetType,
@@ -108,6 +110,7 @@ public class IamAuditLogService {
         entity.setTenantId(tenantId);
         entity.setOperatorType("TENANT_ACCOUNT");
         entity.setOperatorId(operatorId);
+        entity.setOperatorOrganizationId(operatorOrganizationId);
         entity.setActionCode(actionCode);
         entity.setTargetType(targetType);
         entity.setTargetId(targetId);

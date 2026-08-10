@@ -791,7 +791,7 @@ HMAC v1、接口路径、表结构和权限码在本文中是建议冻结的开�
 
 ### 阶段 4：授权失效和审计
 
-当前实现状态：IAM 已使用 PostgreSQL `FOR UPDATE SKIP LOCKED` 有界领取 Outbox，支持处理中租约恢复、指数退避加抖动、最大重试次数和 `DEAD` 状态；投递由 XXL-JOB 处理器 `iamOutboxDeliveryJob` 触发，并通过既有 HMAC RestClient 调用 Auth。角色授权变化已改为在数据库内按受影响账号生成事件，避免 Auth 越界读取 IAM 数据。Auth 已实现 `POST /internal/auth/v1/security-events`，同时校验签名事件 ID、事件信封和账号/租户冗余字段，以 `eventId + payloadDigest` 幂等消费，并失效权限快照、数据库设备会话及 Sa-Token 全部设备会话。上线前需按顺序执行 `IAM_DDL_0007`、`IAM_DML_0002`，并在 XXL-JOB 管理端创建秒级或业务可接受频率的调度任务。
+当前实现状态：IAM 已使用 PostgreSQL `FOR UPDATE SKIP LOCKED` 有界领取 Outbox，支持处理中租约恢复、指数退避加抖动、最大重试次数和 `DEAD` 状态；投递由 XXL-JOB 处理器 `iamOutboxDeliveryJob` 触发，并通过既有 HMAC RestClient 调用 Auth。角色授权变化已改为在数据库内按受影响账号生成事件，避免 Auth 越界读取 IAM 数据。Auth 已实现 `POST /internal/auth/v1/security-events`，同时校验签名事件 ID、事件信封和账号/租户冗余字段，以 `eventId + payloadDigest` 幂等消费，并失效权限快照、数据库设备会话及 Sa-Token 全部设备会话。IAM 与 Auth 审计分页已经按数据所有权拆分：前端只调用 IAM，IAM 自有管理审计直接查询 PostgreSQL，认证审计经内部网络、HMAC 和静态 Auth Client 查询；平台、租户所有者和普通管理员分别应用独立 SQL 数据边界。平台端和租户管理端均已增加中文审计页面，支持来源、结果、动作编码、操作者和最长 90 天时间范围筛选；设备会话与登录成功审计在 Auth 同一事务写入。上线前需执行 `IAM_DML_0003` 发布审计菜单权限，并在 XXL-JOB 管理端维持秒级或业务可接受频率的调度任务。
 
 - 授权版本、权限快照、Outbox、Auth 幂等消费、全设备下线。
 - IAM/Auth 审计查询、脱敏和保留策略。
