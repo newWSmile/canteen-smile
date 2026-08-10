@@ -3,6 +3,7 @@ package com.canteen.smile.modules.permission.service;
 import cn.dev33.satoken.stp.StpInterface;
 import com.canteen.smile.modules.permission.model.IamPermissionCodes;
 import com.canteen.smile.modules.account.mapper.AccountLifecycleMapper;
+import com.canteen.smile.modules.role.mapper.RoleMapper;
 import com.canteen.smile.modules.platform.entity.PlatformIdentityEntity;
 import com.canteen.smile.modules.platform.mapper.PlatformIdentityMapper;
 import com.canteen.smile.modules.platform.model.PlatformIdentityStatus;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.LinkedHashSet;
 
 /** IAM 服务基于真实身份状态提供 Sa-Token 最终权限与角色集合。 */
 @Component
@@ -34,6 +36,9 @@ public class IamStpInterface implements StpInterface {
     /** 租户账号权限上下文数据访问接口。 */
     private final AccountLifecycleMapper accountLifecycleMapper;
 
+    /** 角色授权数据访问接口。 */
+    private final RoleMapper roleMapper;
+
     /**
      * 返回当前真实有效身份拥有的权限码。
      *
@@ -49,12 +54,16 @@ public class IamStpInterface implements StpInterface {
                         IamPermissionCodes.PLATFORM_TENANT_CREATE,
                         IamPermissionCodes.PLATFORM_TENANT_OWNER_ACTIVATE,
                         IamPermissionCodes.IAM_USER_PASSWORD_RESET,
-                        IamPermissionCodes.PLATFORM_ORG_TEMPLATE_MANAGE
+                        IamPermissionCodes.PLATFORM_ORG_TEMPLATE_MANAGE,
+                        IamPermissionCodes.PLATFORM_PERMISSION_MANAGE
                 );
         }
-        return activeRootOwner(loginId) == null
-                ? List.of()
-                : List.of(
+        AccountLifecycleMapper.TenantPermissionContextRow context = activeTenantContext(loginId);
+        if (context == null) return List.of();
+        if (!context.rootOwner()) {
+            return roleMapper.selectEffectivePermissionCodes(context.tenantId(), context.accountId());
+        }
+        LinkedHashSet<String> permissions = new LinkedHashSet<>(List.of(
                         IamPermissionCodes.IAM_ORG_TYPE_VIEW,
                         IamPermissionCodes.IAM_ORG_TYPE_MANAGE,
                         IamPermissionCodes.IAM_ORG_VIEW,
@@ -62,8 +71,18 @@ public class IamStpInterface implements StpInterface {
                         IamPermissionCodes.IAM_ORG_UPDATE,
                         IamPermissionCodes.IAM_ORG_MOVE,
                         IamPermissionCodes.IAM_ORG_STATUS,
-                        IamPermissionCodes.IAM_ORG_DELETE
-                );
+                        IamPermissionCodes.IAM_ORG_DELETE,
+                        IamPermissionCodes.IAM_ROLE_VIEW,
+                        IamPermissionCodes.IAM_ROLE_CREATE,
+                        IamPermissionCodes.IAM_ROLE_UPDATE,
+                        IamPermissionCodes.IAM_ROLE_STATUS,
+                        IamPermissionCodes.IAM_ROLE_DELETE,
+                        IamPermissionCodes.IAM_ROLE_GRANT,
+                        IamPermissionCodes.IAM_ROLE_DATA_SCOPE
+                ));
+        roleMapper.selectGrantablePermissions(context.tenantId(), context.accountId(), true)
+                .forEach(resource -> permissions.add(resource.permissionCode()));
+        return List.copyOf(permissions);
     }
 
     /**
@@ -78,7 +97,13 @@ public class IamStpInterface implements StpInterface {
         if (activePlatformIdentity(loginId) != null) {
             return List.of(PLATFORM_SUPER_ADMIN_ROLE);
         }
-        return activeRootOwner(loginId) == null ? List.of() : List.of(ORGANIZATION_OWNER_ROLE);
+        AccountLifecycleMapper.TenantPermissionContextRow context = activeTenantContext(loginId);
+        if (context == null) return List.of();
+        LinkedHashSet<String> roles = new LinkedHashSet<>(roleMapper.selectEffectiveRoleCodes(
+                context.tenantId(), context.organizationId(), context.accountId()
+        ));
+        if (context.rootOwner()) roles.add(ORGANIZATION_OWNER_ROLE);
+        return List.copyOf(roles);
     }
 
     /**
@@ -112,12 +137,12 @@ public class IamStpInterface implements StpInterface {
     }
 
     /**
-     * 查询当前有效租户根机构所有者。
+     * 查询当前有效租户账号权限上下文。
      *
      * @param loginId Sa-Token 登录 ID
-     * @return 有效根机构所有者上下文，不匹配时为空
+     * @return 有效租户账号上下文，不匹配时为空
      */
-    private AccountLifecycleMapper.TenantPermissionContextRow activeRootOwner(Object loginId) {
+    private AccountLifecycleMapper.TenantPermissionContextRow activeTenantContext(Object loginId) {
         /** 租户登录 ID 文本。 */
         String value = String.valueOf(loginId);
         if (!value.startsWith(TENANT_LOGIN_PREFIX)) {
@@ -130,10 +155,10 @@ public class IamStpInterface implements StpInterface {
         } catch (NumberFormatException exception) {
             return null;
         }
+        /** 数据库最终校验后的租户账号上下文。 */
         AccountLifecycleMapper.TenantPermissionContextRow context =
                 accountLifecycleMapper.selectTenantPermissionContext(accountId);
         return context != null
-                && context.rootOwner()
                 && "ACTIVE".equals(context.accountStatus())
                 && "ACTIVE".equals(context.tenantStatus())
                 && "ACTIVE".equals(context.organizationStatus())

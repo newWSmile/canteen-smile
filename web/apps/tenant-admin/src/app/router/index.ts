@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getTenantAdminToken } from '@/shared/http/client'
 
-/** 租户管理端路由；仅装配租户与机构管理模块。 */
+/** 租户管理端路由；受保护页面统一装配在后台布局的右侧内容区。 */
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -22,25 +22,33 @@ export const router = createRouter({
     },
     {
       path: '/',
+      name: 'tenant-management',
       component: () => import('@/app/layouts/TenantAdminLayout.vue'),
+      meta: { title: '租户管理' },
       children: [
         {
           path: '',
           name: 'home',
           component: () => import('@/modules/home/pages/HomePage.vue'),
-          meta: { title: '管理概览', breadcrumb: '租户管理 / 概览' },
+          meta: { title: '管理概览' },
         },
         {
           path: 'organization-types',
           name: 'organization-types',
           component: () => import('@/modules/organization/pages/OrganizationTypesPage.vue'),
-          meta: { title: '机构类型与关系', breadcrumb: '租户管理 / 机构类型' },
+          meta: { title: '机构类型与关系' },
         },
         {
           path: 'organizations',
           name: 'organizations',
           component: () => import('@/modules/organization/pages/OrganizationsPage.vue'),
-          meta: { title: '机构树', breadcrumb: '租户管理 / 机构树' },
+          meta: { title: '机构树' },
+        },
+        {
+          path: 'roles',
+          name: 'roles',
+          component: () => import('@/modules/role/pages/RolesPage.vue'),
+          meta: { title: '角色与授权' },
         },
       ],
     },

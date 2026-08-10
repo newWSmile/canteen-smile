@@ -1,26 +1,40 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getPlatformToken } from '@/shared/http/client'
 
-/** 平台管理端路由；仅装配平台身份可以访问的模块。 */
+/** 平台管理端路由；受保护页面统一装配在后台布局的右侧内容区。 */
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: () => import('@/modules/home/pages/HomePage.vue'),
-      meta: { requiresAuth: true },
+      name: 'platform',
+      component: () => import('@/app/layouts/PlatformAdminLayout.vue'),
+      meta: { requiresAuth: true, title: '平台治理' },
+      children: [
+        {
+          path: '',
+          name: 'home',
+          component: () => import('@/modules/home/pages/HomePage.vue'),
+          meta: { requiresAuth: true, title: '租户治理' },
+        },
+        {
+          path: 'org-type-templates',
+          name: 'org-type-templates',
+          component: () => import('@/modules/tenant/pages/OrgTypeTemplatePage.vue'),
+          meta: { requiresAuth: true, title: '机构类型模板' },
+        },
+        {
+          path: 'permission-resources',
+          name: 'permission-resources',
+          component: () => import('@/modules/permission/pages/PermissionResourcesPage.vue'),
+          meta: { requiresAuth: true, title: '权限资源' },
+        },
+      ],
     },
     {
       path: '/login',
       name: 'login',
       component: () => import('@/modules/auth/pages/LoginPage.vue'),
-    },
-    {
-      path: '/org-type-templates',
-      name: 'org-type-templates',
-      component: () => import('@/modules/tenant/pages/OrgTypeTemplatePage.vue'),
-      meta: { requiresAuth: true },
     },
     {
       path: '/bootstrap',

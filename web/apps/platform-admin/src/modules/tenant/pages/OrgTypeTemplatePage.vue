@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { listOrgTypeTemplates, publishOrgTypeTemplate } from '../api/tenantApi'
 import type { OrgTypeTemplate, OrgTypeTemplateItem, OrgTypeTemplateRelation } from '../types'
 import { useSingleFlight } from '@/shared/composables/useSingleFlight'
 import { feedback } from '@/shared/feedback'
 
-const router = useRouter()
 const templates = ref<OrgTypeTemplate[]>([])
 const loading = ref(false)
 const editorVisible = ref(false)
@@ -86,10 +84,9 @@ onMounted(() => void loadTemplates())
 </script>
 
 <template>
-  <main class="template-page">
+  <section class="template-page">
     <header>
       <div>
-        <el-button text @click="router.push({ name: 'home' })">← 返回租户治理</el-button>
         <p>PLATFORM / ORGANIZATION TYPE TEMPLATE</p>
         <h1>机构类型模板</h1>
         <span>每次发布形成不可变版本；创建租户时复制为该租户独立维护的数据。</span>
@@ -144,11 +141,11 @@ onMounted(() => void loadTemplates())
         </el-button>
       </template>
     </el-dialog>
-  </main>
+  </section>
 </template>
 
 <style scoped>
-.template-page { min-height: 100vh; padding: 44px; color: #242129; background: #f3f4f1; }
+.template-page { color: #242129; }
 header { max-width: 1280px; margin: 0 auto 28px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
 header p { margin: 28px 0 8px; color: #6d48c4; font-size: 11px; font-weight: 700; letter-spacing: .13em; }
 header h1 { margin: 0 0 8px; font-size: 40px; }
@@ -167,5 +164,5 @@ article p { margin: 0; color: #87818c; font-size: 12px; }
 .type-row { grid-template-columns: 1fr 1fr 150px auto; }
 .relation-row { grid-template-columns: 1fr auto 1fr auto; }
 .relation-row span { color: #8a8490; font-size: 12px; }
-@media (max-width: 900px) { .version-grid { grid-template-columns: 1fr; } .template-page { padding: 20px; } header { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 900px) { .version-grid { grid-template-columns: 1fr; } header { align-items: flex-start; flex-direction: column; } }
 </style>

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.permission.mapper.PermissionResourceMapper">
+
+    <sql id="resourceColumns">
+        id, permission_code, resource_type, parent_id, name, description, app_code,
+        route_path, component_key, api_method, api_path_pattern, feature_code,
+        publish_status, semantic_version, sort_order, created_time, version
+    </sql>
+
+    <select id="countResources" resultType="long">
+        SELECT COUNT(1)
+        FROM public.iam_permission_resource
+        WHERE is_deleted = false
+        <if test="publishStatus != null and publishStatus != ''">
+            AND publish_status = #{publishStatus}
+        </if>
+        <if test="appCode != null and appCode != ''">
+            AND app_code = #{appCode}
+        </if>
+        <if test="resourceType != null and resourceType != ''">
+            AND resource_type = #{resourceType}
+        </if>
+    </select>
+
+    <select id="selectResources"
+            resultType="com.canteen.smile.modules.permission.mapper.PermissionResourceMapper$PermissionResourceRow">
+        SELECT <include refid="resourceColumns"/>
+        FROM public.iam_permission_resource
+        WHERE is_deleted = false
+        <if test="publishStatus != null and publishStatus != ''">
+            AND publish_status = #{publishStatus}
+        </if>
+        <if test="appCode != null and appCode != ''">
+            AND app_code = #{appCode}
+        </if>
+        <if test="resourceType != null and resourceType != ''">
+            AND resource_type = #{resourceType}
+        </if>
+        ORDER BY created_time DESC, id DESC
+        OFFSET #{offset} LIMIT #{limit}
+    </select>
+
+    <select id="selectResource"
+            resultType="com.canteen.smile.modules.permission.mapper.PermissionResourceMapper$PermissionResourceRow">
+        SELECT <include refid="resourceColumns"/>
+        FROM public.iam_permission_resource
+        WHERE id = #{resourceId} AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <select id="selectParentResource"
+            resultType="com.canteen.smile.modules.permission.mapper.PermissionResourceMapper$PermissionResourceRow">
+        SELECT <include refid="resourceColumns"/>
+        FROM public.iam_permission_resource
+        WHERE id = #{parentId} AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <insert id="insertResource" parameterType="com.canteen.smile.modules.permission.entity.PermissionResourceEntity"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO public.iam_permission_resource (
+            permission_code, resource_type, parent_id, name, description, app_code,
+            route_path, component_key, api_method, api_path_pattern, feature_code,
+            publish_status, semantic_version, sort_order, created_by, updated_by
+        ) VALUES (
+            #{permissionCode}, #{resourceType}, #{parentId}, #{name}, #{description}, #{appCode},
+            #{routePath}, #{componentKey}, #{apiMethod}, #{apiPathPattern}, #{featureCode},
+            'DRAFT', #{semanticVersion}, #{sortOrder}, #{createdBy}, #{updatedBy}
+        )
+    </insert>
+
+    <update id="publishResource">
+        UPDATE public.iam_permission_resource
+        SET publish_status = 'PUBLISHED', updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE id = #{resourceId} AND publish_status = 'DRAFT'
+          AND version = #{version} AND is_deleted = false
+    </update>
+
+    <update id="deprecateResource">
+        UPDATE public.iam_permission_resource
+        SET publish_status = 'DEPRECATED', updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE id = #{resourceId} AND publish_status = 'PUBLISHED'
+          AND version = #{version} AND is_deleted = false
+    </update>
+
+    <insert id="initializeFeatureForExistingTenants">
+        INSERT INTO public.iam_tenant_feature (
+            tenant_id, feature_code, enabled, changed_by, created_by, updated_by
+        )
+        SELECT tenant.id, #{featureCode}, true, #{operatorId}, #{operatorId}, #{operatorId}
+        FROM public.iam_tenant tenant
+        WHERE tenant.is_deleted = false
+        ON CONFLICT (tenant_id, feature_code) DO NOTHING
+    </insert>
+
+    <insert id="initializeMenuForExistingTenants">
+        INSERT INTO public.iam_tenant_menu_config (
+            tenant_id, menu_permission_id, hidden, changed_by, created_by, updated_by
+        )
+        SELECT tenant.id, #{permissionId}, false, #{operatorId}, #{operatorId}, #{operatorId}
+        FROM public.iam_tenant tenant
+        WHERE tenant.is_deleted = false
+        ON CONFLICT (tenant_id, menu_permission_id) DO NOTHING
+    </insert>
+</mapper>

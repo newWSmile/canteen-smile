@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { AppBreadcrumb, type BreadcrumbItem } from '@canteen-smile/ui'
 import { logoutCurrentSession } from '@/modules/auth/api/authApi'
 import { useTenantContextStore } from '@/app/store/tenantContext'
 import { useSingleFlight } from '@/shared/composables/useSingleFlight'
@@ -10,6 +11,23 @@ import { clearTenantAdminToken } from '@/shared/http/client'
 const route = useRoute()
 const router = useRouter()
 const tenantContext = useTenantContextStore()
+
+/** 根据嵌套路由生成可点击的租户管理面包屑。 */
+const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
+  const records = route.matched.filter((record) => typeof record.meta.title === 'string')
+  return records.map((record, index) => ({
+    label: record.meta.title as string,
+    to: index < records.length - 1
+      ? record.name
+        ? router.resolve({ name: record.name }).path
+        : record.path
+      : undefined,
+  }))
+})
+
+const currentTitle = computed(() =>
+  typeof route.meta.title === 'string' ? route.meta.title : '租户管理端',
+)
 
 onMounted(async () => {
   try {
@@ -38,7 +56,7 @@ const logoutFlight = useSingleFlight(async () => {
     <aside class="tenant-sidebar">
       <div class="brand"><span>CS</span><strong>Canteen Smile</strong></div>
       <p class="workspace">TENANT ADMINISTRATION</p>
-      <nav>
+      <nav aria-label="租户管理端主导航">
         <RouterLink :class="{ active: route.name === 'home' }" :to="{ name: 'home' }">管理概览</RouterLink>
         <RouterLink
           v-if="tenantContext.hasPermission('iam:org-type:view')"
@@ -50,7 +68,12 @@ const logoutFlight = useSingleFlight(async () => {
           :class="{ active: route.name === 'organizations' }"
           :to="{ name: 'organizations' }"
         >机构树</RouterLink>
-        <span class="coming">用户与角色 · 后续阶段</span>
+        <RouterLink
+          v-if="tenantContext.hasPermission('iam:role:view')"
+          :class="{ active: route.name === 'roles' }"
+          :to="{ name: 'roles' }"
+        >角色与授权</RouterLink>
+        <span class="coming">用户管理 · 下一阶段切片</span>
       </nav>
       <div class="boundary">
         <strong>租户隔离边界</strong>
@@ -60,9 +83,9 @@ const logoutFlight = useSingleFlight(async () => {
     </aside>
     <main class="tenant-main">
       <header class="tenant-header">
-        <div>
-          <small>{{ route.meta.breadcrumb || '租户管理' }}</small>
-          <h1>{{ route.meta.title || '租户管理端' }}</h1>
+        <div class="page-identity">
+          <AppBreadcrumb :items="breadcrumbItems" @navigate="router.push" />
+          <h1>{{ currentTitle }}</h1>
         </div>
         <div class="account-actions">
           <div><strong>{{ tenantContext.displayName }}</strong><small>{{ tenantContext.context?.username }}</small></div>
@@ -76,7 +99,7 @@ const logoutFlight = useSingleFlight(async () => {
 
 <style scoped>
 .tenant-shell { min-height: 100vh; display: grid; grid-template-columns: 244px minmax(0,1fr); color: #1c2c31; background: #f3f6f4; }
-.tenant-sidebar { padding: 28px 20px; display: flex; flex-direction: column; color: #e8f6f6; background: #123f50; }
+.tenant-sidebar { position: sticky; top: 0; height: 100vh; padding: 28px 20px; display: flex; flex-direction: column; color: #e8f6f6; background: #123f50; }
 .brand { display: flex; gap: 12px; align-items: center; }
 .brand span { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid #5d8896; border-radius: 12px; }
 .workspace { margin: 30px 8px 12px; color: #75a7b4; font-size: 10px; letter-spacing: .12em; }
@@ -87,8 +110,11 @@ nav .coming { opacity: .5; }
 .boundary { margin-top: auto; padding: 16px; display: grid; gap: 6px; border: 1px solid #315d6b; border-radius: 14px; }
 .boundary small { color: #8eb3bc; overflow: hidden; text-overflow: ellipsis; }
 .tenant-main { min-width: 0; }
-.tenant-header { min-height: 92px; padding: 20px 36px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dde5e1; background: #fff; }
-.tenant-header small { color: #82908f; } .tenant-header h1 { margin: 4px 0 0; font-size: 22px; }
-.account-actions { display: flex; align-items: center; gap: 20px; } .account-actions > div { display: grid; text-align: right; }
+.tenant-header { position: sticky; top: 0; z-index: 20; min-height: 92px; padding: 18px 36px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dde5e1; background: rgba(255,255,255,.94); backdrop-filter: blur(12px); }
+.page-identity { display: grid; gap: 4px; --breadcrumb-link: #27758b; --breadcrumb-link-hover: #164f61; }
+.tenant-header h1 { margin: 0; font-size: 22px; }
+.account-actions { display: flex; align-items: center; gap: 20px; }
+.account-actions > div { display: grid; text-align: right; }
+.account-actions small { color: #82908f; }
 @media (max-width: 760px) { .tenant-shell { grid-template-columns: 1fr; } .tenant-sidebar { display: none; } .tenant-header { padding: 18px 20px; } }
 </style>

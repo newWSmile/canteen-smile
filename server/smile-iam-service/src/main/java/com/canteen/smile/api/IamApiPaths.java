@@ -38,6 +38,9 @@ public final class IamApiPaths {
     /** 平台机构类型模板资源路径。 */
     public static final String PLATFORM_ORG_TYPE_TEMPLATES = EXTERNAL_V1 + "/platform/org-type-templates";
 
+    /** 平台权限资源发布路径。 */
+    public static final String PLATFORM_PERMISSION_RESOURCES = EXTERNAL_V1 + "/platform/permission-resources";
+
     /** 租户管理端当前身份与租户上下文。 */
     public static final String TENANT_CONTEXT = EXTERNAL_V1 + "/tenant/context";
 
@@ -50,6 +53,15 @@ public final class IamApiPaths {
 
     /** 租户机构树资源。 */
     public static final String TENANT_ORGANIZATIONS = EXTERNAL_V1 + "/tenant/organizations";
+
+    /** 租户本机构角色资源路径。 */
+    public static final String TENANT_ROLES = EXTERNAL_V1 + "/tenant/roles";
+
+    /** 租户当前可分配权限树路径。 */
+    public static final String TENANT_PERMISSION_TREE = EXTERNAL_V1 + "/tenant/permission-tree";
+
+    /** 租户当前授权上限路径。 */
+    public static final String TENANT_GRANT_BOUNDARY = EXTERNAL_V1 + "/tenant/grant-boundary";
 
     /** 禁止实例化 API 路径常量类。 */
     private IamApiPaths() {

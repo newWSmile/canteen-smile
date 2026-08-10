@@ -52,6 +52,38 @@ public class IamAuditLogService {
     }
 
     /**
+     * 记录平台身份执行的平台治理操作。
+     *
+     * @param operatorId 平台身份 ID
+     * @param actionCode 动作编码
+     * @param targetType 目标类型
+     * @param targetId 目标 ID
+     * @param result SUCCESS 或 FAILURE
+     */
+    @Transactional
+    public void recordPlatformAction(
+            long operatorId,
+            String actionCode,
+            String targetType,
+            String targetId,
+            String result
+    ) {
+        IamAuditLogEntity entity = new IamAuditLogEntity();
+        entity.setOperatorType("PLATFORM_IDENTITY");
+        entity.setOperatorId(operatorId);
+        entity.setActionCode(actionCode);
+        entity.setTargetType(targetType);
+        entity.setTargetId(targetId);
+        entity.setResult(result);
+        entity.setTraceId(MDC.get("traceId"));
+        entity.setCreatedBy(operatorId);
+        entity.setUpdatedBy(operatorId);
+        if (mapper.insert(entity) != 1) {
+            throw new IllegalStateException("IAM platform audit log was not inserted");
+        }
+    }
+
+    /**
      * 记录租户账号执行的机构治理操作。
      *
      * @param tenantId 租户 ID

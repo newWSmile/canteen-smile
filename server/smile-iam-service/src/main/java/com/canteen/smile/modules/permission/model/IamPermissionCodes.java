@@ -18,6 +18,9 @@ public final class IamPermissionCodes {
     /** 平台端维护机构类型模板。 */
     public static final String PLATFORM_ORG_TEMPLATE_MANAGE = "platform:org-template:manage";
 
+    /** 平台端维护和发布永久权限资源。 */
+    public static final String PLATFORM_PERMISSION_MANAGE = "platform:permission:manage";
+
     /** 查看本租户机构类型。 */
     public static final String IAM_ORG_TYPE_VIEW = "iam:org-type:view";
 
@@ -41,6 +44,27 @@ public final class IamPermissionCodes {
 
     /** 删除从未使用的空白机构。 */
     public static final String IAM_ORG_DELETE = "iam:org:delete";
+
+    /** 查看本机构角色。 */
+    public static final String IAM_ROLE_VIEW = "iam:role:view";
+
+    /** 创建本机构角色。 */
+    public static final String IAM_ROLE_CREATE = "iam:role:create";
+
+    /** 修改本机构角色资料。 */
+    public static final String IAM_ROLE_UPDATE = "iam:role:update";
+
+    /** 停用或恢复本机构角色。 */
+    public static final String IAM_ROLE_STATUS = "iam:role:status";
+
+    /** 删除本机构自定义角色。 */
+    public static final String IAM_ROLE_DELETE = "iam:role:delete";
+
+    /** 分配本机构角色功能权限。 */
+    public static final String IAM_ROLE_GRANT = "iam:role:grant";
+
+    /** 配置本机构角色数据范围。 */
+    public static final String IAM_ROLE_DATA_SCOPE = "iam:role:data-scope";
 
     /** 禁止实例化权限码常量类。 */
     private IamPermissionCodes() {

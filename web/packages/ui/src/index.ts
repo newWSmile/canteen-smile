@@ -1,2 +1,3 @@
 export { default as ApplicationBoundary } from './ApplicationBoundary.vue'
-export type { BoundaryCard } from './types'
+export { default as AppBreadcrumb } from './AppBreadcrumb.vue'
+export type { BoundaryCard, BreadcrumbItem } from './types'

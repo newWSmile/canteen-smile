@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.role.mapper.RoleMapper">
+
+    <select id="nextRoleId" resultType="long">SELECT nextval('public.iam_role_seq')</select>
+    <select id="nextDataPolicyId" resultType="long">SELECT nextval('public.iam_role_data_policy_seq')</select>
+    <select id="nextOutboxId" resultType="long">SELECT nextval('public.iam_outbox_event_seq')</select>
+
+    <sql id="roleColumns">
+        role.id, role.role_code, role.name, role.description, role.role_type, role.status,
+        role.authz_version,
+        (SELECT COUNT(1) FROM public.iam_account_role account_role
+         WHERE account_role.tenant_id = role.tenant_id
+           AND account_role.organization_id = role.organization_id
+           AND account_role.role_id = role.id AND account_role.is_deleted = false) AS account_count,
+        (SELECT policy.scope_type FROM public.iam_role_data_policy policy
+         WHERE policy.tenant_id = role.tenant_id AND policy.organization_id = role.organization_id
+           AND policy.role_id = role.id AND policy.module_code = '*' AND policy.is_deleted = false
+         LIMIT 1) AS default_scope_type,
+        role.created_time, role.version
+    </sql>
+
+    <select id="countRoles" resultType="long">
+        SELECT COUNT(1) FROM public.iam_role
+        WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId} AND is_deleted = false
+        <if test="status != null and status != ''">AND status = #{status}</if>
+    </select>
+
+    <select id="selectRoles" resultType="com.canteen.smile.modules.role.mapper.RoleMapper$RoleRow">
+        SELECT <include refid="roleColumns"/>
+        FROM public.iam_role role
+        WHERE role.tenant_id = #{tenantId} AND role.organization_id = #{organizationId}
+          AND role.is_deleted = false
+        <if test="status != null and status != ''">AND role.status = #{status}</if>
+        ORDER BY CASE WHEN role.role_type = 'OWNER' THEN 0 ELSE 1 END, role.name, role.id
+        OFFSET #{offset} LIMIT #{limit}
+    </select>
+
+    <select id="selectRole" resultType="com.canteen.smile.modules.role.mapper.RoleMapper$RoleRow">
+        SELECT <include refid="roleColumns"/>
+        FROM public.iam_role role
+        WHERE role.tenant_id = #{tenantId} AND role.organization_id = #{organizationId}
+          AND role.id = #{roleId} AND role.is_deleted = false
+        LIMIT 1
+    </select>
+
+    <insert id="insertRole" parameterType="com.canteen.smile.modules.role.entity.RoleEntity">
+        INSERT INTO public.iam_role (
+            id, tenant_id, organization_id, role_code, name, normalized_name, description,
+            role_type, status, authz_version, created_by, updated_by
+        ) VALUES (
+            #{id}, #{tenantId}, #{organizationId}, #{roleCode}, #{name}, #{normalizedName}, #{description},
+            #{roleType}, #{status}, 0, #{createdBy}, #{updatedBy}
+        )
+    </insert>
+
+    <insert id="insertDataPolicy">
+        INSERT INTO public.iam_role_data_policy (
+            id, tenant_id, organization_id, role_id, module_code, scope_type, created_by, updated_by
+        ) VALUES (
+            #{policyId}, #{tenantId}, #{organizationId}, #{roleId}, #{moduleCode}, #{scopeType},
+            #{operatorId}, #{operatorId}
+        )
+    </insert>
+
+    <insert id="insertDataPolicyOrganizations">
+        INSERT INTO public.iam_role_data_scope_org (
+            tenant_id, policy_id, organization_id, created_by, updated_by
+        ) VALUES
+        <foreach collection="organizationIds" item="organizationId" separator=",">
+            (#{tenantId}, #{policyId}, #{organizationId}, #{operatorId}, #{operatorId})
+        </foreach>
+    </insert>
+
+    <update id="updateRole">
+        UPDATE public.iam_role
+        SET name = #{name}, normalized_name = #{normalizedName}, description = #{description},
+            updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId} AND id = #{roleId}
+          AND role_type = 'CUSTOM' AND version = #{version} AND is_deleted = false
+    </update>
+
+    <update id="updateRoleStatus">
+        UPDATE public.iam_role
+        SET status = #{status}, authz_version = authz_version + 1,
+            updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId} AND id = #{roleId}
+          AND role_type = 'CUSTOM' AND status &lt;&gt; #{status}
+          AND version = #{version} AND is_deleted = false
+    </update>
+
+    <update id="deleteRole">
+        UPDATE public.iam_role
+        SET is_deleted = true, authz_version = authz_version + 1,
+            updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId} AND id = #{roleId}
+          AND role_type = 'CUSTOM' AND version = #{version} AND is_deleted = false
+    </update>
+
+    <select id="countRoleAccounts" resultType="long">
+        SELECT COUNT(1) FROM public.iam_account_role
+        WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId}
+          AND role_id = #{roleId} AND is_deleted = false
+    </select>
+
+    <sql id="grantablePermissionCondition">
+        permission.publish_status = 'PUBLISHED'
+        AND permission.app_code IN ('TENANT_ADMIN', 'TENANT_PORTAL', 'SERVICE')
+        AND permission.resource_type IN ('DIRECTORY', 'MENU', 'BUTTON')
+        AND permission.is_deleted = false
+        AND (permission.feature_code IS NULL OR EXISTS (
+            SELECT 1 FROM public.iam_tenant_feature feature
+            WHERE feature.tenant_id = #{tenantId} AND feature.feature_code = permission.feature_code
+              AND feature.enabled = true AND feature.is_deleted = false
+        ))
+        AND (#{rootOwner} = true OR EXISTS (
+            SELECT 1
+            FROM public.iam_account_role account_role
+            JOIN public.iam_role role
+              ON role.tenant_id = account_role.tenant_id
+             AND role.organization_id = account_role.organization_id
+             AND role.id = account_role.role_id
+             AND role.status = 'ACTIVE' AND role.is_deleted = false
+            JOIN public.iam_role_permission role_permission
+              ON role_permission.tenant_id = role.tenant_id
+             AND role_permission.organization_id = role.organization_id
+             AND role_permission.role_id = role.id
+             AND role_permission.permission_id = permission.id
+             AND role_permission.is_deleted = false
+            WHERE account_role.tenant_id = #{tenantId} AND account_role.account_id = #{accountId}
+              AND account_role.is_deleted = false
+        ))
+    </sql>
+
+    <select id="selectGrantablePermissions"
+            resultType="com.canteen.smile.modules.role.mapper.RoleMapper$PermissionRow">
+        SELECT permission.id, permission.parent_id, permission.permission_code, permission.name,
+               permission.resource_type, permission.app_code, permission.feature_code, permission.sort_order
+        FROM public.iam_permission_resource permission
+        WHERE <include refid="grantablePermissionCondition"/>
+        ORDER BY permission.app_code, permission.sort_order, permission.id
+    </select>
+
+    <select id="selectRolePermissionIds" resultType="long">
+        SELECT permission_id FROM public.iam_role_permission
+        WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId}
+          AND role_id = #{roleId} AND is_deleted = false
+        ORDER BY permission_id
+    </select>
+
+    <select id="countGrantablePermissionIds" resultType="long">
+        SELECT COUNT(1)
+        FROM public.iam_permission_resource permission
+        WHERE permission.id IN
+        <foreach collection="permissionIds" item="permissionId" open="(" separator="," close=")">
+            #{permissionId}
+        </foreach>
+        AND <include refid="grantablePermissionCondition"/>
+    </select>
+
+    <update id="deactivateRolePermissions">
+        UPDATE public.iam_role_permission
+        SET is_deleted = true, updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId}
+          AND role_id = #{roleId} AND is_deleted = false
+    </update>
+
+    <insert id="upsertRolePermissions">
+        INSERT INTO public.iam_role_permission (
+            tenant_id, organization_id, role_id, permission_id, granted_by, created_by, updated_by
+        ) VALUES
+        <foreach collection="permissionIds" item="permissionId" separator=",">
+            (#{tenantId}, #{organizationId}, #{roleId}, #{permissionId}, #{operatorId}, #{operatorId}, #{operatorId})
+        </foreach>
+        ON CONFLICT (role_id, permission_id) WHERE is_deleted = false
+        DO UPDATE SET granted_by = EXCLUDED.granted_by, granted_time = CURRENT_TIMESTAMP,
+                      updated_by = EXCLUDED.updated_by, updated_time = CURRENT_TIMESTAMP,
+                      version = public.iam_role_permission.version + 1
+    </insert>
+
+    <update id="touchRoleAuthorization">
+        UPDATE public.iam_role
+        SET authz_version = authz_version + 1, updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId} AND id = #{roleId}
+          AND role_type = 'CUSTOM' AND version = #{version} AND is_deleted = false
+    </update>
+
+    <update id="deactivateRoleDataScopeOrganizations">
+        UPDATE public.iam_role_data_scope_org scope_org
+        SET is_deleted = true, updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP,
+            version = scope_org.version + 1
+        FROM public.iam_role_data_policy policy
+        WHERE policy.tenant_id = #{tenantId} AND policy.organization_id = #{organizationId}
+          AND policy.role_id = #{roleId} AND policy.is_deleted = false
+          AND scope_org.tenant_id = policy.tenant_id AND scope_org.policy_id = policy.id
+          AND scope_org.is_deleted = false
+    </update>
+
+    <update id="deactivateRoleDataPolicies">
+        UPDATE public.iam_role_data_policy
+        SET is_deleted = true, updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId}
+          AND role_id = #{roleId} AND is_deleted = false
+    </update>
+
+    <select id="selectRoleDataPolicies"
+            resultType="com.canteen.smile.modules.role.mapper.RoleMapper$DataPolicyRow">
+        SELECT policy.id AS policy_id, policy.module_code,
+               CASE WHEN policy.module_code = '*' THEN '默认策略' ELSE data_module.name END AS module_name,
+               policy.scope_type, scope_org.organization_id
+        FROM public.iam_role_data_policy policy
+        LEFT JOIN public.iam_data_module data_module
+          ON data_module.module_code = policy.module_code AND data_module.is_deleted = false
+        LEFT JOIN public.iam_role_data_scope_org scope_org
+          ON scope_org.tenant_id = policy.tenant_id AND scope_org.policy_id = policy.id
+         AND scope_org.is_deleted = false
+        WHERE policy.tenant_id = #{tenantId} AND policy.organization_id = #{organizationId}
+          AND policy.role_id = #{roleId} AND policy.is_deleted = false
+        ORDER BY CASE WHEN policy.module_code = '*' THEN 0 ELSE 1 END, policy.module_code, scope_org.organization_id
+    </select>
+
+    <select id="countPublishedDataModules" resultType="long">
+        SELECT COUNT(1) FROM public.iam_data_module
+        WHERE module_code IN
+        <foreach collection="moduleCodes" item="moduleCode" open="(" separator="," close=")">
+            #{moduleCode}
+        </foreach>
+        AND publish_status = 'PUBLISHED' AND is_deleted = false
+    </select>
+
+    <select id="countOrganizationsInActorSubtree" resultType="long">
+        SELECT COUNT(DISTINCT organization.id)
+        FROM public.iam_organization organization
+        JOIN public.iam_organization_closure path
+          ON path.tenant_id = organization.tenant_id AND path.descendant_id = organization.id
+         AND path.ancestor_id = #{actorOrganizationId} AND path.is_deleted = false
+        WHERE organization.tenant_id = #{tenantId} AND organization.id IN
+        <foreach collection="organizationIds" item="organizationId" open="(" separator="," close=")">
+            #{organizationId}
+        </foreach>
+        AND organization.is_deleted = false
+    </select>
+
+    <update id="bumpAssignedAccountAuthzVersions">
+        UPDATE public.iam_account account
+        SET authz_version = authz_version + 1, updated_by = #{operatorId},
+            updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE account.tenant_id = #{tenantId} AND account.organization_id = #{organizationId}
+          AND account.is_deleted = false AND EXISTS (
+              SELECT 1 FROM public.iam_account_role account_role
+              WHERE account_role.tenant_id = account.tenant_id
+                AND account_role.organization_id = account.organization_id
+                AND account_role.account_id = account.id AND account_role.role_id = #{roleId}
+                AND account_role.is_deleted = false
+          )
+    </update>
+
+    <insert id="insertRoleAuthorizationOutbox">
+        INSERT INTO public.iam_outbox_event (
+            id, event_id, aggregate_type, aggregate_id, tenant_id, event_type, payload_json,
+            status, created_by, updated_by
+        ) VALUES (
+            #{outboxId}, #{eventId}, 'ROLE', CAST(#{roleId} AS varchar), #{tenantId},
+            'ROLE_AUTHORIZATION_CHANGED',
+            jsonb_build_object('tenantId', CAST(#{tenantId} AS varchar), 'roleId', CAST(#{roleId} AS varchar)),
+            'PENDING', #{operatorId}, #{operatorId}
+        )
+    </insert>
+
+    <select id="selectEffectivePermissionCodes" resultType="string">
+        SELECT DISTINCT permission.permission_code
+        FROM public.iam_account_role account_role
+        JOIN public.iam_role role
+          ON role.tenant_id = account_role.tenant_id AND role.organization_id = account_role.organization_id
+         AND role.id = account_role.role_id AND role.status = 'ACTIVE' AND role.is_deleted = false
+        JOIN public.iam_role_permission role_permission
+          ON role_permission.tenant_id = role.tenant_id AND role_permission.organization_id = role.organization_id
+         AND role_permission.role_id = role.id AND role_permission.is_deleted = false
+        JOIN public.iam_permission_resource permission
+          ON permission.id = role_permission.permission_id AND permission.publish_status = 'PUBLISHED'
+         AND permission.is_deleted = false
+        WHERE account_role.tenant_id = #{tenantId} AND account_role.account_id = #{accountId}
+          AND account_role.is_deleted = false
+          AND (permission.feature_code IS NULL OR EXISTS (
+              SELECT 1 FROM public.iam_tenant_feature feature
+              WHERE feature.tenant_id = account_role.tenant_id
+                AND feature.feature_code = permission.feature_code
+                AND feature.enabled = true AND feature.is_deleted = false
+          ))
+        ORDER BY permission.permission_code
+    </select>
+
+    <select id="selectEffectiveRoleCodes" resultType="string">
+        SELECT role.role_code
+        FROM public.iam_account_role account_role
+        JOIN public.iam_role role
+          ON role.tenant_id = account_role.tenant_id AND role.organization_id = account_role.organization_id
+         AND role.id = account_role.role_id AND role.status = 'ACTIVE' AND role.is_deleted = false
+        WHERE account_role.tenant_id = #{tenantId} AND account_role.organization_id = #{organizationId}
+          AND account_role.account_id = #{accountId} AND account_role.is_deleted = false
+        ORDER BY role.role_code
+    </select>
+</mapper>
