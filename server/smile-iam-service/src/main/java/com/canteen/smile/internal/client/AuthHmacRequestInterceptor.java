@@ -31,7 +31,10 @@ public class AuthHmacRequestInterceptor implements ClientHttpRequestInterceptor 
         /** 单次随机数。 */
         String nonce = UUID.randomUUID().toString().replace("-", "");
         /** 跨服务事件标识。 */
-        String eventId = UUID.randomUUID().toString();
+        String requestedEventId = request.getHeaders().getFirst(InternalHmacHeaders.EVENT_ID);
+        String eventId = requestedEventId == null || requestedEventId.isBlank()
+                ? UUID.randomUUID().toString()
+                : requestedEventId;
         /** 请求体 SHA-256 摘要。 */
         String contentHash = HmacRequestSigner.sha256Hex(body);
         /** HMAC v1 规范请求串。 */

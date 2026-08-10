@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.outbox.mapper.OutboxEventMapper">
+
+    <resultMap id="outboxEventResultMap"
+               type="com.canteen.smile.modules.outbox.entity.OutboxEventEntity">
+        <id property="id" column="id"/>
+        <result property="eventId" column="event_id"/>
+        <result property="aggregateType" column="aggregate_type"/>
+        <result property="aggregateId" column="aggregate_id"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="eventType" column="event_type"/>
+        <result property="schemaVersion" column="schema_version"/>
+        <result property="payloadJson" column="payload_json"/>
+        <result property="retryCount" column="retry_count"/>
+        <result property="traceId" column="trace_id"/>
+        <result property="occurredTime" column="occurred_time"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <select id="claimDeliverable" resultMap="outboxEventResultMap">
+        WITH candidates AS (
+            SELECT event.id
+            FROM public.iam_outbox_event event
+            WHERE event.is_deleted = false
+              AND (
+                  (event.status IN ('PENDING', 'RETRY') AND event.next_retry_time &lt;= CURRENT_TIMESTAMP)
+                  OR (event.status = 'PROCESSING' AND event.updated_time &lt; #{processingExpiredBefore})
+              )
+            ORDER BY event.next_retry_time, event.id
+            FOR UPDATE SKIP LOCKED
+            LIMIT #{batchSize}
+        )
+        UPDATE public.iam_outbox_event event
+        SET status = 'PROCESSING',
+            updated_by = 0,
+            updated_time = CURRENT_TIMESTAMP,
+            version = event.version + 1
+        FROM candidates
+        WHERE event.id = candidates.id
+        RETURNING event.id, event.event_id, event.aggregate_type, event.aggregate_id,
+                  event.tenant_id, event.event_type, event.schema_version,
+                  event.payload_json::text AS payload_json, event.retry_count,
+                  event.trace_id, event.occurred_time, event.version
+    </select>
+
+    <update id="markPublished">
+        UPDATE public.iam_outbox_event
+        SET status = 'PUBLISHED',
+            published_time = CURRENT_TIMESTAMP,
+            last_error_code = NULL,
+            updated_by = 0,
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{id}
+          AND version = #{version}
+          AND status = 'PROCESSING'
+          AND is_deleted = false
+    </update>
+
+    <update id="markFailed">
+        UPDATE public.iam_outbox_event
+        SET status = CASE WHEN #{dead} THEN 'DEAD' ELSE 'RETRY' END,
+            retry_count = #{retryCount},
+            next_retry_time = #{nextRetryTime},
+            last_error_code = #{errorCode},
+            updated_by = 0,
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{id}
+          AND version = #{version}
+          AND status = 'PROCESSING'
+          AND is_deleted = false
+    </update>
+</mapper>

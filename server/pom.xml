@@ -33,6 +33,7 @@
         <sa-token.version>1.45.0</sa-token.version>
         <mybatis.version>3.0.5</mybatis.version>
         <bouncycastle.version>1.80.2</bouncycastle.version>
+        <xxl-job.version>3.4.0</xxl-job.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -59,6 +60,11 @@
                 <groupId>com.canteen</groupId>
                 <artifactId>smile-infrastructure-starter</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xuxueli</groupId>
+                <artifactId>xxl-job-core</artifactId>
+                <version>${xxl-job.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

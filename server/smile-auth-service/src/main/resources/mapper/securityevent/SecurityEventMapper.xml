@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.securityevent.mapper.SecurityEventMapper">
+
+    <select id="selectConsumedEvent"
+            resultType="com.canteen.smile.modules.securityevent.mapper.SecurityEventMapper$ConsumedEventRow">
+        SELECT event_id, event_type, payload_digest, result
+        FROM public.auth_consumed_event
+        WHERE event_id = #{eventId}
+          AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <insert id="insertConsumedEvent">
+        INSERT INTO public.auth_consumed_event (
+            event_id, event_type, payload_digest, result, created_by, updated_by
+        ) VALUES (
+            #{eventId}, #{eventType}, #{payloadDigest}, 'SUCCESS', 0, 0
+        )
+        ON CONFLICT (event_id) DO NOTHING
+    </insert>
+
+    <update id="invalidatePermissionSnapshots">
+        UPDATE public.auth_permission_snapshot snapshot
+        SET status = 'INVALIDATED',
+            updated_by = 0,
+            updated_time = CURRENT_TIMESTAMP,
+            version = snapshot.version + 1
+        WHERE snapshot.status = 'ACTIVE'
+          AND snapshot.is_deleted = false
+          AND EXISTS (
+              SELECT 1
+              FROM public.auth_device_session session
+              WHERE session.session_id = snapshot.session_id
+                AND session.subject_type = 'TENANT_ACCOUNT'
+                AND session.subject_id = #{accountId}
+                AND session.tenant_id = #{tenantId}
+                AND session.is_deleted = false
+          )
+    </update>
+
+    <update id="invalidateDeviceSessions">
+        UPDATE public.auth_device_session
+        SET status = 'INVALIDATED',
+            updated_by = 0,
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE subject_type = 'TENANT_ACCOUNT'
+          AND subject_id = #{accountId}
+          AND tenant_id = #{tenantId}
+          AND status = 'ACTIVE'
+          AND is_deleted = false
+    </update>
+
+    <insert id="insertSecurityAudit">
+        INSERT INTO public.auth_audit_log (
+            tenant_id, subject_type, subject_id, operator_type, operator_id,
+            action_code, result, trace_id, created_by, updated_by
+        ) VALUES (
+            #{tenantId}, 'TENANT_ACCOUNT', #{accountId}, 'SYSTEM', 0,
+            #{actionCode}, 'SUCCESS', #{traceId}, 0, 0
+        )
+    </insert>
+</mapper>

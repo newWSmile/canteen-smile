@@ -5,6 +5,9 @@ import com.canteen.smile.common.api.AuthPublicApiPaths;
 /** Auth 服务外部与内部版本化路径契约。 */
 public final class AuthApiPaths {
 
+    /** 仅允许可信内部网络与 HMAC 调用的 Auth v1 根路径。 */
+    public static final String INTERNAL_V1 = "/internal/auth/v1";
+
     /** 经 Gateway 暴露给前端的 Auth v1 根路径。 */
     public static final String EXTERNAL_V1 = AuthPublicApiPaths.EXTERNAL_V1;
 
@@ -58,6 +61,9 @@ public final class AuthApiPaths {
     /** IAM 原子消费敏感操作再认证票据的内部接口。 */
     public static final String INTERNAL_REAUTH_TICKET_CONSUME =
             "/internal/auth/v1/reauth-tickets/actions/consume";
+
+    /** IAM Outbox 安全事件幂等消费路径。 */
+    public static final String INTERNAL_SECURITY_EVENTS = INTERNAL_V1 + "/security-events";
 
     /** 禁止实例化 API 路径常量类。 */
     private AuthApiPaths() {

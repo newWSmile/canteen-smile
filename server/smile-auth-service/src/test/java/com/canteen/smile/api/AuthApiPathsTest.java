@@ -19,5 +19,7 @@ class AuthApiPathsTest {
         assertThat(AuthApiPaths.PASSWORD_LOGIN).isEqualTo(AuthPublicApiPaths.PASSWORD_LOGIN);
         assertThat(AuthApiPaths.PLATFORM_RECOVERY_LOGIN)
                 .isEqualTo(AuthPublicApiPaths.PLATFORM_RECOVERY_LOGIN);
+        assertThat(AuthApiPaths.INTERNAL_SECURITY_EVENTS)
+                .isEqualTo("/internal/auth/v1/security-events");
     }
 }

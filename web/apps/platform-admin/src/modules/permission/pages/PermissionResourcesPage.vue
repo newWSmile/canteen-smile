@@ -26,6 +26,39 @@ const appCode = ref<PermissionAppCode | ''>('')
 const resourceType = ref<PermissionResourceType | ''>('')
 const dialogVisible = ref(false)
 
+/** 权限资源类型的界面中文名称，接口传输仍使用稳定英文编码。 */
+const resourceTypeLabels: Record<PermissionResourceType, string> = {
+  DIRECTORY: '目录',
+  MENU: '菜单',
+  BUTTON: '按钮',
+  API: '接口',
+  DATA_MODULE: '数据模块',
+}
+
+/** 权限资源归属的界面中文名称，SERVICE 表示后端接口而非第四个前端。 */
+const appCodeLabels: Record<PermissionAppCode, string> = {
+  PLATFORM_ADMIN: '平台管理端',
+  TENANT_ADMIN: '租户管理端',
+  TENANT_PORTAL: '租户业务端',
+  SERVICE: '后端接口（非前端入口）',
+}
+
+/** 权限资源发布状态的界面中文名称。 */
+const publishStatusLabels: Record<PermissionPublishStatus, string> = {
+  DRAFT: '草稿',
+  PUBLISHED: '已发布',
+  DEPRECATED: '已废弃',
+}
+
+/** 本页面可管理的权限资源类型；数据模块由独立的数据权限模块流程维护。 */
+const resourceTypeOptions: Array<Exclude<PermissionResourceType, 'DATA_MODULE'>> = ['DIRECTORY', 'MENU', 'BUTTON', 'API']
+
+/** 新建权限草稿可选的资源类型，数据模块由后续独立流程维护。 */
+const creatableResourceTypeOptions: Array<Exclude<PermissionResourceType, 'DATA_MODULE'>> = ['DIRECTORY', 'MENU', 'BUTTON', 'API']
+
+/** 权限资源可选归属。 */
+const appCodeOptions: PermissionAppCode[] = ['PLATFORM_ADMIN', 'TENANT_ADMIN', 'TENANT_PORTAL', 'SERVICE']
+
 const form = reactive<CreatePermissionResourceRequest>({
   permissionCode: '',
   resourceType: 'MENU',
@@ -73,7 +106,7 @@ const createFlight = useSingleFlight(async () => {
     return
   }
   if (form.resourceType === 'API' && (!form.apiMethod || !form.apiPathPattern?.trim())) {
-    feedback.warning('API 资源必须填写 HTTP 方法和模板路径')
+    feedback.warning('接口资源必须填写请求方法和模板路径')
     return
   }
   await createPermissionResource({
@@ -121,24 +154,22 @@ onMounted(load)
   <section class="permission-page" v-loading="loading">
     <header class="page-header">
       <div>
-        <p>PLATFORM / PERMISSION RESOURCE</p>
+        <p>平台管理 / 权限资源</p>
         <h1>权限资源</h1>
-        <span>平台统一定义菜单、按钮与 API 契约；发布后只能废弃，权限码永久不得复用。</span>
+        <span>平台统一定义菜单、按钮与接口契约；发布后只能废弃，权限码永久不得复用。</span>
       </div>
       <el-button type="primary" size="large" @click="openCreate">新建权限草稿</el-button>
     </header>
 
     <section class="toolbar">
       <el-select v-model="publishStatus" clearable placeholder="全部状态" @change="applyFilters">
-        <el-option label="草稿" value="DRAFT" /><el-option label="已发布" value="PUBLISHED" />
-        <el-option label="已废弃" value="DEPRECATED" />
+        <el-option v-for="(label, value) in publishStatusLabels" :key="value" :label="label" :value="value" />
       </el-select>
-      <el-select v-model="appCode" clearable placeholder="全部应用" @change="applyFilters">
-        <el-option label="平台管理端" value="PLATFORM_ADMIN" /><el-option label="租户管理端" value="TENANT_ADMIN" />
-        <el-option label="租户业务端" value="TENANT_PORTAL" /><el-option label="服务端" value="SERVICE" />
+      <el-select v-model="appCode" clearable placeholder="全部资源归属" @change="applyFilters">
+        <el-option v-for="item in appCodeOptions" :key="item" :label="appCodeLabels[item]" :value="item" />
       </el-select>
       <el-select v-model="resourceType" clearable placeholder="全部类型" @change="applyFilters">
-        <el-option v-for="item in ['DIRECTORY','MENU','BUTTON','API','DATA_MODULE']" :key="item" :label="item" :value="item" />
+        <el-option v-for="item in resourceTypeOptions" :key="item" :label="resourceTypeLabels[item]" :value="item" />
       </el-select>
     </section>
 
@@ -147,11 +178,11 @@ onMounted(load)
         <el-table-column label="权限资源" min-width="260">
           <template #default="scope"><strong>{{ scope.row.name }}</strong><small>{{ scope.row.permissionCode }}</small></template>
         </el-table-column>
-        <el-table-column prop="resourceType" label="类型" width="120" />
-        <el-table-column prop="appCode" label="应用" min-width="150" />
+        <el-table-column label="类型" width="120"><template #default="scope">{{ resourceTypeLabels[scope.row.resourceType as PermissionResourceType] }}</template></el-table-column>
+        <el-table-column label="资源归属" min-width="190"><template #default="scope">{{ appCodeLabels[scope.row.appCode as PermissionAppCode] }}</template></el-table-column>
         <el-table-column prop="featureCode" label="功能开关" min-width="160"><template #default="scope">{{ scope.row.featureCode || '—' }}</template></el-table-column>
         <el-table-column label="状态" width="110">
-          <template #default="scope"><el-tag :type="scope.row.publishStatus === 'PUBLISHED' ? 'success' : scope.row.publishStatus === 'DEPRECATED' ? 'info' : 'warning'">{{ scope.row.publishStatus }}</el-tag></template>
+          <template #default="scope"><el-tag :type="scope.row.publishStatus === 'PUBLISHED' ? 'success' : scope.row.publishStatus === 'DEPRECATED' ? 'info' : 'warning'">{{ publishStatusLabels[scope.row.publishStatus as PermissionPublishStatus] }}</el-tag></template>
         </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="scope">
@@ -170,14 +201,14 @@ onMounted(load)
       <el-form class="resource-form" label-position="top">
         <el-form-item label="权限码"><el-input v-model="form.permissionCode" maxlength="128" placeholder="例如 iam:role:view" /></el-form-item>
         <el-form-item label="资源名称"><el-input v-model="form.name" maxlength="128" /></el-form-item>
-        <el-form-item label="资源类型"><el-select v-model="form.resourceType"><el-option v-for="item in ['DIRECTORY','MENU','BUTTON','API']" :key="item" :label="item" :value="item" /></el-select></el-form-item>
-        <el-form-item label="所属应用"><el-select v-model="form.appCode" @change="form.parentId = undefined"><el-option v-for="item in ['PLATFORM_ADMIN','TENANT_ADMIN','TENANT_PORTAL','SERVICE']" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+        <el-form-item label="资源类型"><el-select v-model="form.resourceType"><el-option v-for="item in creatableResourceTypeOptions" :key="item" :label="resourceTypeLabels[item]" :value="item" /></el-select></el-form-item>
+        <el-form-item label="资源归属"><el-select v-model="form.appCode" @change="form.parentId = undefined"><el-option v-for="item in appCodeOptions" :key="item" :label="appCodeLabels[item]" :value="item" /></el-select></el-form-item>
         <el-form-item label="父目录/菜单"><el-select v-model="form.parentId" clearable><el-option v-for="item in parentOptions" :key="item.id" :label="`${item.name} · ${item.permissionCode}`" :value="item.id" /></el-select></el-form-item>
         <el-form-item label="功能开关编码"><el-input v-model="form.featureCode" maxlength="128" placeholder="可选；发布时自动同步既有租户" /></el-form-item>
         <el-form-item v-if="form.resourceType === 'MENU'" label="前端路由"><el-input v-model="form.routePath" maxlength="256" /></el-form-item>
         <el-form-item v-if="form.resourceType === 'MENU'" label="本地组件键"><el-input v-model="form.componentKey" maxlength="128" /></el-form-item>
-        <el-form-item v-if="form.resourceType === 'API'" label="HTTP 方法"><el-select v-model="form.apiMethod"><el-option v-for="item in ['GET','POST','PUT','PATCH','DELETE']" :key="item" :label="item" :value="item" /></el-select></el-form-item>
-        <el-form-item v-if="form.resourceType === 'API'" label="API 模板路径"><el-input v-model="form.apiPathPattern" maxlength="256" placeholder="/api/iam/v1/tenant/roles/{roleId}" /></el-form-item>
+        <el-form-item v-if="form.resourceType === 'API'" label="请求方法"><el-select v-model="form.apiMethod"><el-option v-for="item in ['GET','POST','PUT','PATCH','DELETE']" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+        <el-form-item v-if="form.resourceType === 'API'" label="接口模板路径"><el-input v-model="form.apiPathPattern" maxlength="256" placeholder="/api/iam/v1/tenant/roles/{roleId}" /></el-form-item>
         <el-form-item label="语义版本"><el-input-number v-model="form.semanticVersion" :min="1" /></el-form-item>
         <el-form-item label="排序"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item>
         <el-form-item class="wide" label="说明"><el-input v-model="form.description" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>

@@ -287,7 +287,7 @@ public class RoleService {
     private void authorizationChanged(TenantActorContext actor, long roleId) {
         mapper.bumpAssignedAccountAuthzVersions(actor.tenantId(), actor.organizationId(), roleId, actor.accountId());
         mapper.insertRoleAuthorizationOutbox(
-                mapper.nextOutboxId(), UUID.randomUUID().toString(), actor.tenantId(), roleId, actor.accountId()
+                UUID.randomUUID().toString(), actor.tenantId(), actor.organizationId(), roleId, actor.accountId()
         );
     }
 

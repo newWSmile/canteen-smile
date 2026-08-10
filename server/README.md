@@ -87,3 +87,9 @@ mvn -pl smile-iam-service spring-boot:run
 ## SQL 迭代
 
 当前不引入 Flyway。Auth 与 IAM 的 DDL、DML 分别集中在根目录 `sql/auth` 和 `sql/iam`，脚本命名、冻结、执行顺序及记录规则以根目录 `sql/README.md` 为准。禁止在各服务 `src/main/resources` 下维护第二套 SQL，已在共享环境执行的脚本只能通过新增更高编号脚本修正。
+
+## IAM Outbox 与 XXL-JOB
+
+IAM 的可靠事件由处理器 `iamOutboxDeliveryJob` 有界投递。部署时设置 `XXL_JOB_ENABLED=true`、`XXL_JOB_ADMIN_ADDRESSES` 和通过安全配置注入的 `XXL_JOB_ACCESS_TOKEN`，然后在 XXL-JOB 管理端创建同名 Bean 模式任务。任务可按秒级或业务允许的延迟配置；多实例通过 PostgreSQL `FOR UPDATE SKIP LOCKED` 竞争领取，不得为每个实例创建不同处理器。失败事件按配置指数退避，达到最大次数进入 `DEAD`，需配置监控告警并在排除原因后受控重投。
+
+本地或新环境启用投递前，按 `sql/CHANGELOG.md` 顺序执行 `IAM_DDL_0007` 和 `IAM_DML_0002`。Auth 的 `/internal/auth/v1/security-events` 只接受内部 HMAC 请求，不通过 Gateway 暴露；重复事件按事件 ID 和载荷摘要幂等返回成功。

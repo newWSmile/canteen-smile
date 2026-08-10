@@ -2,6 +2,7 @@ package com.canteen.smile.internal.client;
 
 import com.canteen.smile.common.api.ApiResponse;
 import com.canteen.smile.common.exception.BusinessException;
+import com.canteen.smile.infrastructure.security.InternalHmacHeaders;
 import com.canteen.smile.internal.client.dto.TenantAccountProvisionInternalRequest;
 import com.canteen.smile.internal.client.dto.TenantAccountProvisionInternalResponse;
 import com.canteen.smile.internal.client.dto.TenantActivationTicketInternalResponse;
@@ -54,10 +55,18 @@ public class AuthTenantAccountClient {
      * @param organizationId 所属机构 ID
      */
     public void provision(long accountId, long tenantId, long organizationId) {
+        provision(null, accountId, tenantId, organizationId);
+    }
+
+    /** 使用指定 Outbox 事件 ID 幂等创建租户账号凭证容器。 */
+    public void provision(String eventId, long accountId, long tenantId, long organizationId) {
         try {
             /** Auth 统一响应。 */
-            ApiResponse<TenantAccountProvisionInternalResponse> response = authRestClient.post()
-                    .uri(PROVISION_PATH, accountId)
+            RestClient.RequestBodySpec requestSpec = authRestClient.post().uri(PROVISION_PATH, accountId);
+            if (eventId != null && !eventId.isBlank()) {
+                requestSpec.header(InternalHmacHeaders.EVENT_ID, eventId);
+            }
+            ApiResponse<TenantAccountProvisionInternalResponse> response = requestSpec
                     .body(new TenantAccountProvisionInternalRequest(tenantId + "", organizationId + ""))
                     .retrieve().body(new ParameterizedTypeReference<>() { });
             if (response == null || !"0".equals(response.code()) || response.data() == null

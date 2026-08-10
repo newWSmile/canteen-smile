@@ -57,7 +57,7 @@ const logoutFlight = useSingleFlight(async () => {
   <div class="platform-shell" v-loading="platformSession.loading">
     <aside class="platform-sidebar">
       <div class="brand"><span>CS</span><strong>Canteen Smile</strong></div>
-      <p class="workspace-label">PLATFORM ADMINISTRATION</p>
+      <p class="workspace-label">平台管理</p>
       <nav aria-label="平台管理端主导航">
         <RouterLink :class="{ active: route.name === 'home' }" :to="{ name: 'home' }"><span>◫</span>租户治理</RouterLink>
         <RouterLink :class="{ active: route.name === 'org-type-templates' }" :to="{ name: 'org-type-templates' }"><span>⌘</span>机构类型模板</RouterLink>

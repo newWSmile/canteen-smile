@@ -4,7 +4,6 @@
 
     <select id="nextRoleId" resultType="long">SELECT nextval('public.iam_role_seq')</select>
     <select id="nextDataPolicyId" resultType="long">SELECT nextval('public.iam_role_data_policy_seq')</select>
-    <select id="nextOutboxId" resultType="long">SELECT nextval('public.iam_outbox_event_seq')</select>
 
     <sql id="roleColumns">
         role.id, role.role_code, role.name, role.description, role.role_type, role.status,
@@ -258,14 +257,31 @@
 
     <insert id="insertRoleAuthorizationOutbox">
         INSERT INTO public.iam_outbox_event (
-            id, event_id, aggregate_type, aggregate_id, tenant_id, event_type, payload_json,
+            event_id, aggregate_type, aggregate_id, tenant_id, event_type, payload_json,
             status, created_by, updated_by
-        ) VALUES (
-            #{outboxId}, #{eventId}, 'ROLE', CAST(#{roleId} AS varchar), #{tenantId},
-            'ROLE_AUTHORIZATION_CHANGED',
-            jsonb_build_object('tenantId', CAST(#{tenantId} AS varchar), 'roleId', CAST(#{roleId} AS varchar)),
-            'PENDING', #{operatorId}, #{operatorId}
         )
+        SELECT
+            'ra-' || md5(#{eventIdSeed} || ':' || account.id::text),
+            'TENANT_ACCOUNT', account.id::varchar, #{tenantId},
+            'ROLE_AUTHORIZATION_CHANGED',
+            jsonb_build_object(
+                'tenantId', CAST(#{tenantId} AS varchar),
+                'roleId', CAST(#{roleId} AS varchar),
+                'accountId', account.id::varchar
+            ),
+            'PENDING', #{operatorId}, #{operatorId}
+        FROM public.iam_account account
+        WHERE account.tenant_id = #{tenantId}
+          AND account.organization_id = #{organizationId}
+          AND account.is_deleted = false
+          AND EXISTS (
+              SELECT 1 FROM public.iam_account_role account_role
+              WHERE account_role.tenant_id = account.tenant_id
+                AND account_role.organization_id = account.organization_id
+                AND account_role.account_id = account.id
+                AND account_role.role_id = #{roleId}
+                AND account_role.is_deleted = false
+          )
     </insert>
 
     <select id="selectEffectivePermissionCodes" resultType="string">

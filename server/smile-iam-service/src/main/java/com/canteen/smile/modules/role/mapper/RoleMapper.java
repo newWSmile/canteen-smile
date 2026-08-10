@@ -14,7 +14,6 @@ public interface RoleMapper {
     /** @return 下一个数据策略主键 */
     long nextDataPolicyId();
     /** @return 下一个 Outbox 主键 */
-    long nextOutboxId();
     /** @return 当前机构角色数量 */
     long countRoles(@Param("tenantId") long tenantId, @Param("organizationId") long organizationId,
                     @Param("status") String status);
@@ -99,8 +98,10 @@ public interface RoleMapper {
                                          @Param("roleId") long roleId,
                                          @Param("operatorId") long operatorId);
     /** 新增等待阶段 4 投递的角色授权变更事件。 */
-    int insertRoleAuthorizationOutbox(@Param("outboxId") long outboxId, @Param("eventId") String eventId,
-                                      @Param("tenantId") long tenantId, @Param("roleId") long roleId,
+    int insertRoleAuthorizationOutbox(@Param("eventIdSeed") String eventIdSeed,
+                                      @Param("tenantId") long tenantId,
+                                      @Param("organizationId") long organizationId,
+                                      @Param("roleId") long roleId,
                                       @Param("operatorId") long operatorId);
     /** @return 普通租户账号当前有效权限码 */
     List<String> selectEffectivePermissionCodes(@Param("tenantId") long tenantId,
