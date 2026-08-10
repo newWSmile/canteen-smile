@@ -209,6 +209,7 @@ onMounted(initialize)
       </div>
       <el-button
         v-if="canCreate"
+        class="management-primary-action"
         type="primary"
         :disabled="current?.effectiveStatus !== 'ACTIVE' || !allowedChildTypes.length"
         @click="openDialog('create')"

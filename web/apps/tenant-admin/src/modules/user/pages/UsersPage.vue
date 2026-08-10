@@ -299,15 +299,17 @@ onMounted(load)
         <h2>账号只属于当前机构，角色决定功能与数据边界。</h2>
         <p>管理员创建待激活账号但不知道最终密码；创建和角色分配均需要填写原因并用当前密码再认证。</p>
       </div>
-      <el-button v-if="canCreate" type="primary" @click="openCreate">新增用户</el-button>
+      <el-button v-if="canCreate" class="management-primary-action" type="primary" @click="openCreate">新增用户</el-button>
     </div>
 
-    <div class="filters">
-      <el-input v-model="keyword" clearable placeholder="用户名前缀或显示名称" @keyup.enter="search" />
-      <el-select v-model="status" clearable placeholder="全部状态">
+    <div class="management-query-toolbar">
+      <el-input v-model="keyword" class="management-query-toolbar__keyword" clearable placeholder="用户名前缀或显示名称" @keyup.enter="search" />
+      <el-select v-model="status" class="management-query-toolbar__select" clearable placeholder="全部状态">
         <el-option v-for="(label, value) in statusLabels" :key="value" :label="label" :value="value" />
       </el-select>
-      <el-button type="primary" @click="search">查询</el-button>
+      <div class="management-query-toolbar__actions">
+        <el-button type="primary" @click="search">查询</el-button>
+      </div>
     </div>
 
     <div class="panel">
@@ -416,5 +418,5 @@ onMounted(load)
 </template>
 
 <style scoped>
-.page{padding:36px}.page-lead{display:flex;justify-content:space-between;align-items:flex-end;gap:24px}.eyebrow{margin:0 0 10px;color:#168f89;font-size:11px;font-weight:700;letter-spacing:.14em}.page-lead h2{margin:0;font-size:34px}.page-lead p:last-child{color:#748281}.filters{margin:24px 0 14px;padding:16px;display:grid;grid-template-columns:minmax(240px,420px) 190px auto;gap:12px;border:1px solid #dce5e1;border-radius:14px;background:#fff}.panel{overflow:hidden;border:1px solid #dce5e1;border-radius:16px;background:#fff}.panel strong,.panel small{display:block}.panel small{margin-top:4px;color:#82908f}.role-tags{display:flex;flex-wrap:wrap;gap:6px}.pagination{padding:18px 22px;display:flex;justify-content:flex-end;border-top:1px solid #e8eeeb}.protected{color:#8b9795;font-size:13px}.dialog-form{margin-top:18px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}.activation-link{margin-top:18px}.expiry{color:#778785}.el-select{width:100%}@media(max-width:760px){.page{padding:20px}.page-lead{align-items:flex-start;flex-direction:column}.filters,.form-grid{grid-template-columns:1fr}}
+.page{padding:36px}.page-lead{display:flex;justify-content:space-between;align-items:flex-end;gap:24px}.eyebrow{margin:0 0 10px;color:#168f89;font-size:11px;font-weight:700;letter-spacing:.14em}.page-lead h2{margin:0;font-size:34px}.page-lead p:last-child{color:#748281}.panel{overflow:hidden;border:1px solid #dce5e1;border-radius:16px;background:#fff}.panel strong,.panel small{display:block}.panel small{margin-top:4px;color:#82908f}.role-tags{display:flex;flex-wrap:wrap;gap:6px}.pagination{padding:18px 22px;display:flex;justify-content:flex-end;border-top:1px solid #e8eeeb}.protected{color:#8b9795;font-size:13px}.dialog-form{margin-top:18px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}.activation-link{margin-top:18px}.expiry{color:#778785}.el-select{width:100%}@media(max-width:760px){.page{padding:20px}.page-lead{align-items:flex-start;flex-direction:column}.form-grid{grid-template-columns:1fr}}
 </style>

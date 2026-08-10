@@ -20,3 +20,63 @@ button,
 input {
   font: inherit;
 }
+
+/* 管理页面统一主操作按钮：文字较短时保持稳定尺寸，较长文案可自然扩展。 */
+.management-primary-action {
+  min-width: 96px;
+}
+
+/* 管理页面统一查询工具栏。 */
+.management-query-toolbar {
+  margin: 24px 0 14px;
+  padding: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #dce5e1;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.management-query-toolbar__keyword {
+  flex: 1 1 280px;
+  max-width: 420px;
+}
+
+.management-query-toolbar__select {
+  flex: 0 0 190px;
+}
+
+.management-query-toolbar__actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.management-query-toolbar__actions .el-button {
+  min-width: 88px;
+}
+
+@media (max-width: 760px) {
+  .management-primary-action {
+    width: 100%;
+  }
+
+  .management-query-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .management-query-toolbar__keyword,
+  .management-query-toolbar__select,
+  .management-query-toolbar__actions {
+    width: 100%;
+    max-width: none;
+    flex: none;
+  }
+
+  .management-query-toolbar__actions .el-button {
+    flex: 1;
+  }
+}

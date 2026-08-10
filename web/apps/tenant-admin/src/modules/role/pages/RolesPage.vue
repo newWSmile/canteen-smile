@@ -21,6 +21,8 @@ import { feedback } from '@/shared/feedback'
 
 interface PermissionTreeNode extends RolePermission { children: PermissionTreeNode[] }
 
+interface PermissionCheckState { checkedKeys: Array<string | number> }
+
 const tenantContext = useTenantContextStore()
 const loading = ref(false)
 const roles = ref<Role[]>([])
@@ -32,7 +34,13 @@ const editingRole = ref<Role | null>(null)
 const permissionVisible = ref(false)
 const permissionRole = ref<Role | null>(null)
 const permissionTree = ref<PermissionTreeNode[]>([])
-const permissionTreeRef = ref<{ getCheckedKeys: () => Array<string | number>; setCheckedKeys: (keys: string[]) => void } | null>(null)
+const permissionParentIds = ref<Map<string, string | null>>(new Map())
+const permissionTreeRef = ref<{
+  getCheckedKeys: () => Array<string | number>
+  setCheckedKeys: (keys: string[]) => void
+  setChecked: (key: string, checked: boolean, deep: boolean) => void
+} | null>(null)
+let syncingPermissionTree = false
 const permissionReason = ref('')
 const dataVisible = ref(false)
 const dataRole = ref<Role | null>(null)
@@ -116,9 +124,40 @@ async function openPermissions(role: Role): Promise<void> {
   permissionReason.value = ''
   const nodes = await getRolePermissions(role.id)
   permissionTree.value = buildPermissionTree(nodes)
+  permissionParentIds.value = new Map(nodes.map((node) => [node.id, node.parentId]))
   permissionVisible.value = true
   await nextTick()
   permissionTreeRef.value?.setCheckedKeys(nodes.filter((node) => node.granted).map((node) => node.id))
+}
+
+function setDescendantsChecked(nodes: PermissionTreeNode[], checked: boolean): void {
+  for (const node of nodes) {
+    permissionTreeRef.value?.setChecked(node.id, checked, false)
+    setDescendantsChecked(node.children, checked)
+  }
+}
+
+function setAncestorsChecked(parentId: string | null): void {
+  let currentParentId = parentId
+  while (currentParentId) {
+    permissionTreeRef.value?.setChecked(currentParentId, true, false)
+    currentParentId = permissionParentIds.value.get(currentParentId) ?? null
+  }
+}
+
+function handlePermissionCheck(node: PermissionTreeNode, state: PermissionCheckState): void {
+  if (syncingPermissionTree) return
+  const checked = state.checkedKeys.some((key) => String(key) === node.id)
+  syncingPermissionTree = true
+  try {
+    if (node.children.length > 0) {
+      setDescendantsChecked(node.children, checked)
+    } else if (checked) {
+      setAncestorsChecked(node.parentId)
+    }
+  } finally {
+    syncingPermissionTree = false
+  }
 }
 
 const permissionFlight = useSingleFlight(async () => {
@@ -217,7 +256,7 @@ onMounted(load)
   <section class="page" v-loading="loading">
     <div class="page-lead">
       <div><p class="eyebrow">ROLE &amp; AUTHORIZATION</p><h2>角色只管理本机构，权限不能超过操作者上限。</h2><p>多角色取并集；所有者角色由系统保护，停用、授权缩小和数据范围变化都会提升受影响账号授权版本。</p></div>
-      <el-button v-if="canCreate" type="primary" @click="openCreate">新增角色</el-button>
+      <el-button v-if="canCreate" class="management-primary-action" type="primary" @click="openCreate">新增角色</el-button>
     </div>
 
     <div class="boundary-card">
@@ -262,7 +301,7 @@ onMounted(load)
 
     <el-dialog v-model="permissionVisible" title="分配功能权限" width="720px" :close-on-click-modal="false">
       <el-alert type="warning" :closable="false" title="只能分配当前操作者拥有且租户未停用的已发布权限；保存采用整版替换。" />
-      <el-tree ref="permissionTreeRef" class="permission-tree" node-key="id" show-checkbox check-strictly default-expand-all :data="permissionTree" :props="{ label: 'name', children: 'children' }">
+      <el-tree ref="permissionTreeRef" class="permission-tree" node-key="id" show-checkbox check-strictly default-expand-all :data="permissionTree" :props="{ label: 'name', children: 'children' }" @check="handlePermissionCheck">
         <template #default="{ data }"><span>{{ data.name }}</span><small>{{ data.permissionCode }}</small></template>
       </el-tree>
       <el-form label-position="top"><el-form-item label="授权原因"><el-input v-model="permissionReason" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item></el-form>

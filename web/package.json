@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "packageManager": "pnpm@10.34.5",
   "engines": {
-    "node": ">=20.19.0",
-    "pnpm": ">=10.34.5 <11"
+    "node": "20.19.0",
+    "pnpm": "10.34.5"
   },
   "scripts": {
     "dev:platform": "pnpm --filter @canteen-smile/platform-admin dev",

@@ -12,11 +12,13 @@
 ## 前端约束
 
 - 仅使用 Vue 3 Composition API、Vite、TypeScript 和 pnpm，禁止引入 Vue 2 写法或依赖。
+- 前端工作区固定使用 Node.js 20.19.0 和 pnpm 10.34.5，不得使用 pnpm 11 安装依赖或改写锁文件。
 - 业务按 `src/modules/<module>` 分包；跨模块能力仅放入 `src/shared`，应用装配放入 `src/app`。
 - 所有 HTTP 请求只能经 `src/shared/http/client.ts` 导出的 Axios 实例发送。
 - 成功、失败、警告反馈只能经 `src/shared/feedback` 统一出口展示。
 - 写操作按钮使用 `useSingleFlight` 控制提交态；Axios 层同时拦截相同的并发请求。
 - API 类型只能依据真实后端契约定义，不得用 `any`、假数据或臆测字段补齐页面。
+- 管理页面必须复用统一的标题区、主操作按钮、查询工具栏、列表面板、行操作和分页样式；查询按钮禁止被布局拉伸为整行，同类弹窗的表单间距与按钮顺序必须一致。
 
 ## 后端与微服务约束
 

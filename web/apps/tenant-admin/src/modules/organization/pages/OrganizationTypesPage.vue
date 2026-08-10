@@ -106,7 +106,7 @@ onMounted(load)
         <h2>类型可以调整，已在使用的结构不会被静默破坏。</h2>
         <p>类型编码永久保留；允许关系按完整有向无环图保存，后端再次校验真实机构树。</p>
       </div>
-      <el-button v-if="canManage" type="primary" @click="openCreate">新增机构类型</el-button>
+      <el-button v-if="canManage" class="management-primary-action" type="primary" @click="openCreate">新增机构类型</el-button>
     </div>
 
     <div class="panel">
