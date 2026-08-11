@@ -1,6 +1,7 @@
 package com.canteen.smile.modules.sms.service;
 
 import com.canteen.smile.config.SmsProperties;
+import com.canteen.smile.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -9,6 +10,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.HexFormat;
+import java.util.regex.Pattern;
 
 /** 统一完成手机号最小归一化、HMAC 查询摘要和脱敏展示。 */
 @Service
@@ -17,6 +19,12 @@ public class MobileProtectionService {
 
     /** HMAC-SHA256 算法名称。 */
     private static final String HMAC_ALGORITHM = "HmacSHA256";
+
+    /** 中国大陆手机号：十一位数字，第一位为 1，第二位为 3 至 9。 */
+    private static final Pattern MAINLAND_MOBILE_PATTERN = Pattern.compile("1[3-9]\\d{9}");
+
+    /** 手机号格式错误码。 */
+    private static final String INVALID_MOBILE_CODE = "AUTH_1016";
 
     /** 短信安全配置。 */
     private final SmsProperties smsProperties;
@@ -29,7 +37,7 @@ public class MobileProtectionService {
      */
     public ProtectedMobile protect(String mobile) {
         String normalizedMobile = normalize(mobile);
-        return new ProtectedMobile(hash(normalizedMobile), mask(normalizedMobile));
+        return new ProtectedMobile(normalizedMobile, hash(normalizedMobile), mask(normalizedMobile));
     }
 
     /**
@@ -42,12 +50,22 @@ public class MobileProtectionService {
         return hash(normalize(mobile));
     }
 
-    /** 仅去除首尾空白；国家区号和号码格式规则留给后续正式手机号契约。 */
-    private String normalize(String mobile) {
-        if (mobile == null || mobile.isBlank() || mobile.length() > 32) {
-            throw new IllegalArgumentException("Mobile number is invalid");
+    /** 去除首尾空白并校验中国大陆十一位手机号格式。 */
+    public String normalize(String mobile) {
+        if (mobile == null) {
+            throw invalidMobile();
         }
-        return mobile.trim();
+        /** 进入摘要计算和加密前的唯一规范手机号。 */
+        String normalizedMobile = mobile.trim();
+        if (!MAINLAND_MOBILE_PATTERN.matcher(normalizedMobile).matches()) {
+            throw invalidMobile();
+        }
+        return normalizedMobile;
+    }
+
+    /** @return 不泄露校验内部细节的手机号格式异常 */
+    private BusinessException invalidMobile() {
+        return new BusinessException(INVALID_MOBILE_CODE, "请输入正确的11位手机号", 400);
     }
 
     /** 使用仅服务端持有的 Pepper 计算手机号查询摘要。 */
@@ -78,9 +96,10 @@ public class MobileProtectionService {
     /**
      * 手机号安全投影。
      *
+     * @param normalized 经过最小归一化的完整手机号，只能在 Auth 当前调用栈内使用
      * @param hash 查询摘要
      * @param masked 展示脱敏值
      */
-    public record ProtectedMobile(String hash, String masked) {
+    public record ProtectedMobile(String normalized, String hash, String masked) {
     }
 }

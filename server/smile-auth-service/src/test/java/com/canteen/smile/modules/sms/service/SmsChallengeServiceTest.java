@@ -89,7 +89,9 @@ class SmsChallengeServiceTest {
         var response = challengeService.create(request, "127.0.0.1");
 
         String expectedMobileHash = new MobileProtectionService(properties).hashForSearch("13800138000");
-        verify(rateLimitService).acquire(expectedMobileHash, "127.0.0.1", "device-1", policy());
+        verify(rateLimitService).acquire(
+                expectedMobileHash, "127.0.0.1", "device-1", SmsPurpose.LOGIN, policy()
+        );
         verify(persistenceService).create(entityCaptor.capture());
         verify(dispatchService).dispatch(commandCaptor.capture());
         SmsChallengeEntity entity = entityCaptor.getValue();

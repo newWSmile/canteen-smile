@@ -68,7 +68,7 @@ public class SmsChallengeService {
         MobileProtectionService.ProtectedMobile protectedMobile =
                 mobileProtectionService.protect(request.getMobile());
         smsChallengeRateLimitService.acquire(
-                protectedMobile.hash(), clientIp, request.getDeviceId(), policy
+                protectedMobile.hash(), clientIp, request.getDeviceId(), request.getPurpose(), policy
         );
 
         /** 外部不可预测的挑战标识。 */

@@ -2,6 +2,7 @@ package com.canteen.smile.modules.platform.service;
 
 import com.canteen.smile.modules.account.mapper.AccountLifecycleMapper;
 import com.canteen.smile.modules.platform.dto.UsernameLoginResolutionRequest;
+import com.canteen.smile.modules.platform.dto.MobileAccountLoginResolutionRequest;
 import com.canteen.smile.modules.platform.entity.PlatformIdentityEntity;
 import com.canteen.smile.modules.platform.mapper.PlatformIdentityMapper;
 import com.canteen.smile.modules.platform.vo.UsernameLoginResolutionVO;
@@ -10,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -68,5 +71,24 @@ class PlatformLoginResolutionServiceTest {
         );
 
         assertThat(result.resolved()).isFalse();
+    }
+
+    /** 验证手机号候选批量解析只投影 Mapper 已筛选的可登录账号。 */
+    @Test
+    void shouldResolveMobileAccountCandidatesInOneBatch() {
+        when(accountLifecycleMapper.selectMobileLoginCandidates(List.of(7L, 8L))).thenReturn(List.of(
+                new AccountLifecycleMapper.MobileLoginCandidateRow(
+                        7L, 2L, "测试租户", 3L, "测试机构", "user_7", null,
+                        4L, true, 5, true, 7200, 604800, 604800, 2592000
+                )
+        ));
+
+        var result = service.resolveMobileAccounts(
+                new MobileAccountLoginResolutionRequest("TENANT_ADMIN", List.of(7L, 8L))
+        );
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).accountId()).isEqualTo(7L);
+        assertThat(result.get(0).displayName()).isEqualTo("user_7");
     }
 }

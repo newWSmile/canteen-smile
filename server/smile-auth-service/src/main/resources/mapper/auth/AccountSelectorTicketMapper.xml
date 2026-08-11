@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.auth.mapper.AccountSelectorTicketMapper">
+
+    <resultMap id="accountSelectorTicketResultMap"
+               type="com.canteen.smile.modules.auth.entity.AccountSelectorTicketEntity">
+        <id property="id" column="id"/>
+        <result property="ticketHash" column="ticket_hash"/>
+        <result property="mobileHash" column="mobile_hash"/>
+        <result property="candidateDigest" column="candidate_digest"/>
+        <result property="appCode" column="app_code"/>
+        <result property="status" column="status"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="consumedTime" column="consumed_time"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO public.auth_account_selector_ticket (
+            ticket_hash,
+            mobile_hash,
+            candidate_digest,
+            app_code,
+            status,
+            expires_at,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{ticketHash},
+            #{mobileHash},
+            #{candidateDigest},
+            #{appCode},
+            'ACTIVE',
+            #{expiresAt},
+            NULL,
+            NULL
+        )
+    </insert>
+
+    <select id="selectActiveByHash" resultMap="accountSelectorTicketResultMap">
+        SELECT id,
+               ticket_hash,
+               mobile_hash,
+               candidate_digest,
+               app_code,
+               status,
+               expires_at,
+               consumed_time,
+               version
+        FROM public.auth_account_selector_ticket
+        WHERE ticket_hash = #{ticketHash}
+          AND status = 'ACTIVE'
+          AND expires_at > CURRENT_TIMESTAMP
+          AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <update id="consume">
+        UPDATE public.auth_account_selector_ticket
+        SET status = 'CONSUMED',
+            consumed_time = CURRENT_TIMESTAMP,
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{id}
+          AND status = 'ACTIVE'
+          AND expires_at > CURRENT_TIMESTAMP
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+</mapper>

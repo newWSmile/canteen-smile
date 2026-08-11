@@ -4,12 +4,15 @@ import com.canteen.smile.api.AuthApiPaths;
 import com.canteen.smile.common.api.ApiResponse;
 import com.canteen.smile.modules.auth.dto.PasswordLoginRequest;
 import com.canteen.smile.modules.auth.dto.PlatformRecoveryLoginRequest;
+import com.canteen.smile.modules.auth.dto.SmsLoginRequest;
+import com.canteen.smile.modules.auth.dto.AccountSelectionLoginRequest;
 import com.canteen.smile.modules.auth.model.PasswordEnvelopePurpose;
 import com.canteen.smile.modules.auth.service.PasswordEnvelopeService;
 import com.canteen.smile.modules.auth.service.PlatformPasswordLoginService;
 import com.canteen.smile.modules.auth.service.TenantPasswordLoginService;
 import com.canteen.smile.modules.auth.model.AuthConstants;
 import com.canteen.smile.modules.auth.service.PlatformRecoveryLoginService;
+import com.canteen.smile.modules.auth.service.TenantSmsLoginService;
 import com.canteen.smile.modules.auth.vo.LoginResultVO;
 import com.canteen.smile.modules.auth.vo.SessionVO;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,6 +41,9 @@ public class LoginController {
     /** 一次性密码信封解密服务。 */
     private final PasswordEnvelopeService passwordEnvelopeService;
 
+    /** 租户手机号验证码登录与账号选择服务。 */
+    private final TenantSmsLoginService tenantSmsLoginService;
+
     /**
      * 校验平台用户名和密码并直接建立设备会话。
      *
@@ -61,6 +67,38 @@ public class LoginController {
         return ApiResponse.success(tenantAdmin
                 ? tenantPasswordLoginService.login(request, password, servletRequest.getRemoteAddr())
                 : platformPasswordLoginService.login(request, password, servletRequest.getRemoteAddr()));
+    }
+
+    /**
+     * 使用 LOGIN 用途短信验证码登录，手机号绑定多个账号时返回选择候选。
+     *
+     * @param request 短信验证码登录请求
+     * @param servletRequest 当前 HTTP 请求
+     * @return 已认证会话或账号选择结果
+     */
+    @PostMapping(AuthApiPaths.SMS_LOGIN)
+    public ApiResponse<LoginResultVO> smsLogin(
+            @Valid @RequestBody SmsLoginRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        return ApiResponse.success(tenantSmsLoginService.login(request, servletRequest.getRemoteAddr()));
+    }
+
+    /**
+     * 使用短期一次性票据选择手机号绑定的具体账号并完成登录。
+     *
+     * @param request 账号选择请求
+     * @param servletRequest 当前 HTTP 请求
+     * @return 已建立的设备会话
+     */
+    @PostMapping(AuthApiPaths.ACCOUNT_SELECTION_LOGIN)
+    public ApiResponse<LoginResultVO> accountSelectionLogin(
+            @Valid @RequestBody AccountSelectionLoginRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        return ApiResponse.success(tenantSmsLoginService.selectAccount(
+                request, servletRequest.getRemoteAddr()
+        ));
     }
 
     /**

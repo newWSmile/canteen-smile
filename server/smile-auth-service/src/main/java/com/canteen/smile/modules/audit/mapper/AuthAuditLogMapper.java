@@ -32,6 +32,26 @@ public interface AuthAuditLogMapper {
             @Param("traceId") String traceId
     );
 
+    /**
+     * 在手机号绑定事务内追加成功安全审计。
+     *
+     * @param tenantId 租户 ID
+     * @param accountId 当前租户账号 ID
+     * @param username 当前用户名快照
+     * @param displayName 当前显示名称快照
+     * @param maskedMobile 脱敏手机号
+     * @param traceId 当前链路 ID
+     * @return 新增行数
+     */
+    int insertMobileBindingAudit(
+            @Param("tenantId") long tenantId,
+            @Param("accountId") long accountId,
+            @Param("username") String username,
+            @Param("displayName") String displayName,
+            @Param("maskedMobile") String maskedMobile,
+            @Param("traceId") String traceId
+    );
+
     /** @param query 已验证查询条件 @return 符合权限边界的记录数 */
     long countPage(@Param("query") AuthAuditLogSearchRequest query);
 

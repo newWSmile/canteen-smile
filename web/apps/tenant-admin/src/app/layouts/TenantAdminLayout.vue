@@ -83,6 +83,10 @@ const logoutFlight = useSingleFlight(async () => {
           :class="{ active: route.name === 'tenant-audit' }"
           :to="{ name: 'tenant-audit' }"
         >审计日志</RouterLink>
+        <RouterLink
+          :class="{ active: route.name === 'profile-security' }"
+          :to="{ name: 'profile-security' }"
+        >个人安全</RouterLink>
       </nav>
       <div class="boundary">
         <strong>租户隔离边界</strong>

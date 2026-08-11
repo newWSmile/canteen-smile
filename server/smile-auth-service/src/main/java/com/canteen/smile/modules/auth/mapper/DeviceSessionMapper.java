@@ -4,6 +4,9 @@ import com.canteen.smile.modules.auth.entity.DeviceSessionEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+
 /** 设备会话审计索引数据访问接口。 */
 @Mapper
 public interface DeviceSessionMapper {
@@ -38,4 +41,16 @@ public interface DeviceSessionMapper {
             @Param("subjectType") String subjectType,
             @Param("subjectId") long subjectId
     );
+
+    /**
+     * 批量查询候选账号最近一次登录时间，用于多账号选择排序与提示。
+     *
+     * @param accountIds 候选租户账号 ID
+     * @return 有登录历史的账号及最近登录时间
+     */
+    List<LatestLoginRow> selectLatestTenantLogins(@Param("accountIds") List<Long> accountIds);
+
+    /** @param accountId 租户账号 ID @param latestLoginTime 最近登录时间 */
+    record LatestLoginRow(long accountId, OffsetDateTime latestLoginTime) {
+    }
 }

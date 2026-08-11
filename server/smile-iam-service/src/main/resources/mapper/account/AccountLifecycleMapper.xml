@@ -152,6 +152,58 @@
         LIMIT 1
     </select>
 
+    <select id="selectMobileLoginCandidates"
+            resultType="com.canteen.smile.modules.account.mapper.AccountLifecycleMapper$MobileLoginCandidateRow">
+        SELECT account.id AS account_id,
+               account.tenant_id,
+               tenant.name AS tenant_name,
+               account.organization_id,
+               organization.name AS organization_name,
+               account.username,
+               account.display_name,
+               account.authz_version,
+               policy.concurrent_login_enabled,
+               policy.max_devices,
+               policy.remember_me_enabled,
+               policy.idle_seconds,
+               policy.absolute_seconds,
+               policy.remember_idle_seconds,
+               policy.remember_absolute_seconds
+        FROM public.iam_account account
+        JOIN public.iam_tenant tenant
+          ON tenant.id = account.tenant_id
+         AND tenant.status = 'ACTIVE'
+         AND tenant.is_deleted = false
+        JOIN public.iam_organization organization
+          ON organization.id = account.organization_id
+         AND organization.tenant_id = account.tenant_id
+         AND organization.is_deleted = false
+        JOIN public.iam_tenant_security_policy policy
+          ON policy.tenant_id = account.tenant_id
+         AND policy.is_deleted = false
+        WHERE account.id IN
+        <foreach collection="accountIds" item="accountId" open="(" separator="," close=")">
+            #{accountId}
+        </foreach>
+          AND account.status = 'ACTIVE'
+          AND account.is_deleted = false
+          AND (account.validity_mode = 'LONG_TERM'
+               OR (account.effective_at &lt;= CURRENT_TIMESTAMP AND account.expires_at > CURRENT_TIMESTAMP))
+          AND NOT EXISTS (
+              SELECT 1
+              FROM public.iam_organization_closure effective_path
+              JOIN public.iam_organization disabled_ancestor
+                ON disabled_ancestor.tenant_id = effective_path.tenant_id
+               AND disabled_ancestor.id = effective_path.ancestor_id
+               AND disabled_ancestor.is_deleted = false
+              WHERE effective_path.tenant_id = account.tenant_id
+                AND effective_path.descendant_id = account.organization_id
+                AND effective_path.is_deleted = false
+                AND disabled_ancestor.own_status = 'DISABLED'
+          )
+        ORDER BY account.id ASC
+    </select>
+
     <select id="selectTenantPermissionContext"
             resultType="com.canteen.smile.modules.account.mapper.AccountLifecycleMapper$TenantPermissionContextRow">
         SELECT account.id AS account_id,

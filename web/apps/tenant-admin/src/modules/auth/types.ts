@@ -75,6 +75,32 @@ export interface PasswordLoginRequest {
   captchaTicket?: string
 }
 
+/** 匿名创建短信验证码挑战请求。 */
+export interface SmsChallengeCreateRequest {
+  purpose: 'LOGIN'
+  mobile: string
+  deviceId: string
+  captchaTicket?: string
+}
+
+/** 手机号验证码登录请求。 */
+export interface SmsLoginRequest {
+  appCode: 'TENANT_ADMIN'
+  challengeId: string
+  code: string
+  rememberMe: boolean
+  device: DeviceRequest
+}
+
+/** 手机号登录多账号选择请求。 */
+export interface AccountSelectionLoginRequest {
+  appCode: 'TENANT_ADMIN'
+  accountSelectorTicket: string
+  accountId: string
+  rememberMe: boolean
+  device: DeviceRequest
+}
+
 /** Auth 返回的租户设备会话。 */
 export interface TenantSession {
   tokenName: string
@@ -89,11 +115,23 @@ export interface TenantSession {
   absoluteExpiresAt: string
 }
 
-/** 密码登录响应。 */
+/** 手机号验证后可供用户选择的真实账号摘要。 */
+export interface MobileLoginCandidate {
+  accountId: string
+  tenantName: string
+  organizationName: string
+  username: string
+  displayName: string
+  latestLoginTime: string | null
+}
+
+/** 密码或短信登录的分步响应。 */
 export interface LoginResult {
-  nextStep: 'AUTHENTICATED'
-  session: TenantSession
+  nextStep: 'AUTHENTICATED' | 'SECOND_FACTOR_REQUIRED' | 'ACCOUNT_SELECTION_REQUIRED'
+  session: TenantSession | null
   secondFactorTicket?: null
+  accountSelectorTicket?: string | null
+  accountCandidates?: MobileLoginCandidate[]
 }
 
 /** 租户管理员敏感操作再认证允许的动作。 */

@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import com.canteen.smile.modules.sms.model.SmsRuntimePolicy;
+import com.canteen.smile.modules.sms.model.SmsPurpose;
 import java.util.List;
 
 /** 原子执行短信重发、手机号、IP 和设备小时及每日频率限制。 */
@@ -75,9 +76,21 @@ public class SmsChallengeRateLimitService {
      * @param mobileHash 手机号安全摘要
      * @param clientIp 服务端取得的来源 IP
      * @param deviceId 客户端稳定设备标识
+     * @param purpose 短信业务用途
      */
-    public void acquire(String mobileHash, String clientIp, String deviceId, SmsRuntimePolicy policy) {
+    public void acquire(
+            String mobileHash,
+            String clientIp,
+            String deviceId,
+            SmsPurpose purpose,
+            SmsRuntimePolicy policy
+    ) {
         validateConfiguration(policy);
+        if (purpose == null) {
+            throw new IllegalArgumentException("purpose must not be null");
+        }
+        /** Redis Key 使用的小写稳定业务用途。 */
+        String purposeCode = purpose.name().toLowerCase(java.util.Locale.ROOT);
         /** 当前固定小时窗口编号。 */
         String hourBucket = Long.toString(Instant.now().getEpochSecond() / 3_600);
         /** 当前上海时区自然日窗口编号。 */
@@ -88,9 +101,9 @@ public class SmsChallengeRateLimitService {
         String deviceHash = digest(deviceId, "deviceId");
         /** 同一哈希槽内的重发与六个窗口 Key。 */
         List<String> keys = List.of(
-                key("resend", mobileHash),
-                key("mobile-hour", mobileHash, hourBucket),
-                key("mobile-day", mobileHash, dayBucket),
+                key("resend", purposeCode, mobileHash),
+                key("mobile-hour", purposeCode, mobileHash, hourBucket),
+                key("mobile-day", purposeCode, mobileHash, dayBucket),
                 key("ip-hour", ipHash, hourBucket),
                 key("ip-day", ipHash, dayBucket),
                 key("device-hour", deviceHash, hourBucket),

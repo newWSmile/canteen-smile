@@ -104,10 +104,16 @@ IAM 的可靠事件由处理器 `iamOutboxDeliveryJob` 有界投递。部署时�
 SMS_PROVIDER_CODE=LOCAL_DATABASE_LOG
 SMS_MOBILE_HASH_PEPPER=本地生成的高熵随机值
 SMS_CODE_HASH_PEPPER=本地生成的高熵随机值（未单独设置时可显式回退到手机号 Pepper）
+AUTH_MOBILE_ENCRYPTION_KEY_ID=local-v1
+AUTH_MOBILE_ENCRYPTION_KEY=Base64 编码的 32 字节随机密钥
 ```
 
 平台端短信记录查询经 Gateway 进入 IAM，由 IAM 完成 `platform:sms-delivery:view` 权限校验后通过 HMAC Client 调用 Auth，禁止 IAM 跨库读取。完整手机号只作为精确查询条件在 Auth 内存中计算 HMAC 摘要，响应始终只返回脱敏号码。平台菜单权限由 `IAM_DML_0004` 发布。后续接入真实厂商时新增对应 `SmsClient` 实现并切换 `SMS_PROVIDER_CODE`，不得修改验证码业务服务或在 Controller 中直接调用厂商 SDK。
 
-短信挑战通过 `POST /api/auth/v1/sms/challenges` 创建：默认五分钟有效、同手机号六十秒内不能重发，手机号、来源 IP 和设备分别执行小时与每日限流；这些阈值由 Auth 自有全局短信策略控制。Redis Cluster 的多维限流 Key 使用固定哈希槽标签执行单次 Lua 原子检查；全部 Key 均设置过期时间且只包含手机号、IP、设备摘要。验证码只保存绑定挑战、用途和手机号摘要的 HMAC，默认错误五次后失效，成功校验时由具体登录、找回或绑定流程原子消费一次。
+短信挑战通过 `POST /api/auth/v1/sms/challenges` 创建：默认五分钟有效，同一手机号的重发锁及手机号小时、每日额度按 `LOGIN`、`MOBILE_BIND` 等业务用途隔离；来源 IP 和设备的小时、每日额度保持跨用途总控，禁止切换用途绕过安全限流。这些阈值由 Auth 自有全局短信策略控制。Redis Cluster 的多维限流 Key 使用固定哈希槽标签执行单次 Lua 原子检查；全部 Key 均设置过期时间且只包含业务用途以及手机号、IP、设备摘要。验证码只保存绑定挑战、用途和手机号摘要的 HMAC，默认错误五次后失效，成功校验时由具体登录、找回或绑定流程原子消费一次。
+
+当前登录租户账号可以通过 `/api/auth/v1/mobile/binding` 查询脱敏绑定状态，通过受登录保护的挑战和确认接口完成首次绑定。确认时 Auth 会再次核对提交手机号与挑战摘要，随后使用 AES-256-GCM 随机 IV 加密完整手机号，并只在界面和审计中返回脱敏号码。同一账号只能存在一个有效绑定，同一手机号摘要允许关联多个不同账号；换绑属于后续独立敏感流程，不能复用首次绑定接口覆盖原记录。
+
+租户端手机号登录先调用 `/api/auth/v1/sms/challenges` 创建 `LOGIN` 用途挑战，再调用 `/api/auth/v1/login/sms` 原子消费验证码。Auth 仅按手机号摘要查询绑定账号 ID，并通过 HMAC Client 批量请求 IAM 复核账号、租户、机构、有效期和会话策略；单账号直接创建会话，多账号返回按最近登录排序的安全候选与五分钟一次性选择票据。最终选择调用 `/api/auth/v1/login/account-selection`，Auth 会重新计算候选集合摘要并原子消费票据，禁止篡改账号或重放。
 
 平台短信管理分为“短信列表、短信设置、短信安全”。执行 `IAM_DML_0005` 后，平台端可维护验证码有效期、错误次数和手机号/IP/设备限流；修改必须填写原因并通过当前平台密码再认证。验证码明文留存默认关闭，显式开启后只影响后续新投递记录；完整手机号和应用日志无论开关状态都必须脱敏。

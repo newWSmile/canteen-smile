@@ -1,14 +1,18 @@
 package com.canteen.smile.modules.platform.service;
 
 import com.canteen.smile.modules.platform.dto.UsernameLoginResolutionRequest;
+import com.canteen.smile.modules.platform.dto.MobileAccountLoginResolutionRequest;
 import com.canteen.smile.modules.platform.entity.PlatformIdentityEntity;
 import com.canteen.smile.modules.platform.mapper.PlatformIdentityMapper;
 import com.canteen.smile.modules.platform.model.PlatformIdentityStatus;
 import com.canteen.smile.modules.platform.vo.UsernameLoginResolutionVO;
+import com.canteen.smile.modules.platform.vo.MobileAccountLoginCandidateVO;
 import com.canteen.smile.modules.account.mapper.AccountLifecycleMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /** 平台用户名登录主体解析服务。 */
 @Service
@@ -54,6 +58,28 @@ public class PlatformLoginResolutionService {
                 identity.getAuthzVersion(),
                 null, null, null, null, null, null, null, null, null
         );
+    }
+
+    /**
+     * 批量解析已由 Auth 手机号摘要命中的可登录租户账号。
+     *
+     * @param request 应用入口和账号 ID 集合
+     * @return 当前仍可登录的候选账号快照
+     */
+    @Transactional(readOnly = true)
+    public List<MobileAccountLoginCandidateVO> resolveMobileAccounts(
+            MobileAccountLoginResolutionRequest request
+    ) {
+        return accountLifecycleMapper.selectMobileLoginCandidates(request.accountIds()).stream()
+                .map(row -> new MobileAccountLoginCandidateVO(
+                        row.accountId(), row.tenantId(), row.tenantName(),
+                        row.organizationId(), row.organizationName(), row.username(),
+                        row.displayName() == null ? row.username() : row.displayName(),
+                        row.authzVersion(), row.concurrentLoginEnabled(), row.maxDevices(),
+                        row.rememberMeEnabled(), row.idleSeconds(), row.absoluteSeconds(),
+                        row.rememberIdleSeconds(), row.rememberAbsoluteSeconds()
+                ))
+                .toList();
     }
 
     /** @param normalizedUsername 归一化用户名 @return 可登录租户账号快照 */

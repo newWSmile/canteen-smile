@@ -26,6 +26,16 @@ public class TenantSessionService {
 
     /** @param context 已验证租户会话上下文 @param loginIp 登录 IP @return 新设备会话 */
     public SessionVO createPasswordSession(TenantSessionContext context, String loginIp) {
+        return create(context, loginIp, AuthConstants.PASSWORD_LOGIN_METHOD);
+    }
+
+    /** @param context 已验证租户会话上下文 @param loginIp 登录 IP @return 短信登录设备会话 */
+    public SessionVO createSmsSession(TenantSessionContext context, String loginIp) {
+        return create(context, loginIp, AuthConstants.SMS_LOGIN_METHOD);
+    }
+
+    /** @return 按指定认证方式创建并持久化的租户设备会话 */
+    private SessionVO create(TenantSessionContext context, String loginIp, String loginMethod) {
         String loginId = AuthConstants.TENANT_LOGIN_PREFIX + context.accountId();
         int maxLoginCount = context.concurrentLoginEnabled() ? context.maxDevices() : 1;
         SaLoginParameter parameter = SaLoginParameter.create()
@@ -48,14 +58,19 @@ public class TenantSessionService {
         tokenSession.set("businessSessionId", sessionId);
         tokenSession.set("appCode", context.appCode());
         tokenSession.set("subjectType", AuthConstants.TENANT_ACCOUNT_SUBJECT);
-        tokenSession.set("tenantId", context.tenantId());
+        tokenSession.set(AuthConstants.TOKEN_TENANT_ID_ATTRIBUTE, context.tenantId());
         tokenSession.set("organizationId", context.organizationId());
         tokenSession.set("authzVersion", context.authzVersion());
+        tokenSession.set(AuthConstants.TOKEN_USERNAME_ATTRIBUTE, context.username());
+        tokenSession.set(
+                AuthConstants.TOKEN_DISPLAY_NAME_ATTRIBUTE,
+                context.displayName() == null ? context.username() : context.displayName()
+        );
         try {
             persistenceService.create(
                     entity(
                             context, tokenInfo.getTokenValue(), sessionId, loginIp,
-                            now, idleExpiresAt, absoluteExpiresAt
+                            now, idleExpiresAt, absoluteExpiresAt, loginMethod
                     ),
                     context.username(),
                     context.displayName()
@@ -80,7 +95,8 @@ public class TenantSessionService {
             String loginIp,
             OffsetDateTime now,
             OffsetDateTime idleExpiresAt,
-            OffsetDateTime absoluteExpiresAt
+            OffsetDateTime absoluteExpiresAt,
+            String loginMethod
     ) {
         DeviceSessionEntity entity = new DeviceSessionEntity();
         entity.setSessionId(sessionId);
@@ -93,7 +109,7 @@ public class TenantSessionService {
         entity.setDeviceIdHash(hash(context.deviceId()));
         entity.setDeviceType(context.deviceType());
         entity.setDeviceName(context.deviceName());
-        entity.setLoginMethod(AuthConstants.PASSWORD_LOGIN_METHOD);
+        entity.setLoginMethod(loginMethod);
         entity.setLoginIpMasked(maskIp(loginIp));
         entity.setLoginTime(now);
         entity.setLastActiveTime(now);

@@ -1,4 +1,10 @@
 import type { ApiResponse } from '@canteen-smile/contracts'
+import type {
+  MobileBindingChallengeRequest,
+  MobileBindingConfirmRequest,
+  MobileBindingStatus,
+  SmsChallenge,
+} from '@canteen-smile/contracts'
 import { http } from '@/shared/http'
 import type {
   ActivationCompleteResult,
@@ -8,6 +14,9 @@ import type {
   PasswordEnvelopeRequest,
   PasswordLoginRequest,
   LoginResult,
+  SmsChallengeCreateRequest,
+  SmsLoginRequest,
+  AccountSelectionLoginRequest,
   TenantSession,
   PasswordResetContext,
   PasswordResetCompleteResult,
@@ -72,6 +81,31 @@ export async function passwordLogin(request: PasswordLoginRequest): Promise<Logi
   return requireData(response.data)
 }
 
+/** 创建 LOGIN 用途短信验证码挑战。 */
+export async function createSmsLoginChallenge(
+  request: SmsChallengeCreateRequest,
+): Promise<SmsChallenge> {
+  const response = await http.post<ApiResponse<SmsChallenge>>('/auth/v1/sms/challenges', request)
+  return requireData(response.data)
+}
+
+/** 消费短信验证码；单账号直接登录，多账号返回选择票据。 */
+export async function smsLogin(request: SmsLoginRequest): Promise<LoginResult> {
+  const response = await http.post<ApiResponse<LoginResult>>('/auth/v1/login/sms', request)
+  return requireData(response.data)
+}
+
+/** 使用短期一次性票据选择具体租户账号并完成登录。 */
+export async function accountSelectionLogin(
+  request: AccountSelectionLoginRequest,
+): Promise<LoginResult> {
+  const response = await http.post<ApiResponse<LoginResult>>(
+    '/auth/v1/login/account-selection',
+    request,
+  )
+  return requireData(response.data)
+}
+
 /** 查询当前租户设备会话。 */
 export async function getCurrentSession(): Promise<TenantSession> {
   const response = await http.get<ApiResponse<TenantSession>>('/auth/v1/session')
@@ -81,6 +115,34 @@ export async function getCurrentSession(): Promise<TenantSession> {
 /** 退出当前设备会话。 */
 export async function logoutCurrentSession(): Promise<void> {
   await http.post<ApiResponse<null>>('/auth/v1/logout')
+}
+
+/** 查询当前账号不泄露完整手机号的绑定状态。 */
+export async function getMobileBindingStatus(): Promise<MobileBindingStatus> {
+  const response = await http.get<ApiResponse<MobileBindingStatus>>('/auth/v1/mobile/binding')
+  return requireData(response.data)
+}
+
+/** 为当前账号创建首次绑定手机号验证码挑战。 */
+export async function createMobileBindingChallenge(
+  request: MobileBindingChallengeRequest,
+): Promise<SmsChallenge> {
+  const response = await http.post<ApiResponse<SmsChallenge>>(
+    '/auth/v1/mobile/binding/challenges',
+    request,
+  )
+  return requireData(response.data)
+}
+
+/** 原子消费验证码并完成当前账号首次手机号绑定。 */
+export async function confirmMobileBinding(
+  request: MobileBindingConfirmRequest,
+): Promise<MobileBindingStatus> {
+  const response = await http.post<ApiResponse<MobileBindingStatus>>(
+    '/auth/v1/mobile/binding/confirm',
+    request,
+  )
+  return requireData(response.data)
 }
 
 /** 使用当前密码取得绑定单一敏感操作的五分钟一次性票据。 */

@@ -42,6 +42,14 @@ public interface AccountLifecycleMapper {
     /** @param normalizedUsername 归一化用户名 @return 可登录租户账号上下文 */
     LoginContextRow selectLoginContext(@Param("normalizedUsername") String normalizedUsername);
 
+    /**
+     * 批量查询当前仍可登录的租户账号候选，数据状态与有效期校验全部下推数据库。
+     *
+     * @param accountIds Auth 已验证手机号对应的账号 ID，最多一百个
+     * @return 可登录账号候选
+     */
+    List<MobileLoginCandidateRow> selectMobileLoginCandidates(@Param("accountIds") List<Long> accountIds);
+
     /** @param accountId 租户账号 ID @return 权限计算与启动上下文，不存在时为空 */
     TenantPermissionContextRow selectTenantPermissionContext(@Param("accountId") long accountId);
 
@@ -100,6 +108,44 @@ public interface AccountLifecycleMapper {
             String accountStatus,
             String tenantStatus,
             String organizationStatus,
+            long authzVersion,
+            boolean concurrentLoginEnabled,
+            int maxDevices,
+            boolean rememberMeEnabled,
+            int idleSeconds,
+            int absoluteSeconds,
+            int rememberIdleSeconds,
+            int rememberAbsoluteSeconds
+    ) {
+    }
+
+    /**
+     * 手机号登录批量解析使用的租户账号与安全策略快照。
+     *
+     * @param accountId 账号 ID
+     * @param tenantId 租户 ID
+     * @param tenantName 租户名称
+     * @param organizationId 所属机构 ID
+     * @param organizationName 所属机构名称
+     * @param username 用户名
+     * @param displayName 显示名称
+     * @param authzVersion 授权版本
+     * @param concurrentLoginEnabled 是否允许多设备并发
+     * @param maxDevices 最大设备数
+     * @param rememberMeEnabled 是否允许记住我
+     * @param idleSeconds 普通会话空闲秒数
+     * @param absoluteSeconds 普通会话最长秒数
+     * @param rememberIdleSeconds 记住我会话空闲秒数
+     * @param rememberAbsoluteSeconds 记住我会话最长秒数
+     */
+    record MobileLoginCandidateRow(
+            long accountId,
+            long tenantId,
+            String tenantName,
+            long organizationId,
+            String organizationName,
+            String username,
+            String displayName,
             long authzVersion,
             boolean concurrentLoginEnabled,
             int maxDevices,

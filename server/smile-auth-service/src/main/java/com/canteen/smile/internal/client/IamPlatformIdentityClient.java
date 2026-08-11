@@ -7,6 +7,8 @@ import com.canteen.smile.internal.client.dto.PlatformIdentityInternalResponse;
 import com.canteen.smile.internal.client.dto.UsernameLoginResolutionInternalRequest;
 import com.canteen.smile.internal.client.dto.UsernameLoginResolutionInternalResponse;
 import com.canteen.smile.internal.client.dto.TenantAccountActivationContextInternalResponse;
+import com.canteen.smile.internal.client.dto.MobileAccountLoginCandidateInternalResponse;
+import com.canteen.smile.internal.client.dto.MobileAccountLoginResolutionInternalRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.io.IOException;
+import java.util.List;
 
 /** Auth 编排平台身份时使用的 IAM v1 Client。 */
 @Component
@@ -110,6 +113,30 @@ public class IamPlatformIdentityClient {
             return response.data();
         } catch (RestClientException exception) {
             throw new BusinessException(IAM_UNAVAILABLE_CODE, "平台身份服务暂时不可用", 502);
+        }
+    }
+
+    /**
+     * 批量解析手机号登录候选账号，IAM 会再次校验账号、租户、机构和有效期状态。
+     *
+     * @param request 应用入口与候选账号 ID
+     * @return 当前可登录候选账号
+     */
+    public List<MobileAccountLoginCandidateInternalResponse> resolveMobileAccounts(
+            MobileAccountLoginResolutionInternalRequest request
+    ) {
+        try {
+            ApiResponse<List<MobileAccountLoginCandidateInternalResponse>> response = iamRestClient.post()
+                    .uri(IamInternalApiPaths.MOBILE_ACCOUNT_LOGIN_RESOLUTION)
+                    .body(request)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() { });
+            if (response == null || !"0".equals(response.code()) || response.data() == null) {
+                throw new BusinessException(IAM_UNAVAILABLE_CODE, "租户身份服务返回无效响应", 502);
+            }
+            return response.data();
+        } catch (RestClientException exception) {
+            throw new BusinessException(IAM_UNAVAILABLE_CODE, "租户身份服务暂时不可用", 502);
         }
     }
 

@@ -16,6 +16,10 @@ public final class IamInternalApiPaths {
     /** 用户名登录主体解析路径。 */
     public static final String USERNAME_LOGIN_RESOLUTION = INTERNAL_V1 + "/login-resolutions/username";
 
+    /** 手机号登录候选账号批量解析路径。 */
+    public static final String MOBILE_ACCOUNT_LOGIN_RESOLUTION =
+            INTERNAL_V1 + "/login-resolutions/mobile-accounts";
+
     /** 租户账号激活上下文路径。 */
     public static final String TENANT_ACCOUNT_ACTIVATION_CONTEXT =
             INTERNAL_V1 + "/tenant-accounts/{accountId}/activation-context";

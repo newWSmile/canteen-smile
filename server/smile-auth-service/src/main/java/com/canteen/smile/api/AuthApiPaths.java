@@ -17,6 +17,12 @@ public final class AuthApiPaths {
     /** 用户名密码登录路径。 */
     public static final String PASSWORD_LOGIN = AuthPublicApiPaths.PASSWORD_LOGIN;
 
+    /** 手机号验证码登录路径。 */
+    public static final String SMS_LOGIN = AuthPublicApiPaths.SMS_LOGIN;
+
+    /** 手机号验证码登录多账号选择路径。 */
+    public static final String ACCOUNT_SELECTION_LOGIN = AuthPublicApiPaths.ACCOUNT_SELECTION_LOGIN;
+
     /** 密码信封加密一次性挑战创建路径。 */
     public static final String PASSWORD_ENCRYPTION_CHALLENGES = AuthPublicApiPaths.PASSWORD_ENCRYPTION_CHALLENGES;
 
@@ -48,6 +54,15 @@ public final class AuthApiPaths {
 
     /** 当前设备退出登录路径。 */
     public static final String LOGOUT = EXTERNAL_V1 + "/logout";
+
+    /** 当前租户账号已验证手机号绑定状态路径。 */
+    public static final String MOBILE_BINDING = EXTERNAL_V1 + "/mobile/binding";
+
+    /** 当前租户账号首次绑定手机号挑战创建路径。 */
+    public static final String MOBILE_BINDING_CHALLENGES = MOBILE_BINDING + "/challenges";
+
+    /** 当前租户账号首次绑定手机号确认路径。 */
+    public static final String MOBILE_BINDING_CONFIRM = MOBILE_BINDING + "/confirm";
 
     /** IAM 调用的租户账号凭证初始化内部接口。 */
     public static final String INTERNAL_TENANT_ACCOUNT_PROVISION =

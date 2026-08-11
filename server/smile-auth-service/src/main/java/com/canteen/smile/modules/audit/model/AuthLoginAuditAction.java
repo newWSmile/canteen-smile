@@ -6,6 +6,9 @@ public enum AuthLoginAuditAction {
     /** 用户名密码登录。 */
     PASSWORD("PASSWORD", "auth:login:password", "用户名密码登录"),
 
+    /** 手机号验证码登录。 */
+    SMS("SMS", "auth:login:sms", "手机号验证码登录"),
+
     /** 一次性恢复码登录。 */
     RECOVERY_CODE("RECOVERY_CODE", "auth:login:recovery-code", "恢复码登录");
 

@@ -62,6 +62,12 @@ export const router = createRouter({
           component: () => import('@/modules/audit/pages/AuditLogsPage.vue'),
           meta: { title: '审计日志' },
         },
+        {
+          path: 'profile/security',
+          name: 'profile-security',
+          component: () => import('@/modules/profile/pages/ProfileSecurityPage.vue'),
+          meta: { title: '个人安全' },
+        },
       ],
     },
   ],

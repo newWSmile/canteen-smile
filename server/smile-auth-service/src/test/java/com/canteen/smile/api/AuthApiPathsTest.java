@@ -19,11 +19,19 @@ class AuthApiPathsTest {
         assertThat(AuthApiPaths.SMS_CHALLENGES).isEqualTo(AuthPublicApiPaths.SMS_CHALLENGES);
         assertThat(AuthPublicApiPaths.ANONYMOUS_PATHS).contains(AuthApiPaths.SMS_CHALLENGES);
         assertThat(AuthApiPaths.PASSWORD_LOGIN).isEqualTo(AuthPublicApiPaths.PASSWORD_LOGIN);
+        assertThat(AuthPublicApiPaths.ANONYMOUS_PATHS)
+                .contains(AuthApiPaths.SMS_LOGIN, AuthApiPaths.ACCOUNT_SELECTION_LOGIN);
         assertThat(AuthApiPaths.PLATFORM_RECOVERY_LOGIN)
                 .isEqualTo(AuthPublicApiPaths.PLATFORM_RECOVERY_LOGIN);
         assertThat(AuthApiPaths.INTERNAL_SECURITY_EVENTS)
                 .isEqualTo("/internal/auth/v1/security-events");
         assertThat(AuthApiPaths.INTERNAL_AUDIT_LOG_SEARCH)
                 .isEqualTo("/internal/auth/v1/audit-logs/search");
+        assertThat(AuthPublicApiPaths.ANONYMOUS_PATHS)
+                .doesNotContain(
+                        AuthApiPaths.MOBILE_BINDING,
+                        AuthApiPaths.MOBILE_BINDING_CHALLENGES,
+                        AuthApiPaths.MOBILE_BINDING_CONFIRM
+                );
     }
 }

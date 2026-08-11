@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
         BootstrapProperties.class,
         PasswordEnvelopeProperties.class,
         SmsProperties.class,
+        MobileEncryptionProperties.class,
         IamClientProperties.class,
         InternalHmacClientProperties.class,
         AuthInternalHmacProperties.class

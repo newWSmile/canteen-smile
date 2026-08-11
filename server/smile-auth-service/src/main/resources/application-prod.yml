@@ -24,6 +24,10 @@ application:
     provider-code: ${SMS_PROVIDER_CODE}
     mobile-hash-pepper: ${SMS_MOBILE_HASH_PEPPER}
     code-hash-pepper: ${SMS_CODE_HASH_PEPPER}
+  mobile-encryption:
+    # 生产密钥只能由 Secret 或密钥服务注入；密钥为 Base64 编码的 32 字节随机值。
+    key-id: ${AUTH_MOBILE_ENCRYPTION_KEY_ID}
+    key: ${AUTH_MOBILE_ENCRYPTION_KEY}
   bootstrap:
     # 仅首次引导期间由 Secret/密钥服务注入，引导完成后应移除。
     secret: ${PLATFORM_BOOTSTRAP_SECRET}

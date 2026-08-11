@@ -12,6 +12,10 @@ public final class IamApiPaths {
     /** Auth 使用的用户名登录解析路径。 */
     public static final String USERNAME_LOGIN_RESOLUTION = INTERNAL_V1 + "/login-resolutions/username";
 
+    /** Auth 批量解析手机号绑定账号候选的内部路径。 */
+    public static final String MOBILE_ACCOUNT_LOGIN_RESOLUTION =
+            INTERNAL_V1 + "/login-resolutions/mobile-accounts";
+
     /** Auth 查询租户账号激活上下文的内部路径。 */
     public static final String TENANT_ACCOUNT_ACTIVATION_CONTEXT =
             INTERNAL_V1 + "/tenant-accounts/{accountId}/activation-context";

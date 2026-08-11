@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.auth.mapper.MobileBindingMapper">
+
+    <resultMap id="mobileBindingResultMap" type="com.canteen.smile.modules.auth.entity.MobileBindingEntity">
+        <id property="id" column="id"/>
+        <result property="subjectType" column="subject_type"/>
+        <result property="subjectId" column="subject_id"/>
+        <result property="mobileCiphertext" column="mobile_ciphertext"/>
+        <result property="mobileHash" column="mobile_hash"/>
+        <result property="maskedMobile" column="masked_mobile"/>
+        <result property="encryptionKeyId" column="encryption_key_id"/>
+        <result property="status" column="status"/>
+        <result property="verifiedTime" column="verified_time"/>
+        <result property="replacedTime" column="replaced_time"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <select id="selectVerifiedBySubject" resultMap="mobileBindingResultMap">
+        SELECT
+            id,
+            subject_type,
+            subject_id,
+            mobile_ciphertext,
+            mobile_hash,
+            masked_mobile,
+            encryption_key_id,
+            status,
+            verified_time,
+            replaced_time,
+            version
+        FROM public.auth_mobile_binding
+        WHERE subject_type = #{subjectType}
+          AND subject_id = #{subjectId}
+          AND status = 'VERIFIED'
+          AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <insert id="insertVerified" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO public.auth_mobile_binding (
+            subject_type,
+            subject_id,
+            mobile_ciphertext,
+            mobile_hash,
+            masked_mobile,
+            encryption_key_id,
+            status,
+            verified_time,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{subjectType},
+            #{subjectId},
+            #{mobileCiphertext},
+            #{mobileHash},
+            #{maskedMobile},
+            #{encryptionKeyId},
+            'VERIFIED',
+            #{verifiedTime},
+            #{subjectId},
+            #{subjectId}
+        )
+        ON CONFLICT DO NOTHING
+    </insert>
+
+    <select id="selectVerifiedTenantAccountIdsByMobileHash" resultType="long">
+        SELECT subject_id
+        FROM public.auth_mobile_binding
+        WHERE mobile_hash = #{mobileHash}
+          AND subject_type = 'TENANT_ACCOUNT'
+          AND status = 'VERIFIED'
+          AND is_deleted = false
+        ORDER BY subject_id ASC
+        LIMIT 100
+    </select>
+</mapper>

@@ -127,4 +127,18 @@
           AND status = 'ACTIVE'
           AND is_deleted = false
     </update>
+
+    <select id="selectLatestTenantLogins"
+            resultType="com.canteen.smile.modules.auth.mapper.DeviceSessionMapper$LatestLoginRow">
+        SELECT subject_id AS account_id,
+               MAX(login_time) AS latest_login_time
+        FROM public.auth_device_session
+        WHERE subject_type = 'TENANT_ACCOUNT'
+          AND subject_id IN
+          <foreach collection="accountIds" item="accountId" open="(" separator="," close=")">
+              #{accountId}
+          </foreach>
+          AND is_deleted = false
+        GROUP BY subject_id
+    </select>
 </mapper>

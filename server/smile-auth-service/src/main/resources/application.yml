@@ -65,6 +65,9 @@ application:
     ip-daily-limit: ${SMS_IP_DAILY_LIMIT:100}
     device-hourly-limit: ${SMS_DEVICE_HOURLY_LIMIT:10}
     device-daily-limit: ${SMS_DEVICE_DAILY_LIMIT:30}
+  mobile-encryption:
+    key-id: ${AUTH_MOBILE_ENCRYPTION_KEY_ID:}
+    key: ${AUTH_MOBILE_ENCRYPTION_KEY:}
   clients:
     iam:
       base-url: ${IAM_SERVICE_URI:http://127.0.0.1:8082}

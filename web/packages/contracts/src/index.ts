@@ -122,6 +122,35 @@ export interface SmsRuntimePolicy {
   version: number
 }
 
+/** Auth 创建的短信验证码挑战安全摘要。 */
+export interface SmsChallenge {
+  challengeId: string
+  maskedMobile: string
+  expiresAt: string
+  resendAt: string
+}
+
+/** 当前账号已验证手机号绑定状态。 */
+export interface MobileBindingStatus {
+  bound: boolean
+  maskedMobile: string | null
+  verifiedTime: string | null
+}
+
+/** 当前账号首次绑定手机号挑战请求。 */
+export interface MobileBindingChallengeRequest {
+  mobile: string
+  deviceId: string
+  captchaTicket?: string
+}
+
+/** 当前账号首次绑定手机号确认请求。 */
+export interface MobileBindingConfirmRequest {
+  mobile: string
+  challengeId: string
+  code: string
+}
+
 /** 修改短信限流设置的敏感命令。 */
 export interface SmsRateLimitSettingsUpdateRequest {
   challengeTtlSeconds: number

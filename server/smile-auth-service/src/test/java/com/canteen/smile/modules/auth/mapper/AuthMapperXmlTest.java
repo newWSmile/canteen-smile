@@ -28,6 +28,8 @@ class AuthMapperXmlTest {
                 "mapper/auth/ReauthTicketMapper.xml",
                 "mapper/auth/PasswordResetTicketMapper.xml",
                 "mapper/auth/PasswordHistoryMapper.xml",
+                "mapper/auth/MobileBindingMapper.xml",
+                "mapper/auth/AccountSelectorTicketMapper.xml",
                 "mapper/sms/SmsChallengeMapper.xml",
                 "mapper/sms/SmsDeliveryRecordMapper.xml",
                 "mapper/sms/SmsRuntimePolicyMapper.xml",
@@ -51,6 +53,10 @@ class AuthMapperXmlTest {
         assertThat(configuration.hasStatement(PasswordResetTicketMapper.class.getName() + ".insert")).isTrue();
         assertThat(configuration.hasStatement(PasswordHistoryMapper.class.getName()
                 + ".selectRecentHashes")).isTrue();
+        assertThat(configuration.hasStatement(MobileBindingMapper.class.getName()
+                + ".insertVerified")).isTrue();
+        assertThat(configuration.hasStatement(AccountSelectorTicketMapper.class.getName()
+                + ".consume")).isTrue();
         assertThat(configuration.hasStatement("com.canteen.smile.modules.sms.mapper.SmsChallengeMapper"
                 + ".consume")).isTrue();
         assertThat(configuration.hasStatement("com.canteen.smile.modules.sms.mapper.SmsDeliveryRecordMapper"
@@ -65,6 +71,8 @@ class AuthMapperXmlTest {
                 + ".selectPage")).isTrue();
         assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
                 + ".insertSessionCreatedAudit")).isTrue();
+        assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
+                + ".insertMobileBindingAudit")).isTrue();
     }
 
     /** 将一个 Mapper XML 注册到测试配置。 */

@@ -14,6 +14,12 @@ public final class AuthPublicApiPaths {
     /** 用户名密码登录路径。 */
     public static final String PASSWORD_LOGIN = EXTERNAL_V1 + "/login/password";
 
+    /** 手机号验证码登录路径。 */
+    public static final String SMS_LOGIN = EXTERNAL_V1 + "/login/sms";
+
+    /** 手机号登录多账号选择路径。 */
+    public static final String ACCOUNT_SELECTION_LOGIN = EXTERNAL_V1 + "/login/account-selection";
+
     /** 密码信封加密一次性挑战创建路径。 */
     public static final String PASSWORD_ENCRYPTION_CHALLENGES = EXTERNAL_V1 + "/password-encryption/challenges";
 
@@ -38,6 +44,8 @@ public final class AuthPublicApiPaths {
             PASSWORD_ENCRYPTION_CHALLENGES,
             SMS_CHALLENGES,
             PASSWORD_LOGIN,
+            SMS_LOGIN,
+            ACCOUNT_SELECTION_LOGIN,
             PLATFORM_RECOVERY_LOGIN,
             ACTIVATIONS + "/**",
             PASSWORD_RESETS + "/**"
@@ -54,6 +62,8 @@ public final class AuthPublicApiPaths {
                 || PASSWORD_ENCRYPTION_CHALLENGES.equals(path)
                 || SMS_CHALLENGES.equals(path)
                 || PASSWORD_LOGIN.equals(path)
+                || SMS_LOGIN.equals(path)
+                || ACCOUNT_SELECTION_LOGIN.equals(path)
                 || PLATFORM_RECOVERY_LOGIN.equals(path)
                 || path.startsWith(ACTIVATIONS + "/")
                 || path.startsWith(PASSWORD_RESETS + "/");
