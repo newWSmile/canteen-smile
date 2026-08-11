@@ -158,25 +158,25 @@ onUnmounted(() => {
           <div class="binding-form">
             <label>
               <span>手机号</span>
-              <el-input
-                v-model="form.mobile"
-                maxlength="11"
-                inputmode="numeric"
-                autocomplete="tel"
-                placeholder="请输入11位手机号"
-                :disabled="challenge !== null"
-                @input="handleMobileInput"
-              >
-                <template #append>
-                  <el-button
-                    type="primary"
-                    :loading="sendFlight.pending.value"
-                    @click="sendFlight.run()"
-                  >
-                    {{ resendSeconds > 0 ? `${resendSeconds} 秒` : '发送验证码' }}
-                  </el-button>
-                </template>
-              </el-input>
+              <div class="mobile-code-row">
+                <el-input
+                  v-model="form.mobile"
+                  maxlength="11"
+                  inputmode="numeric"
+                  autocomplete="tel"
+                  placeholder="请输入11位手机号"
+                  :disabled="challenge !== null"
+                  @input="handleMobileInput"
+                />
+                <el-button
+                  class="send-code-button"
+                  type="primary"
+                  :loading="sendFlight.pending.value"
+                  @click="sendFlight.run()"
+                >
+                  {{ resendSeconds > 0 ? `${resendSeconds} 秒` : '发送验证码' }}
+                </el-button>
+              </div>
             </label>
             <label v-if="challenge">
               <span>短信验证码</span>
@@ -226,6 +226,9 @@ onUnmounted(() => {
 .binding-form { display: grid; gap: 18px; }
 .binding-form label { display: grid; gap: 8px; color: #3f4c4b; font-size: 13px; font-weight: 600; }
 .binding-form small { color: #7f8a89; font-weight: 400; line-height: 1.5; }
+.mobile-code-row { display: grid; grid-template-columns: minmax(0, 1fr) 112px; gap: 10px; }
+.send-code-button { width: 112px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; }
 @media (max-width: 860px) { .profile-page { padding: 28px 20px; } .security-grid { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .mobile-code-row { grid-template-columns: 1fr; } .send-code-button { width: 100%; } }
 </style>
