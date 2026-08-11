@@ -21,6 +21,11 @@ export const router = createRouter({
       component: () => import('@/modules/auth/pages/PasswordResetPage.vue'),
     },
     {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('@/modules/auth/pages/ForgotPasswordPage.vue'),
+    },
+    {
       path: '/',
       name: 'tenant-management',
       component: () => import('@/app/layouts/TenantAdminLayout.vue'),
@@ -74,7 +79,7 @@ export const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  if (to.name !== 'login' && to.name !== 'activate' && to.name !== 'reset-password' && !getTenantAdminToken()) {
+  if (to.name !== 'login' && to.name !== 'activate' && to.name !== 'reset-password' && to.name !== 'forgot-password' && !getTenantAdminToken()) {
     return { name: 'login' }
   }
   if (to.name === 'login' && getTenantAdminToken()) return { name: 'home' }

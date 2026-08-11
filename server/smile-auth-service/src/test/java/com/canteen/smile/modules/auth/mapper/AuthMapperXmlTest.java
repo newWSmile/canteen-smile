@@ -43,6 +43,8 @@ class AuthMapperXmlTest {
         assertThat(configuration.hasStatement(CredentialMapper.class.getName() + ".selectBySubject")).isTrue();
         assertThat(configuration.hasStatement(CredentialMapper.class.getName()
                 + ".insertPendingTenantAccountCredential")).isTrue();
+        assertThat(configuration.hasStatement(CredentialMapper.class.getName()
+                + ".completeActiveTenantAccountPasswordReset")).isTrue();
         assertThat(configuration.hasStatement(PlatformRecoveryCodeMapper.class.getName()
                 + ".consumeRecoveryCode")).isTrue();
         assertThat(configuration.hasStatement(LoginFailureMapper.class.getName()
@@ -55,6 +57,10 @@ class AuthMapperXmlTest {
                 + ".selectRecentHashes")).isTrue();
         assertThat(configuration.hasStatement(MobileBindingMapper.class.getName()
                 + ".insertVerified")).isTrue();
+        assertThat(configuration.hasStatement(MobileBindingMapper.class.getName()
+                + ".replaceVerified")).isTrue();
+        assertThat(configuration.hasStatement(MobileBindingMapper.class.getName()
+                + ".revokeVerified")).isTrue();
         assertThat(configuration.hasStatement(AccountSelectorTicketMapper.class.getName()
                 + ".consume")).isTrue();
         assertThat(configuration.hasStatement("com.canteen.smile.modules.sms.mapper.SmsChallengeMapper"
@@ -72,7 +78,9 @@ class AuthMapperXmlTest {
         assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
                 + ".insertSessionCreatedAudit")).isTrue();
         assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
-                + ".insertMobileBindingAudit")).isTrue();
+                + ".insertAsyncAudit")).isTrue();
+        assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
+                + ".insertSmsPasswordResetAudit")).isTrue();
     }
 
     /** 将一个 Mapper XML 注册到测试配置。 */

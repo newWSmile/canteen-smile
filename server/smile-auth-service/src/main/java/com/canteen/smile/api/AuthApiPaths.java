@@ -49,6 +49,14 @@ public final class AuthApiPaths {
     public static final String PASSWORD_RESET_COMPLETE =
             AuthPublicApiPaths.PASSWORD_RESETS + "/{ticket}/complete";
 
+    /** 使用手机号验证码开始租户账号自助找回密码。 */
+    public static final String PASSWORD_RESET_SMS_VERIFICATION =
+            AuthPublicApiPaths.PASSWORD_RESET_SMS_VERIFICATION;
+
+    /** 自助找回密码时选择手机号绑定的具体租户账号。 */
+    public static final String PASSWORD_RESET_SMS_ACCOUNT_SELECTION =
+            AuthPublicApiPaths.PASSWORD_RESET_SMS_ACCOUNT_SELECTION;
+
     /** 当前登录设备会话查询路径。 */
     public static final String CURRENT_SESSION = EXTERNAL_V1 + "/session";
 
@@ -63,6 +71,26 @@ public final class AuthApiPaths {
 
     /** 当前租户账号首次绑定手机号确认路径。 */
     public static final String MOBILE_BINDING_CONFIRM = MOBILE_BINDING + "/confirm";
+
+    /** 向当前已验证手机号发送敏感操作验证码。 */
+    public static final String MOBILE_BINDING_CURRENT_CHALLENGES =
+            MOBILE_BINDING + "/current-mobile/challenges";
+
+    /** 使用当前手机号验证码签发换绑或解绑再认证票据。 */
+    public static final String MOBILE_BINDING_CURRENT_VERIFICATION =
+            MOBILE_BINDING + "/current-mobile/verification";
+
+    /** 向待换绑的新手机号发送验证码。 */
+    public static final String MOBILE_BINDING_CHANGE_CHALLENGES =
+            MOBILE_BINDING + "/change/challenges";
+
+    /** 原子完成手机号换绑。 */
+    public static final String MOBILE_BINDING_CHANGE_CONFIRM =
+            MOBILE_BINDING + "/change/confirm";
+
+    /** 原子完成手机号解绑。 */
+    public static final String MOBILE_BINDING_UNBIND_CONFIRM =
+            MOBILE_BINDING + "/unbind/confirm";
 
     /** IAM 调用的租户账号凭证初始化内部接口。 */
     public static final String INTERNAL_TENANT_ACCOUNT_PROVISION =

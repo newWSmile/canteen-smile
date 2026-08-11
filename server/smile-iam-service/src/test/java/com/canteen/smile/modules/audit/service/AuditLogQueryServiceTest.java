@@ -9,6 +9,7 @@ import com.canteen.smile.modules.account.service.TenantActorService;
 import com.canteen.smile.modules.audit.dto.AuditLogPageQuery;
 import com.canteen.smile.modules.audit.mapper.IamAuditLogMapper;
 import com.canteen.smile.modules.platform.service.PlatformActorService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,7 +47,9 @@ class AuditLogQueryServiceTest {
     /** 创建每个测试使用的服务。 */
     @BeforeEach
     void setUp() {
-        service = new AuditLogQueryService(mapper, authClient, platformActorService, tenantActorService);
+        service = new AuditLogQueryService(
+                mapper, authClient, platformActorService, tenantActorService, new ObjectMapper()
+        );
     }
 
     /** 验证普通管理员的 IAM 查询将租户、机构和本人边界全部下推 Mapper。 */
@@ -112,7 +115,9 @@ class AuditLogQueryServiceTest {
                 "101", "2", "TENANT_ACCOUNT", "9", "audit_user", "审计用户",
                 "TENANT_ACCOUNT", "9", "audit_user", "审计用户",
                 "auth:login:password", "用户名密码登录", "SUCCESS", "PASSWORD", null,
-                "138****0000", "Web / Chrome", "trace-1", occurredTime
+                "138****0000", "Web / Chrome", "trace-1", occurredTime,
+                "TENANT_ADMIN", List.of("租户端", "账号安全"),
+                null, null, null, null, null, 12L
         );
         when(tenantActorService.current()).thenReturn(actor);
         when(authClient.page(org.mockito.ArgumentMatchers.any())).thenReturn(
@@ -132,6 +137,9 @@ class AuditLogQueryServiceTest {
             assertThat(item.loginMethodName()).isEqualTo("用户名密码");
             assertThat(item.actionCode()).isEqualTo("auth:login:password");
             assertThat(item.traceId()).isEqualTo("trace-1");
+            assertThat(item.appCode()).isEqualTo("TENANT_ADMIN");
+            assertThat(item.categoryPath()).containsExactly("租户端", "账号安全");
+            assertThat(item.durationMs()).isEqualTo(12L);
         });
     }
 

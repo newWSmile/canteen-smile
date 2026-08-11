@@ -77,7 +77,7 @@ export interface PasswordLoginRequest {
 
 /** 匿名创建短信验证码挑战请求。 */
 export interface SmsChallengeCreateRequest {
-  purpose: 'LOGIN'
+  purpose: 'LOGIN' | 'PASSWORD_RESET'
   mobile: string
   deviceId: string
   captchaTicket?: string
@@ -134,8 +134,34 @@ export interface LoginResult {
   accountCandidates?: MobileLoginCandidate[]
 }
 
+/** 消费 PASSWORD_RESET 用途短信验证码的自助找回请求。 */
+export interface SmsPasswordResetVerificationRequest {
+  appCode: 'TENANT_ADMIN'
+  challengeId: string
+  code: string
+}
+
+/** 手机号绑定多个账号时选择具体找回账号的请求。 */
+export interface SmsPasswordResetAccountSelectionRequest {
+  appCode: 'TENANT_ADMIN'
+  accountSelectorTicket: string
+  accountId: string
+}
+
+/** 手机号自助找回密码的真实分步响应。 */
+export interface SmsPasswordResetResult {
+  nextStep: 'RESET_PASSWORD' | 'ACCOUNT_SELECTION_REQUIRED'
+  passwordResetTicket: string | null
+  accountSelectorTicket: string | null
+  accountCandidates: MobileLoginCandidate[]
+}
+
 /** 租户管理员敏感操作再认证允许的动作。 */
-export type ReauthAction = 'TENANT_USER_CREATE' | 'TENANT_USER_ROLE_ASSIGN'
+export type ReauthAction =
+  | 'TENANT_USER_CREATE'
+  | 'TENANT_USER_ROLE_ASSIGN'
+  | 'MOBILE_CHANGE'
+  | 'MOBILE_UNBIND'
 
 /** 当前密码再认证请求。 */
 export interface PasswordReauthRequest {

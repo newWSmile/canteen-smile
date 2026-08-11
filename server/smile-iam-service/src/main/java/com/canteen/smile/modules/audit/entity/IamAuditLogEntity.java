@@ -12,6 +12,21 @@ import java.time.OffsetDateTime;
 @NoArgsConstructor
 public class IamAuditLogEntity {
 
+    /** 通用审计事件全局唯一 ID。 */
+    private String eventId;
+
+    /** 通用审计事件契约版本。 */
+    private Integer schemaVersion;
+
+    /** 来源服务或业务域编码。 */
+    private String sourceCode;
+
+    /** 任意层级中文分类路径 JSON 数组。 */
+    private String categoryPathJson;
+
+    /** 操作人所在应用端编码快照。 */
+    private String appCodeSnapshot;
+
     /** 审计日志主键。 */
     private Long id;
 
@@ -56,6 +71,12 @@ public class IamAuditLogEntity {
 
     /** 操作结果。 */
     private String result;
+
+    /** 可选稳定失败原因码。 */
+    private String failureReasonCode;
+
+    /** 被审计业务方法执行耗时毫秒数。 */
+    private Long durationMs;
 
     /** 请求链路追踪 ID。 */
     private String traceId;

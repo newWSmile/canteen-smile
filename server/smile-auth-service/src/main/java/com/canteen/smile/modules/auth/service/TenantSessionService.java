@@ -56,10 +56,10 @@ public class TenantSessionService {
         OffsetDateTime absoluteExpiresAt = now.plusSeconds(context.absoluteSeconds());
         SaSession tokenSession = StpUtil.getTokenSession();
         tokenSession.set("businessSessionId", sessionId);
-        tokenSession.set("appCode", context.appCode());
+        tokenSession.set(AuthConstants.TOKEN_APP_CODE_ATTRIBUTE, context.appCode());
         tokenSession.set("subjectType", AuthConstants.TENANT_ACCOUNT_SUBJECT);
         tokenSession.set(AuthConstants.TOKEN_TENANT_ID_ATTRIBUTE, context.tenantId());
-        tokenSession.set("organizationId", context.organizationId());
+        tokenSession.set(AuthConstants.TOKEN_ORGANIZATION_ID_ATTRIBUTE, context.organizationId());
         tokenSession.set("authzVersion", context.authzVersion());
         tokenSession.set(AuthConstants.TOKEN_USERNAME_ATTRIBUTE, context.username());
         tokenSession.set(

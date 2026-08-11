@@ -3,8 +3,12 @@ package com.canteen.smile.modules.auth.service;
 import com.canteen.smile.common.exception.BusinessException;
 import com.canteen.smile.config.MobileEncryptionProperties;
 import com.canteen.smile.config.SmsProperties;
+import com.canteen.smile.modules.auth.dto.CurrentMobileVerificationRequest;
 import com.canteen.smile.modules.auth.dto.MobileBindingConfirmRequest;
 import com.canteen.smile.modules.auth.entity.MobileBindingEntity;
+import com.canteen.smile.modules.auth.model.AuthConstants;
+import com.canteen.smile.modules.auth.model.ReauthAction;
+import com.canteen.smile.modules.auth.vo.ReauthTicketVO;
 import com.canteen.smile.modules.sms.model.SmsChallengeVerificationResult;
 import com.canteen.smile.modules.sms.model.SmsPurpose;
 import com.canteen.smile.modules.sms.service.MobileProtectionService;
@@ -14,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,6 +44,9 @@ class MobileBindingServiceTest {
     /** 手机号安全投影服务。 */
     private MobileProtectionService protectionService;
 
+    /** 再认证票据签发服务替身。 */
+    private ReauthTicketIssueService ticketIssueService;
+
     /** 被测试绑定服务。 */
     private MobileBindingService bindingService;
 
@@ -48,6 +56,7 @@ class MobileBindingServiceTest {
         subjectService = mock(CurrentAuthSubjectService.class);
         persistenceService = mock(MobileBindingPersistenceService.class);
         challengeService = mock(SmsChallengeService.class);
+        ticketIssueService = mock(ReauthTicketIssueService.class);
         SmsProperties smsProperties = new SmsProperties();
         smsProperties.setMobileHashPepper("mobile-binding-test-pepper-with-sufficient-entropy");
         protectionService = new MobileProtectionService(smsProperties);
@@ -59,7 +68,8 @@ class MobileBindingServiceTest {
                 persistenceService,
                 challengeService,
                 protectionService,
-                new MobileCipherService(encryptionProperties)
+                new MobileCipherService(encryptionProperties),
+                ticketIssueService
         );
         when(subjectService.currentTenant()).thenReturn(
                 new CurrentAuthSubjectService.CurrentTenantSubject(7L, 2L, "test_user", "测试用户")
@@ -112,6 +122,48 @@ class MobileBindingServiceTest {
         verify(persistenceService, never()).bind(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    /** 验证当前手机号成功后只签发绑定指定换绑动作的短信再认证票据。 */
+    @Test
+    void shouldIssueSinglePurposeTicketAfterCurrentMobileVerification() {
+        /** 当前账号已验证手机号摘要。 */
+        String mobileHash = protectionService.hashForSearch("13800138000");
+        /** 当前数据库有效手机号绑定。 */
+        MobileBindingEntity binding = new MobileBindingEntity();
+        binding.setSubjectId(7L);
+        binding.setMobileHash(mobileHash);
+        when(persistenceService.findVerified(AuthConstants.TENANT_ACCOUNT_SUBJECT, 7L))
+                .thenReturn(binding);
+        when(challengeService.verifyAndConsume("challenge-3", "238419", SmsPurpose.MOBILE_CHANGE))
+                .thenReturn(new SmsChallengeVerificationResult(
+                        "challenge-3", SmsPurpose.MOBILE_CHANGE, mobileHash
+                ));
+        /** 票据签发服务返回的测试结果。 */
+        ReauthTicketVO expected = new ReauthTicketVO(
+                "reauth-ticket", OffsetDateTime.now().plusMinutes(5)
+        );
+        when(ticketIssueService.issue(
+                AuthConstants.TENANT_ACCOUNT_SUBJECT,
+                7L,
+                ReauthAction.MOBILE_CHANGE,
+                AuthConstants.SMS_LOGIN_METHOD
+        )).thenReturn(expected);
+
+        /** 当前手机号验证接口返回结果。 */
+        ReauthTicketVO result = bindingService.verifyCurrentMobile(
+                new CurrentMobileVerificationRequest(
+                        "challenge-3", "238419", ReauthAction.MOBILE_CHANGE
+                )
+        );
+
+        assertThat(result).isEqualTo(expected);
+        verify(ticketIssueService).issue(
+                AuthConstants.TENANT_ACCOUNT_SUBJECT,
+                7L,
+                ReauthAction.MOBILE_CHANGE,
+                AuthConstants.SMS_LOGIN_METHOD
         );
     }
 }

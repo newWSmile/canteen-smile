@@ -75,6 +75,50 @@ public class MobileCipherService {
         }
     }
 
+    /**
+     * 仅在向当前已验证手机号发送敏感操作验证码时解密完整号码。
+     *
+     * @param payload 数据库保存的格式版本、IV、认证密文和标签
+     * @param encryptionKeyId 该绑定记录使用的密钥版本
+     * @return 只在当前 Auth 调用栈内短暂存在的完整手机号
+     */
+    public String decrypt(byte[] payload, String encryptionKeyId) {
+        /** 当前运行实例配置的密钥版本标识。 */
+        String currentKeyId = requiredKeyId();
+        if (encryptionKeyId == null || !currentKeyId.equals(encryptionKeyId.trim())) {
+            throw new IllegalStateException("Mobile encryption key version is unavailable");
+        }
+        if (payload == null || payload.length <= 1 + IV_LENGTH + TAG_LENGTH_BITS / 8) {
+            throw new IllegalStateException("Mobile ciphertext payload is invalid");
+        }
+        /** 只读解析数据库密文载荷的缓冲区。 */
+        ByteBuffer buffer = ByteBuffer.wrap(payload);
+        /** 当前密文载荷记录的格式版本。 */
+        byte version = buffer.get();
+        if (version != FORMAT_VERSION) {
+            throw new IllegalStateException("Mobile ciphertext format is unsupported");
+        }
+        /** 从载荷中读取的独立随机 IV。 */
+        byte[] iv = new byte[IV_LENGTH];
+        buffer.get(iv);
+        /** 从载荷中读取的认证密文和 GCM 标签。 */
+        byte[] ciphertext = new byte[buffer.remaining()];
+        buffer.get(ciphertext);
+        try {
+            /** 使用当前版本密钥初始化的 AES-GCM 解密器。 */
+            Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
+            cipher.init(
+                    Cipher.DECRYPT_MODE,
+                    new SecretKeySpec(decodedKey(), "AES"),
+                    new GCMParameterSpec(TAG_LENGTH_BITS, iv)
+            );
+            cipher.updateAAD(currentKeyId.getBytes(StandardCharsets.UTF_8));
+            return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
+        } catch (GeneralSecurityException exception) {
+            throw new IllegalStateException("Mobile number could not be decrypted", exception);
+        }
+    }
+
     /** @return 非空且满足数据库长度约束的密钥版本 */
     private String requiredKeyId() {
         String keyId = properties.getKeyId();

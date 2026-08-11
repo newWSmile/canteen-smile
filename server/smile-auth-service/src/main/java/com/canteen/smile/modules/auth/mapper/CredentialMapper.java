@@ -65,4 +65,16 @@ public interface CredentialMapper {
             @Param("accountId") long accountId,
             @Param("passwordHash") String passwordHash
     );
+
+    /**
+     * 手机号自助找回时直接替换当前有效凭证的密码摘要。
+     *
+     * @param accountId 租户账号 ID
+     * @param passwordHash 新 Argon2id 密码摘要
+     * @return 更新行数
+     */
+    int completeActiveTenantAccountPasswordReset(
+            @Param("accountId") long accountId,
+            @Param("passwordHash") String passwordHash
+    );
 }

@@ -14,6 +14,8 @@ import com.canteen.smile.modules.audit.model.AuditDisplayCatalog;
 import com.canteen.smile.modules.audit.vo.AuditLogVO;
 import com.canteen.smile.modules.platform.service.PlatformActorService;
 import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -38,6 +40,9 @@ public class AuditLogQueryService {
 
     /** 租户身份解析服务。 */
     private final TenantActorService tenantActorService;
+
+    /** Jackson JSON 解析器。 */
+    private final ObjectMapper objectMapper;
 
     /** @param query 页面查询条件 @return 平台身份范围审计分页 */
     public PageResult<AuditLogVO> pagePlatform(AuditLogPageQuery query) {
@@ -118,7 +123,10 @@ public class AuditLogQueryService {
                 AuditDisplayCatalog.actionName(row.getActionNameSnapshot()), row.getTargetType(),
                 AuditDisplayCatalog.targetTypeName(row.getTargetType()), row.getTargetId(),
                 row.getTargetNameSnapshot(), row.getTargetCodeSnapshot(), row.getResult(), row.getReason(),
-                null, null, null, null, null, null, row.getTraceId(), row.getOccurredTime()
+                null, null, row.getFailureReasonCode(),
+                AuditDisplayCatalog.failureReasonName(row.getFailureReasonCode()),
+                null, null, row.getTraceId(), row.getOccurredTime(),
+                row.getAppCodeSnapshot(), categoryPath(row.getCategoryPathJson()), row.getDurationMs()
         );
     }
 
@@ -129,12 +137,17 @@ public class AuditLogQueryService {
                 row.id(), "AUTH", row.tenantId(), row.operatorType(),
                 AuditDisplayCatalog.identityTypeName(row.operatorType()), row.operatorId(),
                 row.operatorUsernameSnapshot(), row.operatorDisplayNameSnapshot(), row.actionCode(),
-                AuditDisplayCatalog.actionName(row.actionNameSnapshot()), row.subjectType(),
-                AuditDisplayCatalog.targetTypeName(row.subjectType()), row.subjectId(),
-                row.subjectDisplayNameSnapshot(), row.subjectUsernameSnapshot(), row.result(), null,
+                AuditDisplayCatalog.actionName(row.actionNameSnapshot()),
+                firstText(row.targetType(), row.subjectType()),
+                AuditDisplayCatalog.targetTypeName(firstText(row.targetType(), row.subjectType())),
+                firstText(row.targetId(), row.subjectId()),
+                firstText(row.targetNameSnapshot(), row.subjectDisplayNameSnapshot()),
+                firstText(row.targetCodeSnapshot(), row.subjectUsernameSnapshot()),
+                row.result(), row.reason(),
                 row.loginMethod(), AuditDisplayCatalog.loginMethodName(row.loginMethod()),
                 row.failureReasonCode(), AuditDisplayCatalog.failureReasonName(row.failureReasonCode()),
-                row.maskedMobile(), row.deviceSummary(), row.traceId(), row.occurredTime()
+                row.maskedMobile(), row.deviceSummary(), row.traceId(), row.occurredTime(),
+                row.appCode(), row.categoryPath(), row.durationMs()
         )).toList();
         return new PageResult<>(items, page.pageNo(), page.pageSize(), page.total());
     }
@@ -151,5 +164,22 @@ public class AuditLogQueryService {
     /** @param value 可选 bigint @return JavaScript 安全的字符串 ID */
     private String nullableId(Long value) {
         return value == null ? null : Long.toString(value);
+    }
+
+    /** @return 数据库 JSON 分类路径的安全投影，历史空值返回空列表 */
+    private List<String> categoryPath(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() { });
+        } catch (Exception exception) {
+            return List.of();
+        }
+    }
+
+    /** @return 首个非空文本，用于兼容非通用注解产生的历史审计 */
+    private String firstText(String primary, String fallback) {
+        return primary == null || primary.isBlank() ? fallback : primary;
     }
 }

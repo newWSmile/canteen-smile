@@ -14,6 +14,12 @@ public enum ReauthAction {
     /** 租户管理员替换账号角色集合。 */
     TENANT_USER_ROLE_ASSIGN,
 
+    /** 租户账号更换本人已验证手机号。 */
+    MOBILE_CHANGE,
+
+    /** 租户账号解绑本人已验证手机号。 */
+    MOBILE_UNBIND,
+
     /** 平台身份修改短信验证码限流或敏感内容留存策略。 */
     PLATFORM_SMS_POLICY_UPDATE
 }

@@ -1,6 +1,7 @@
 package com.canteen.smile.modules.audit.vo;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
  * 前端可见的统一审计日志视图，不暴露 IP 摘要等敏感内部字段。
@@ -30,6 +31,9 @@ import java.time.OffsetDateTime;
  * @param deviceSummary 脱敏设备摘要
  * @param traceId 请求链路 ID
  * @param occurredTime 事件发生时间
+ * @param appCode 操作人所在应用端编码快照
+ * @param categoryPath 任意层级中文审计分类路径快照
+ * @param durationMs 业务方法执行耗时毫秒数
  */
 public record AuditLogVO(
         String id,
@@ -56,6 +60,9 @@ public record AuditLogVO(
         String maskedMobile,
         String deviceSummary,
         String traceId,
-        OffsetDateTime occurredTime
+        OffsetDateTime occurredTime,
+        String appCode,
+        List<String> categoryPath,
+        Long durationMs
 ) {
 }

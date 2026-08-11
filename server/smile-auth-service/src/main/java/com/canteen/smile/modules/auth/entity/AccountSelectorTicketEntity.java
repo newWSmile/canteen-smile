@@ -6,7 +6,7 @@ import lombok.Setter;
 
 import java.time.OffsetDateTime;
 
-/** `auth_account_selector_ticket` 手机号登录账号选择票据实体。 */
+/** `auth_account_selector_ticket` 手机号验证后账号选择票据实体。 */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -26,6 +26,9 @@ public class AccountSelectorTicketEntity {
 
     /** 应用入口编码。 */
     private String appCode;
+
+    /** 唯一允许使用当前票据的业务流程。 */
+    private String flowType;
 
     /** 票据状态。 */
     private String status;

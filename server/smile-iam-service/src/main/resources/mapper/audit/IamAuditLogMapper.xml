@@ -4,6 +4,11 @@
 
     <resultMap id="auditLogResultMap" type="com.canteen.smile.modules.audit.entity.IamAuditLogEntity">
         <id property="id" column="id"/>
+        <result property="eventId" column="event_id"/>
+        <result property="schemaVersion" column="schema_version"/>
+        <result property="sourceCode" column="source_code"/>
+        <result property="categoryPathJson" column="category_path_json"/>
+        <result property="appCodeSnapshot" column="app_code_snapshot"/>
         <result property="tenantId" column="tenant_id"/>
         <result property="operatorType" column="operator_type"/>
         <result property="operatorId" column="operator_id"/>
@@ -18,6 +23,8 @@
         <result property="targetCodeSnapshot" column="target_code_snapshot"/>
         <result property="reason" column="reason"/>
         <result property="result" column="result"/>
+        <result property="failureReasonCode" column="failure_reason_code"/>
+        <result property="durationMs" column="duration_ms"/>
         <result property="traceId" column="trace_id"/>
         <result property="occurredTime" column="occurred_time"/>
         <result property="createdTime" column="created_time"/>
@@ -135,6 +142,27 @@
         )
     </insert>
 
+    <insert id="insertAsync" parameterType="com.canteen.smile.modules.audit.entity.IamAuditLogEntity">
+        INSERT INTO public.iam_audit_log (
+            event_id, schema_version, source_code, category_path_snapshot, app_code_snapshot,
+            tenant_id, operator_type, operator_id,
+            operator_username_snapshot, operator_display_name_snapshot,
+            operator_organization_id, action_code, action_name_snapshot,
+            target_type, target_id, target_name_snapshot, target_code_snapshot,
+            reason, result, failure_reason_code, trace_id,
+            occurred_time, duration_ms, created_by, updated_by
+        ) VALUES (
+            #{eventId}, #{schemaVersion}, #{sourceCode}, CAST(#{categoryPathJson} AS jsonb), #{appCodeSnapshot},
+            #{tenantId}, #{operatorType}, #{operatorId},
+            #{operatorUsernameSnapshot}, #{operatorDisplayNameSnapshot},
+            #{operatorOrganizationId}, #{actionCode}, #{actionNameSnapshot},
+            #{targetType}, #{targetId}, #{targetNameSnapshot}, #{targetCodeSnapshot},
+            #{reason}, #{result}, #{failureReasonCode}, #{traceId},
+            #{occurredTime}, #{durationMs}, #{createdBy}, #{updatedBy}
+        )
+        ON CONFLICT DO NOTHING
+    </insert>
+
     <select id="countPage" resultType="long">
         SELECT COUNT(1)
         FROM public.iam_audit_log
@@ -142,12 +170,14 @@
     </select>
 
     <select id="selectPage" resultMap="auditLogResultMap">
-        SELECT id, tenant_id, operator_type, operator_id,
+        SELECT id, event_id, schema_version, source_code,
+               category_path_snapshot::text AS category_path_json, app_code_snapshot,
+               tenant_id, operator_type, operator_id,
                operator_username_snapshot, operator_display_name_snapshot, operator_organization_id,
                action_code, action_name_snapshot, target_type, target_id,
                target_name_snapshot, target_code_snapshot,
-               reason, result, trace_id,
-               occurred_time, created_time
+               reason, result, failure_reason_code, trace_id,
+               occurred_time, duration_ms, created_time
         FROM public.iam_audit_log
         WHERE <include refid="auditScopeAndFilters"/>
         ORDER BY occurred_time DESC, id DESC

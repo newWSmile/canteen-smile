@@ -1,6 +1,7 @@
 package com.canteen.smile.internal.client.dto;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
  * Auth 审计查询内部响应契约。
@@ -24,6 +25,14 @@ import java.time.OffsetDateTime;
  * @param deviceSummary 可选脱敏设备摘要
  * @param traceId 链路 ID
  * @param occurredTime 发生时间
+ * @param appCode 操作人所在应用端编码快照
+ * @param categoryPath 任意层级中文审计分类路径快照
+ * @param targetType 被操作目标类型
+ * @param targetId 被操作目标 ID
+ * @param targetNameSnapshot 被操作目标名称快照
+ * @param targetCodeSnapshot 被操作目标业务编码快照
+ * @param reason 可选操作原因
+ * @param durationMs 业务方法执行耗时毫秒数
  */
 public record AuthAuditLogInternalResponse(
         String id,
@@ -44,6 +53,14 @@ public record AuthAuditLogInternalResponse(
         String maskedMobile,
         String deviceSummary,
         String traceId,
-        OffsetDateTime occurredTime
+        OffsetDateTime occurredTime,
+        String appCode,
+        List<String> categoryPath,
+        String targetType,
+        String targetId,
+        String targetNameSnapshot,
+        String targetCodeSnapshot,
+        String reason,
+        Long durationMs
 ) {
 }

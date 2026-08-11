@@ -35,6 +35,14 @@ public final class AuthPublicApiPaths {
     /** 一次性密码重置票据资源根路径。 */
     public static final String PASSWORD_RESETS = EXTERNAL_V1 + "/password-resets";
 
+    /** 使用 PASSWORD_RESET 用途短信验证码开始自助找回密码。 */
+    public static final String PASSWORD_RESET_SMS_VERIFICATION =
+            PASSWORD_RESETS + "/sms/verification";
+
+    /** 自助找回密码时选择手机号绑定的具体账号。 */
+    public static final String PASSWORD_RESET_SMS_ACCOUNT_SELECTION =
+            PASSWORD_RESETS + "/sms/account-selection";
+
     /**
      * 经安全评审允许匿名访问的 Auth 精确路径集合。
      * Gateway 与 Servlet 服务必须共同引用，禁止分别维护白名单。

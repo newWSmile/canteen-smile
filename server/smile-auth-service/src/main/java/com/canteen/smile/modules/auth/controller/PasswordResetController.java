@@ -3,11 +3,15 @@ package com.canteen.smile.modules.auth.controller;
 import com.canteen.smile.api.AuthApiPaths;
 import com.canteen.smile.common.api.ApiResponse;
 import com.canteen.smile.modules.auth.dto.CompletePasswordResetRequest;
+import com.canteen.smile.modules.auth.dto.SmsPasswordResetAccountSelectionRequest;
+import com.canteen.smile.modules.auth.dto.SmsPasswordResetVerificationRequest;
 import com.canteen.smile.modules.auth.model.PasswordEnvelopePurpose;
 import com.canteen.smile.modules.auth.service.PasswordEnvelopeService;
 import com.canteen.smile.modules.auth.service.TenantPasswordResetService;
+import com.canteen.smile.modules.auth.service.TenantPasswordRecoveryService;
 import com.canteen.smile.modules.auth.vo.PasswordResetCompleteVO;
 import com.canteen.smile.modules.auth.vo.PasswordResetContextVO;
+import com.canteen.smile.modules.auth.vo.SmsPasswordResetResultVO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +33,35 @@ public class PasswordResetController {
 
     /** 密码信封解密服务。 */
     private final PasswordEnvelopeService passwordEnvelopeService;
+
+    /** 手机号验证码自助找回密码服务。 */
+    private final TenantPasswordRecoveryService passwordRecoveryService;
+
+    /**
+     * 消费 PASSWORD_RESET 用途验证码并开始自助找回密码。
+     *
+     * @param request 短信验证码校验请求
+     * @return 设置新密码或账号选择结果
+     */
+    @PostMapping(AuthApiPaths.PASSWORD_RESET_SMS_VERIFICATION)
+    public ApiResponse<SmsPasswordResetResultVO> verifySms(
+            @Valid @RequestBody SmsPasswordResetVerificationRequest request
+    ) {
+        return ApiResponse.success(passwordRecoveryService.verify(request));
+    }
+
+    /**
+     * 手机号绑定多个账号时选择本次需要找回密码的具体账号。
+     *
+     * @param request 账号选择请求
+     * @return 设置新密码步骤及一次性重置票据
+     */
+    @PostMapping(AuthApiPaths.PASSWORD_RESET_SMS_ACCOUNT_SELECTION)
+    public ApiResponse<SmsPasswordResetResultVO> selectSmsAccount(
+            @Valid @RequestBody SmsPasswordResetAccountSelectionRequest request
+    ) {
+        return ApiResponse.success(passwordRecoveryService.selectAccount(request));
+    }
 
     /** @param ticket 一次性恢复票据 @return 脱敏账号上下文 */
     @GetMapping(AuthApiPaths.PASSWORD_RESET_CONTEXT)

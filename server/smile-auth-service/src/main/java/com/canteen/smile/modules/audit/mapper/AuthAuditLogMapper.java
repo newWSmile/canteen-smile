@@ -2,6 +2,7 @@ package com.canteen.smile.modules.audit.mapper;
 
 import com.canteen.smile.internal.dto.AuthAuditLogSearchRequest;
 import com.canteen.smile.modules.auth.entity.DeviceSessionEntity;
+import com.canteen.smile.modules.audit.entity.AuthAsyncAuditEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -11,6 +12,9 @@ import java.util.List;
 /** Auth 自有认证安全审计数据访问接口。 */
 @Mapper
 public interface AuthAuditLogMapper {
+
+    /** @param entity 通用注解生成的不可变异步审计实体 @return 新增行数；幂等重复时为零 */
+    int insertAsyncAudit(AuthAsyncAuditEntity entity);
 
     /**
      * 在设备会话创建事务内追加登录成功审计。
@@ -33,22 +37,20 @@ public interface AuthAuditLogMapper {
     );
 
     /**
-     * 在手机号绑定事务内追加成功安全审计。
+     * 在手机号自助找回密码事务内追加成功安全审计。
      *
      * @param tenantId 租户 ID
-     * @param accountId 当前租户账号 ID
-     * @param username 当前用户名快照
-     * @param displayName 当前显示名称快照
-     * @param maskedMobile 脱敏手机号
+     * @param accountId 找回密码的租户账号 ID
+     * @param username 用户名快照
+     * @param displayName 显示名称快照
      * @param traceId 当前链路 ID
      * @return 新增行数
      */
-    int insertMobileBindingAudit(
+    int insertSmsPasswordResetAudit(
             @Param("tenantId") long tenantId,
             @Param("accountId") long accountId,
             @Param("username") String username,
             @Param("displayName") String displayName,
-            @Param("maskedMobile") String maskedMobile,
             @Param("traceId") String traceId
     );
 
@@ -84,6 +86,14 @@ public interface AuthAuditLogMapper {
      * @param deviceSummary 脱敏设备摘要
      * @param traceId 链路 ID
      * @param occurredTime 事件发生时间
+     * @param appCodeSnapshot 操作人所在应用端编码快照
+     * @param categoryPathJson 任意层级中文分类路径 JSON
+     * @param targetType 被操作目标类型
+     * @param targetId 被操作目标 ID
+     * @param targetNameSnapshot 被操作目标名称快照
+     * @param targetCodeSnapshot 被操作目标业务编码快照
+     * @param reason 可选操作原因
+     * @param durationMs 业务方法执行耗时毫秒数
      */
     record AuthAuditLogRow(
             long id,
@@ -104,7 +114,15 @@ public interface AuthAuditLogMapper {
             String maskedMobile,
             String deviceSummary,
             String traceId,
-            OffsetDateTime occurredTime
+            OffsetDateTime occurredTime,
+            String appCodeSnapshot,
+            String categoryPathJson,
+            String targetType,
+            String targetId,
+            String targetNameSnapshot,
+            String targetCodeSnapshot,
+            String reason,
+            Long durationMs
     ) {
     }
 }

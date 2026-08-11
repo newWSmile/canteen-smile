@@ -14,6 +14,7 @@ const endTime = ref('')
 const query = reactive<AuditLogPageQuery>({ pageNo: 1, pageSize: 20, source: 'IAM' })
 const sourceLabels: Record<AuditSource, string> = { IAM: '管理操作审计', AUTH: '认证安全审计' }
 const resultLabels: Record<AuditResult, string> = { SUCCESS: '成功', FAILURE: '失败', DENIED: '已拒绝' }
+const appCodeLabels: Record<string, string> = { PLATFORM_ADMIN: '平台管理端', TENANT_ADMIN: '租户管理端', TENANT_PORTAL: '租户业务端', SERVICE: '服务端任务' }
 
 /** 加载后端按当前租户身份下推数据边界后的真实审计分页。 */
 async function load(): Promise<void> {
@@ -46,6 +47,7 @@ function rowClassName({ row }: { row: AuditLog }): string {
 }
 function operatorName(row: AuditLog): string { return row.operatorDisplayName || row.operatorUsername || row.operatorTypeName }
 function targetName(row: AuditLog): string { return row.targetName || row.targetCode || row.targetTypeName }
+function appCodeName(value: string | null): string { return value ? (appCodeLabels[value] || value) : '—' }
 
 onMounted(load)
 </script>
@@ -87,6 +89,8 @@ onMounted(load)
       <el-descriptions :column="1" border label-width="104px">
         <el-descriptions-item label="发生时间">{{ formatTime(selected.occurredTime) }}</el-descriptions-item>
         <el-descriptions-item label="审计来源">{{ sourceLabels[selected.source] }}</el-descriptions-item>
+        <el-descriptions-item v-if="selected.categoryPath.length" label="审计分类">{{ selected.categoryPath.join(' / ') }}</el-descriptions-item>
+        <el-descriptions-item v-if="selected.appCode" label="操作入口">{{ appCodeName(selected.appCode) }}</el-descriptions-item>
         <el-descriptions-item label="操作">{{ selected.actionName }}</el-descriptions-item>
         <el-descriptions-item label="操作编码"><code>{{ selected.actionCode }}</code></el-descriptions-item>
         <el-descriptions-item label="执行结果">{{ resultLabels[selected.result] }}</el-descriptions-item>
@@ -101,6 +105,7 @@ onMounted(load)
         <el-descriptions-item v-if="selected.maskedMobile" label="脱敏手机号">{{ selected.maskedMobile }}</el-descriptions-item>
         <el-descriptions-item v-if="selected.deviceSummary" label="设备摘要">{{ selected.deviceSummary }}</el-descriptions-item>
         <el-descriptions-item label="链路 ID"><code>{{ selected.traceId || '—' }}</code></el-descriptions-item>
+        <el-descriptions-item v-if="selected.durationMs !== null" label="执行耗时">{{ selected.durationMs }} ms</el-descriptions-item>
       </el-descriptions>
       </aside>
     </transition>

@@ -51,6 +51,9 @@ export interface AuditLog {
   deviceSummary: string | null
   traceId: string | null
   occurredTime: string
+  appCode: string | null
+  categoryPath: string[]
+  durationMs: number | null
 }
 
 /** 审计日志精确筛选与分页参数。 */
@@ -149,6 +152,43 @@ export interface MobileBindingConfirmRequest {
   mobile: string
   challengeId: string
   code: string
+}
+
+/** 向当前已验证手机号发送敏感操作验证码的请求。 */
+export interface CurrentMobileChallengeRequest {
+  deviceId: string
+  captchaTicket?: string
+}
+
+/** 当前手机号验证码可签发的单用途再认证动作。 */
+export type MobileSecurityAction = 'MOBILE_CHANGE' | 'MOBILE_UNBIND'
+
+/** 使用当前手机号验证码取得单用途再认证票据的请求。 */
+export interface CurrentMobileVerificationRequest {
+  challengeId: string
+  code: string
+  allowedAction: MobileSecurityAction
+}
+
+/** 完成换绑再认证后创建新手机号验证码挑战的请求。 */
+export interface MobileChangeChallengeRequest {
+  reauthTicket: string
+  mobile: string
+  deviceId: string
+  captchaTicket?: string
+}
+
+/** 使用再认证票据和新手机号验证码完成换绑的请求。 */
+export interface MobileChangeConfirmRequest {
+  reauthTicket: string
+  newMobile: string
+  newChallengeId: string
+  newCode: string
+}
+
+/** 使用单用途再认证票据完成手机号解绑的请求。 */
+export interface MobileUnbindConfirmRequest {
+  reauthTicket: string
 }
 
 /** 修改短信限流设置的敏感命令。 */

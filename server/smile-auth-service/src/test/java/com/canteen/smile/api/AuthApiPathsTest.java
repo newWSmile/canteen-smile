@@ -23,6 +23,10 @@ class AuthApiPathsTest {
                 .contains(AuthApiPaths.SMS_LOGIN, AuthApiPaths.ACCOUNT_SELECTION_LOGIN);
         assertThat(AuthApiPaths.PLATFORM_RECOVERY_LOGIN)
                 .isEqualTo(AuthPublicApiPaths.PLATFORM_RECOVERY_LOGIN);
+        assertThat(AuthPublicApiPaths.isAnonymous(AuthApiPaths.PASSWORD_RESET_SMS_VERIFICATION))
+                .isTrue();
+        assertThat(AuthPublicApiPaths.isAnonymous(AuthApiPaths.PASSWORD_RESET_SMS_ACCOUNT_SELECTION))
+                .isTrue();
         assertThat(AuthApiPaths.INTERNAL_SECURITY_EVENTS)
                 .isEqualTo("/internal/auth/v1/security-events");
         assertThat(AuthApiPaths.INTERNAL_AUDIT_LOG_SEARCH)
@@ -31,7 +35,12 @@ class AuthApiPathsTest {
                 .doesNotContain(
                         AuthApiPaths.MOBILE_BINDING,
                         AuthApiPaths.MOBILE_BINDING_CHALLENGES,
-                        AuthApiPaths.MOBILE_BINDING_CONFIRM
+                        AuthApiPaths.MOBILE_BINDING_CONFIRM,
+                        AuthApiPaths.MOBILE_BINDING_CURRENT_CHALLENGES,
+                        AuthApiPaths.MOBILE_BINDING_CURRENT_VERIFICATION,
+                        AuthApiPaths.MOBILE_BINDING_CHANGE_CHALLENGES,
+                        AuthApiPaths.MOBILE_BINDING_CHANGE_CONFIRM,
+                        AuthApiPaths.MOBILE_BINDING_UNBIND_CONFIRM
                 );
     }
 }

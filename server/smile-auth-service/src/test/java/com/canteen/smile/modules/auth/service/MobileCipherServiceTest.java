@@ -24,6 +24,7 @@ class MobileCipherServiceTest {
         assertThat(first.ciphertext()).isNotEqualTo(second.ciphertext());
         assertThat(new String(first.ciphertext(), StandardCharsets.UTF_8)).doesNotContain("13800138000");
         assertThat(first.ciphertext()[0]).isEqualTo((byte) 1);
+        assertThat(service.decrypt(first.ciphertext(), first.keyId())).isEqualTo("13800138000");
     }
 
     /** 验证非 256 位密钥会在业务使用前被拒绝。 */

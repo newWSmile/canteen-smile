@@ -4,7 +4,7 @@ import type { SmsChallenge } from '@canteen-smile/contracts'
 import { useRoute, useRouter } from 'vue-router'
 import {
   accountSelectionLogin,
-  createSmsLoginChallenge,
+  createSmsChallenge,
   passwordLogin,
   smsLogin,
 } from '../api/authApi'
@@ -119,7 +119,7 @@ const sendSmsFlight = useSingleFlight(async () => {
     feedback.warning(resendSeconds.value > 0 ? `请在 ${resendSeconds.value} 秒后重试` : '请输入正确的11位手机号')
     return
   }
-  smsChallenge.value = await createSmsLoginChallenge({
+  smsChallenge.value = await createSmsChallenge({
     purpose: 'LOGIN',
     mobile: smsForm.mobile.trim(),
     deviceId: getOrCreateDeviceId(),
@@ -254,6 +254,7 @@ onUnmounted(() => {
               <span>密码</span>
               <el-input v-model="passwordForm.password" type="password" show-password autocomplete="current-password" maxlength="128" size="large" />
             </label>
+            <router-link class="forgot-password-link" :to="{ name: 'forgot-password' }">忘记密码？</router-link>
             <el-checkbox v-model="passwordForm.rememberMe">记住我</el-checkbox>
             <el-button native-type="submit" type="primary" size="large" :disabled="!passwordReady" :loading="passwordLoginFlight.pending.value">登录</el-button>
           </form>
@@ -312,6 +313,8 @@ onUnmounted(() => {
 label { display: grid; gap: 8px; font-size: 14px; font-weight: 600; }
 .code-row { display: grid; grid-template-columns: 1fr 118px; gap: 10px; }
 .change-mobile { justify-self: start; margin-top: -10px; padding: 0; border: 0; color: #268a86; background: transparent; cursor: pointer; }
+.forgot-password-link { justify-self: end; margin-top: -10px; color: #268a86; font-size: 13px; text-decoration: none; }
+.forgot-password-link:hover { color: #176b67; }
 .candidate-list { display: grid; gap: 10px; }
 .candidate-card { width: 100%; padding: 14px; display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 12px; border: 1px solid #dfe8e4; border-radius: 12px; text-align: left; background: #fff; cursor: pointer; transition: border-color .18s, box-shadow .18s; }
 .candidate-card:hover { border-color: #54bbb6; box-shadow: 0 8px 22px rgba(18,63,80,.08); }

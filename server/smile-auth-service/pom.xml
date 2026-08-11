@@ -20,6 +20,10 @@
             <artifactId>smile-infrastructure-starter</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.canteen</groupId>
+            <artifactId>smile-audit-starter</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>

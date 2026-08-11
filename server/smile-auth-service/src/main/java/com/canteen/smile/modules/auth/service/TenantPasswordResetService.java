@@ -7,6 +7,7 @@ import com.canteen.smile.internal.client.IamPlatformIdentityClient;
 import com.canteen.smile.internal.client.dto.TenantAccountActivationContextInternalResponse;
 import com.canteen.smile.internal.dto.TenantPasswordResetTicketRequest;
 import com.canteen.smile.internal.dto.TenantPasswordResetTicketResponse;
+import com.canteen.smile.modules.auth.entity.AccountSelectorTicketEntity;
 import com.canteen.smile.modules.auth.entity.CredentialEntity;
 import com.canteen.smile.modules.auth.entity.PasswordResetTicketEntity;
 import com.canteen.smile.modules.auth.entity.ReauthTicketEntity;
@@ -36,6 +37,12 @@ public class TenantPasswordResetService {
 
     /** 无效恢复票据错误码。 */
     private static final String INVALID_RESET_CODE = "AUTH_1204";
+
+    /** 管理员线下交付的一次性链接重置模式。 */
+    private static final String ONE_TIME_LINK_MODE = "ONE_TIME_LINK";
+
+    /** 手机号验证码自助重置模式。 */
+    private static final String SMS_RESET_MODE = "SMS";
 
     /** 安全随机数生成器。 */
     private final SecureRandom secureRandom = new SecureRandom();
@@ -112,7 +119,7 @@ public class TenantPasswordResetService {
         PasswordResetTicketEntity resetTicket = new PasswordResetTicketEntity();
         resetTicket.setSubjectType(AuthConstants.TENANT_ACCOUNT_SUBJECT);
         resetTicket.setSubjectId(accountId);
-        resetTicket.setResetMode("ONE_TIME_LINK");
+        resetTicket.setResetMode(ONE_TIME_LINK_MODE);
         resetTicket.setTicketHash(hash(rawTicket));
         resetTicket.setInitiatedByType(request.initiatorType());
         resetTicket.setInitiatedById(initiatorId);
@@ -123,6 +130,41 @@ public class TenantPasswordResetService {
         return new TenantPasswordResetTicketResponse(rawTicket, expiresAt);
     }
 
+    /**
+     * 为已通过 PASSWORD_RESET 用途短信校验的账号签发自助找回票据。
+     *
+     * @param accountId 已经 Auth 绑定与 IAM 状态双重校验的账号 ID
+     * @param selectorTicket 多账号时已校验的选择票据；单账号时为空
+     * @return 仅向当前调用方展示一次的密码重置票据
+     */
+    public String issueSmsSelfService(
+            long accountId,
+            AccountSelectorTicketEntity selectorTicket
+    ) {
+        /** 与 IAM 候选账号对应且当前可用于登录的 Auth 凭证。 */
+        CredentialEntity credential = credentialMapper.selectBySubject(
+                AuthConstants.TENANT_ACCOUNT_SUBJECT,
+                accountId
+        );
+        if (credential == null || !AuthConstants.ACTIVE_STATUS.equals(credential.getStatus())) {
+            throw invalidReset();
+        }
+        /** 只向已验证手机号持有人展示一次的原始重置票据。 */
+        String rawTicket = randomTicket();
+        /** 仅保存摘要并固定为 SMS 自助模式的重置记录。 */
+        PasswordResetTicketEntity resetTicket = new PasswordResetTicketEntity();
+        resetTicket.setSubjectType(AuthConstants.TENANT_ACCOUNT_SUBJECT);
+        resetTicket.setSubjectId(accountId);
+        resetTicket.setResetMode(SMS_RESET_MODE);
+        resetTicket.setTicketHash(hash(rawTicket));
+        resetTicket.setInitiatedByType("SELF");
+        resetTicket.setInitiatedById(accountId);
+        resetTicket.setStatus(AuthConstants.ACTIVE_STATUS);
+        resetTicket.setExpiresAt(OffsetDateTime.now().plusMinutes(RESET_MINUTES));
+        persistenceService.initiateSmsSelfService(resetTicket, selectorTicket);
+        return rawTicket;
+    }
+
     /** @param rawTicket 原始恢复票据 @return 恢复页面展示上下文 */
     public PasswordResetContextVO context(String rawTicket) {
         PasswordResetTicketEntity ticket = requireActiveTicket(rawTicket);
@@ -131,9 +173,7 @@ public class TenantPasswordResetService {
                 AuthConstants.TENANT_ACCOUNT_SUBJECT,
                 ticket.getSubjectId()
         );
-        if (!isResetSynchronizationStatus(context.status())
-                || credential == null
-                || !"RESET_REQUIRED".equals(credential.getStatus())) {
+        if (!matchesResetState(ticket, context, credential)) {
             throw invalidReset();
         }
         return new PasswordResetContextVO(
@@ -155,20 +195,22 @@ public class TenantPasswordResetService {
     public PasswordResetCompleteVO complete(String rawTicket, String rawPassword) {
         PasswordResetTicketEntity ticket = requireActiveTicket(rawTicket);
         TenantAccountActivationContextInternalResponse context = iamClient.activationContext(ticket.getSubjectId());
-        if (!isResetSynchronizationStatus(context.status())) {
-            throw invalidReset();
-        }
         CredentialEntity credential = credentialMapper.selectBySubject(
                 AuthConstants.TENANT_ACCOUNT_SUBJECT,
                 ticket.getSubjectId()
         );
-        if (credential == null || !"RESET_REQUIRED".equals(credential.getStatus())) {
+        if (!matchesResetState(ticket, context, credential)) {
             throw invalidReset();
         }
         passwordPolicyService.validate(rawPassword, context.username());
         passwordHistoryService.validateNotReused(rawPassword, credential);
         /** 新 Argon2id 密码摘要。 */
         String passwordHash = passwordEncoder.encode(rawPassword);
+        if (SMS_RESET_MODE.equals(ticket.getResetMode())) {
+            persistenceService.completeSmsSelfService(ticket, passwordHash, context);
+            StpUtil.logout(AuthConstants.TENANT_LOGIN_PREFIX + ticket.getSubjectId());
+            return new PasswordResetCompleteVO(context.username(), "LOGIN");
+        }
         TenantAccountActivationContextInternalResponse completed =
                 iamClient.completeTenantAccountPasswordReset(ticket.getSubjectId());
         if (!AuthConstants.ACTIVE_STATUS.equals(completed.status())) {
@@ -183,7 +225,8 @@ public class TenantPasswordResetService {
         PasswordResetTicketEntity ticket = resetTicketMapper.selectByHash(hash(rawTicket));
         if (ticket == null
                 || !AuthConstants.TENANT_ACCOUNT_SUBJECT.equals(ticket.getSubjectType())
-                || !"ONE_TIME_LINK".equals(ticket.getResetMode())
+                || !(ONE_TIME_LINK_MODE.equals(ticket.getResetMode())
+                || SMS_RESET_MODE.equals(ticket.getResetMode()))
                 || !AuthConstants.ACTIVE_STATUS.equals(ticket.getStatus())
                 || !ticket.getExpiresAt().isAfter(OffsetDateTime.now())) {
             throw invalidReset();
@@ -199,6 +242,29 @@ public class TenantPasswordResetService {
      */
     private boolean isResetSynchronizationStatus(String status) {
         return "PASSWORD_RESET_REQUIRED".equals(status) || AuthConstants.ACTIVE_STATUS.equals(status);
+    }
+
+    /**
+     * 不同重置模式必须匹配各自的 IAM 与 Auth 凭证状态。
+     *
+     * @param ticket 当前恢复票据
+     * @param context IAM 账号上下文
+     * @param credential Auth 凭证
+     * @return 是否允许展示或完成当前恢复流程
+     */
+    private boolean matchesResetState(
+            PasswordResetTicketEntity ticket,
+            TenantAccountActivationContextInternalResponse context,
+            CredentialEntity credential
+    ) {
+        if (credential == null) return false;
+        if (SMS_RESET_MODE.equals(ticket.getResetMode())) {
+            return AuthConstants.ACTIVE_STATUS.equals(context.status())
+                    && AuthConstants.ACTIVE_STATUS.equals(credential.getStatus());
+        }
+        return ONE_TIME_LINK_MODE.equals(ticket.getResetMode())
+                && isResetSynchronizationStatus(context.status())
+                && "RESET_REQUIRED".equals(credential.getStatus());
     }
 
     /** @return 256 位随机 URL 安全票据 */

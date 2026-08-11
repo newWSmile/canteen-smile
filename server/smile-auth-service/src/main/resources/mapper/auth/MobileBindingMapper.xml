@@ -64,6 +64,35 @@
         ON CONFLICT DO NOTHING
     </insert>
 
+    <update id="replaceVerified">
+        UPDATE public.auth_mobile_binding
+        SET status = 'REPLACED',
+            replaced_time = CURRENT_TIMESTAMP,
+            updated_by = #{subjectId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{bindingId}
+          AND subject_type = 'TENANT_ACCOUNT'
+          AND subject_id = #{subjectId}
+          AND status = 'VERIFIED'
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+
+    <update id="revokeVerified">
+        UPDATE public.auth_mobile_binding
+        SET status = 'REVOKED',
+            updated_by = #{subjectId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{bindingId}
+          AND subject_type = 'TENANT_ACCOUNT'
+          AND subject_id = #{subjectId}
+          AND status = 'VERIFIED'
+          AND version = #{version}
+          AND is_deleted = false
+    </update>
+
     <select id="selectVerifiedTenantAccountIdsByMobileHash" resultType="long">
         SELECT subject_id
         FROM public.auth_mobile_binding

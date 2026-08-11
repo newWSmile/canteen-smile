@@ -6,6 +6,8 @@ import com.canteen.smile.internal.dto.AuthAuditLogInternalResponse;
 import com.canteen.smile.internal.dto.AuthAuditLogSearchRequest;
 import com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper;
 import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,9 @@ public class AuthAuditLogQueryService {
 
     /** Auth 审计数据访问接口。 */
     private final AuthAuditLogMapper mapper;
+
+    /** Jackson JSON 解析器。 */
+    private final ObjectMapper objectMapper;
 
     /**
      * 在数据库中应用平台或租户数据边界并分页查询。
@@ -90,8 +95,28 @@ public class AuthAuditLogQueryService {
                 row.maskedMobile(),
                 row.deviceSummary(),
                 row.traceId(),
-                row.occurredTime()
+                row.occurredTime(),
+                row.appCodeSnapshot(),
+                categoryPath(row.categoryPathJson()),
+                row.targetType(),
+                row.targetId(),
+                row.targetNameSnapshot(),
+                row.targetCodeSnapshot(),
+                row.reason(),
+                row.durationMs()
         );
+    }
+
+    /** @return 数据库 JSON 分类路径的安全只读投影，历史空值返回空列表 */
+    private List<String> categoryPath(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() { });
+        } catch (Exception exception) {
+            return List.of();
+        }
     }
 
     /** @param message 明确错误说明 @return 内部查询参数异常 */

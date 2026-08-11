@@ -1,21 +1,20 @@
 package com.canteen.smile.modules.auth.service;
 
 import com.canteen.smile.common.exception.BusinessException;
-import com.canteen.smile.internal.client.IamPlatformIdentityClient;
 import com.canteen.smile.internal.client.dto.MobileAccountLoginCandidateInternalResponse;
 import com.canteen.smile.modules.auth.dto.AccountSelectionLoginRequest;
 import com.canteen.smile.modules.auth.dto.DeviceRequest;
 import com.canteen.smile.modules.auth.dto.SmsLoginRequest;
 import com.canteen.smile.modules.auth.entity.AccountSelectorTicketEntity;
-import com.canteen.smile.modules.auth.mapper.DeviceSessionMapper;
-import com.canteen.smile.modules.auth.mapper.MobileBindingMapper;
+import com.canteen.smile.modules.auth.model.AccountSelectorFlow;
+import com.canteen.smile.modules.auth.service.TenantMobileAccountResolver.ResolvedCandidate;
+import com.canteen.smile.modules.auth.vo.MobileLoginCandidateVO;
 import com.canteen.smile.modules.auth.vo.SessionVO;
 import com.canteen.smile.modules.sms.model.SmsChallengeVerificationResult;
 import com.canteen.smile.modules.sms.model.SmsPurpose;
 import com.canteen.smile.modules.sms.service.SmsChallengeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -35,14 +34,8 @@ class TenantSmsLoginServiceTest {
     /** 短信挑战服务替身。 */
     private SmsChallengeService smsChallengeService;
 
-    /** 手机号绑定数据访问替身。 */
-    private MobileBindingMapper mobileBindingMapper;
-
-    /** IAM Client 替身。 */
-    private IamPlatformIdentityClient iamClient;
-
-    /** 会话数据访问替身。 */
-    private DeviceSessionMapper deviceSessionMapper;
+    /** 租户账号候选解析服务替身。 */
+    private TenantMobileAccountResolver accountResolver;
 
     /** 账号选择票据事务替身。 */
     private AccountSelectorTicketPersistenceService ticketPersistenceService;
@@ -57,14 +50,11 @@ class TenantSmsLoginServiceTest {
     @BeforeEach
     void setUp() {
         smsChallengeService = mock(SmsChallengeService.class);
-        mobileBindingMapper = mock(MobileBindingMapper.class);
-        iamClient = mock(IamPlatformIdentityClient.class);
-        deviceSessionMapper = mock(DeviceSessionMapper.class);
+        accountResolver = mock(TenantMobileAccountResolver.class);
         ticketPersistenceService = mock(AccountSelectorTicketPersistenceService.class);
         tenantSessionService = mock(TenantSessionService.class);
         service = new TenantSmsLoginService(
-                smsChallengeService, mobileBindingMapper, iamClient, deviceSessionMapper,
-                ticketPersistenceService, tenantSessionService
+                smsChallengeService, accountResolver, ticketPersistenceService, tenantSessionService
         );
     }
 
@@ -74,10 +64,9 @@ class TenantSmsLoginServiceTest {
         SmsLoginRequest request = smsRequest();
         when(smsChallengeService.verifyAndConsume("challenge-1", "482931", SmsPurpose.LOGIN))
                 .thenReturn(new SmsChallengeVerificationResult("challenge-1", SmsPurpose.LOGIN, "mobile-hash"));
-        when(mobileBindingMapper.selectVerifiedTenantAccountIdsByMobileHash("mobile-hash"))
-                .thenReturn(List.of(7L));
-        when(iamClient.resolveMobileAccounts(any())).thenReturn(List.of(candidate(7L, "user_7")));
-        when(deviceSessionMapper.selectLatestTenantLogins(List.of(7L))).thenReturn(List.of());
+        ResolvedCandidate candidate = resolvedCandidate(7L, "user_7", null);
+        when(accountResolver.resolve("TENANT_ADMIN", "mobile-hash"))
+                .thenReturn(List.of(candidate));
         SessionVO session = new SessionVO(
                 "satoken", "token", "session", "TENANT_ADMIN", "TENANT_ACCOUNT",
                 "7", "2", "3", OffsetDateTime.now().plusHours(2), OffsetDateTime.now().plusDays(7)
@@ -88,7 +77,7 @@ class TenantSmsLoginServiceTest {
 
         assertThat(result.nextStep()).isEqualTo("AUTHENTICATED");
         assertThat(result.session()).isSameAs(session);
-        verify(ticketPersistenceService, never()).create(any());
+        verify(ticketPersistenceService, never()).issue(any(), any(), any(), any(), any());
     }
 
     /** 验证多账号时只持久化摘要并返回最近登录优先的安全候选。 */
@@ -97,14 +86,17 @@ class TenantSmsLoginServiceTest {
         SmsLoginRequest request = smsRequest();
         when(smsChallengeService.verifyAndConsume("challenge-1", "482931", SmsPurpose.LOGIN))
                 .thenReturn(new SmsChallengeVerificationResult("challenge-1", SmsPurpose.LOGIN, "mobile-hash"));
-        when(mobileBindingMapper.selectVerifiedTenantAccountIdsByMobileHash("mobile-hash"))
-                .thenReturn(List.of(7L, 8L));
-        when(iamClient.resolveMobileAccounts(any())).thenReturn(List.of(
-                candidate(7L, "user_7"), candidate(8L, "user_8")
-        ));
-        when(deviceSessionMapper.selectLatestTenantLogins(List.of(7L, 8L))).thenReturn(List.of(
-                new DeviceSessionMapper.LatestLoginRow(8L, OffsetDateTime.now())
-        ));
+        ResolvedCandidate first = resolvedCandidate(8L, "user_8", OffsetDateTime.now());
+        ResolvedCandidate second = resolvedCandidate(7L, "user_7", null);
+        List<ResolvedCandidate> candidates = List.of(first, second);
+        when(accountResolver.resolve("TENANT_ADMIN", "mobile-hash")).thenReturn(candidates);
+        when(accountResolver.candidateDigest(candidates)).thenReturn("a".repeat(64));
+        when(accountResolver.externalCandidate(first)).thenReturn(externalCandidate(first));
+        when(accountResolver.externalCandidate(second)).thenReturn(externalCandidate(second));
+        when(ticketPersistenceService.issue(
+                eq("mobile-hash"), eq("a".repeat(64)), eq("TENANT_ADMIN"),
+                eq(AccountSelectorFlow.LOGIN), any()
+        )).thenReturn("selector-ticket");
 
         var result = service.login(request, "127.0.0.1");
 
@@ -112,11 +104,10 @@ class TenantSmsLoginServiceTest {
         assertThat(result.accountSelectorTicket()).isNotBlank();
         assertThat(result.accountCandidates()).extracting(candidate -> candidate.accountId())
                 .containsExactly("8", "7");
-        ArgumentCaptor<AccountSelectorTicketEntity> ticketCaptor =
-                ArgumentCaptor.forClass(AccountSelectorTicketEntity.class);
-        verify(ticketPersistenceService).create(ticketCaptor.capture());
-        assertThat(ticketCaptor.getValue().getMobileHash()).isEqualTo("mobile-hash");
-        assertThat(ticketCaptor.getValue().getCandidateDigest()).hasSize(64);
+        verify(ticketPersistenceService).issue(
+                eq("mobile-hash"), eq("a".repeat(64)), eq("TENANT_ADMIN"),
+                eq(AccountSelectorFlow.LOGIN), any()
+        );
     }
 
     /** 验证选择不属于候选集合的账号时票据不会被消费。 */
@@ -125,12 +116,16 @@ class TenantSmsLoginServiceTest {
         AccountSelectorTicketEntity ticket = new AccountSelectorTicketEntity();
         ticket.setMobileHash("mobile-hash");
         ticket.setAppCode("TENANT_ADMIN");
+        ticket.setFlowType(AccountSelectorFlow.LOGIN.name());
         ticket.setCandidateDigest("invalid-for-current-set");
-        when(ticketPersistenceService.requireActive(any())).thenReturn(ticket);
-        when(mobileBindingMapper.selectVerifiedTenantAccountIdsByMobileHash("mobile-hash"))
-                .thenReturn(List.of(7L));
-        when(iamClient.resolveMobileAccounts(any())).thenReturn(List.of(candidate(7L, "user_7")));
-        when(deviceSessionMapper.selectLatestTenantLogins(List.of(7L))).thenReturn(List.of());
+        when(ticketPersistenceService.requireActive("selector-ticket", AccountSelectorFlow.LOGIN))
+                .thenReturn(ticket);
+        List<ResolvedCandidate> candidates = List.of(resolvedCandidate(7L, "user_7", null));
+        when(accountResolver.resolve("TENANT_ADMIN", "mobile-hash")).thenReturn(candidates);
+        when(accountResolver.candidateDigest(candidates)).thenReturn("current-digest");
+        when(accountResolver.invalidSelectorTicket()).thenReturn(
+                new BusinessException("AUTH_1014", "账号选择凭证无效或已过期", 400)
+        );
         AccountSelectionLoginRequest request = new AccountSelectionLoginRequest();
         request.setAppCode("TENANT_ADMIN");
         request.setAccountSelectorTicket("selector-ticket");
@@ -168,6 +163,27 @@ class TenantSmsLoginServiceTest {
         return new MobileAccountLoginCandidateInternalResponse(
                 accountId, 2L, "测试租户", 3L, "测试机构", username, username,
                 1L, true, 5, true, 7200, 604800, 604800, 2592000
+        );
+    }
+
+    /** @return 账号候选解析结果 */
+    private ResolvedCandidate resolvedCandidate(
+            long accountId,
+            String username,
+            OffsetDateTime latestLoginTime
+    ) {
+        return new ResolvedCandidate(candidate(accountId, username), latestLoginTime);
+    }
+
+    /** @return 可返回前端的账号候选 */
+    private MobileLoginCandidateVO externalCandidate(ResolvedCandidate candidate) {
+        return new MobileLoginCandidateVO(
+                Long.toString(candidate.identity().accountId()),
+                candidate.identity().tenantName(),
+                candidate.identity().organizationName(),
+                candidate.identity().username(),
+                candidate.identity().displayName(),
+                candidate.latestLoginTime()
         );
     }
 }

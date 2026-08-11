@@ -12,6 +12,9 @@ public interface IamAuditLogMapper {
     /** @param entity 已脱敏审计实体 @return 新增行数 */
     int insert(IamAuditLogEntity entity);
 
+    /** @param entity 通用注解生成的异步审计实体 @return 新增行数；幂等重复时为零 */
+    int insertAsync(IamAuditLogEntity entity);
+
     /**
      * 统计经过平台或租户数据边界过滤后的 IAM 审计记录。
      *

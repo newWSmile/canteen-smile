@@ -62,7 +62,7 @@ const resetFlight = useSingleFlight(async () => {
           <span>{{ context.username }}</span>
           <small>{{ context.tenantName }} / {{ context.organizationName }}</small>
         </div>
-        <el-alert type="warning" :closable="false" title="设置成功后此链接立即失效；所有旧设备会话均已退出。" />
+        <el-alert type="warning" :closable="false" title="设置成功后此票据立即失效，所有旧设备会话将同时退出。" />
         <form @submit.prevent="resetFlight.run()">
           <label><span>设置新密码</span><el-input v-model="form.password" type="password" show-password autocomplete="new-password" maxlength="128" size="large" /></label>
           <label><span>确认新密码</span><el-input v-model="form.confirmPassword" type="password" show-password autocomplete="new-password" maxlength="128" size="large" /></label>

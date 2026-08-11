@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Canteen Smile Auth API
-  version: 1.4.0
-  description: Auth 服务当前已经实现的首次引导、用户名密码登录、短信验证码挑战、平台恢复能力和设备会话契约。
+  version: 1.6.0
+  description: Auth 服务当前已经实现的首次引导、登录、短信挑战、密码恢复、手机号绑定与换绑解绑、平台恢复能力和设备会话契约。
 servers:
   - url: /api/auth/v1
 paths:
@@ -158,11 +158,50 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/PasswordResetContextApiResponse'}
         '400': {$ref: '#/components/responses/BadRequest'}
+  /password-resets/sms/verification:
+    post:
+      operationId: verifySmsPasswordReset
+      summary: 验证手机号并开始自助找回密码
+      description: 只能消费 PASSWORD_RESET 用途短信挑战；单账号直接返回三十分钟重置票据，多账号返回五分钟账号选择票据和安全候选。
+      tags: [PasswordReset]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SmsPasswordResetVerificationRequest'}
+      responses:
+        '200':
+          description: 手机号验证成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SmsPasswordResetResultApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/BadRequest'}
+  /password-resets/sms/account-selection:
+    post:
+      operationId: selectSmsPasswordResetAccount
+      summary: 选择手机号绑定的具体找回账号
+      description: 账号选择票据只能用于 PASSWORD_RESET 流程，服务端会重新计算当前候选集合摘要并原子消费票据。
+      tags: [PasswordReset]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SmsPasswordResetAccountSelectionRequest'}
+      responses:
+        '200':
+          description: 已为选中账号签发三十分钟密码重置票据。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SmsPasswordResetResultApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /password-resets/{ticket}/complete:
     post:
       operationId: completePasswordReset
       summary: 使用一次性票据设置新密码
-      description: 校验密码策略及最近五次历史，成功后消费票据并恢复账号；旧设备会话在票据签发时已经失效。
+      description: 校验密码策略及最近五次历史，成功后消费票据、更新 Argon2id 密码摘要并使全部旧设备会话失效。
       tags: [PasswordReset]
       parameters:
         - {$ref: '#/components/parameters/ResetTicket'}
@@ -208,6 +247,167 @@ paths:
               schema:
                 $ref: '#/components/schemas/VoidApiResponse'
         '401': {$ref: '#/components/responses/Unauthorized'}
+  /mobile/binding:
+    get:
+      operationId: getMobileBindingStatus
+      summary: 查询当前账号手机号绑定状态
+      tags: [MobileSecurity]
+      security: [{SaToken: []}]
+      responses:
+        '200':
+          description: 返回脱敏手机号绑定状态。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MobileBindingStatusApiResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /mobile/binding/challenges:
+    post:
+      operationId: createMobileBindingChallenge
+      summary: 向首次绑定手机号发送验证码
+      tags: [MobileSecurity]
+      security: [{SaToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MobileBindingChallengeRequest'}
+      responses:
+        '201':
+          description: MOBILE_BIND 用途挑战创建成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SmsChallengeApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /mobile/binding/confirm:
+    post:
+      operationId: confirmMobileBinding
+      summary: 验证手机号并完成首次绑定
+      tags: [MobileSecurity]
+      security: [{SaToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MobileBindingConfirmRequest'}
+      responses:
+        '200':
+          description: 首次绑定成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MobileBindingStatusApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /mobile/binding/current-mobile/challenges:
+    post:
+      operationId: createCurrentMobileChallenge
+      summary: 向当前已验证手机号发送敏感操作验证码
+      description: 完整当前手机号由 Auth 解密后直接交给短信策略，前端始终只能看到脱敏号码。
+      tags: [MobileSecurity]
+      security: [{SaToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CurrentMobileChallengeRequest'}
+      responses:
+        '201':
+          description: MOBILE_CHANGE 用途挑战创建成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SmsChallengeApiResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/RuntimeUnavailable'}
+  /mobile/binding/current-mobile/verification:
+    post:
+      operationId: verifyCurrentMobile
+      summary: 验证当前手机号并签发单用途票据
+      description: 票据只允许 MOBILE_CHANGE 或 MOBILE_UNBIND 中的一个动作，五分钟有效且只能消费一次。
+      tags: [MobileSecurity]
+      security: [{SaToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CurrentMobileVerificationRequest'}
+      responses:
+        '200':
+          description: 当前手机号验证成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReauthTicketApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /mobile/binding/change/challenges:
+    post:
+      operationId: createMobileChangeChallenge
+      summary: 向新手机号发送换绑验证码
+      description: 必须携带刚完成当前手机号或当前密码验证后取得的 MOBILE_CHANGE 单用途票据。
+      tags: [MobileSecurity]
+      security: [{SaToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MobileChangeChallengeRequest'}
+      responses:
+        '201':
+          description: 新手机号 MOBILE_CHANGE 用途挑战创建成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SmsChallengeApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /mobile/binding/change/confirm:
+    post:
+      operationId: confirmMobileChange
+      summary: 完成手机号换绑
+      description: 同时消费换绑再认证票据和新手机号验证码；旧绑定标记为已替代，成功后全部设备会话失效。
+      tags: [MobileSecurity]
+      security: [{SaToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MobileChangeConfirmRequest'}
+      responses:
+        '200':
+          description: 手机号换绑成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MobileBindingStatusApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /mobile/binding/unbind/confirm:
+    post:
+      operationId: confirmMobileUnbind
+      summary: 完成手机号解绑
+      description: 消费只允许解绑的一次性再认证票据，撤销当前绑定并使全部设备会话失效。
+      tags: [MobileSecurity]
+      security: [{SaToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MobileUnbindConfirmRequest'}
+      responses:
+        '200':
+          description: 手机号解绑成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MobileBindingStatusApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
 components:
   parameters:
     ResetTicket:
@@ -387,7 +587,56 @@ components:
         passwordEnvelope: {$ref: '#/components/schemas/PasswordEnvelopeRequest'}
         allowedAction:
           type: string
-          enum: [TENANT_OWNER_PASSWORD_RESET, TENANT_USER_CREATE, TENANT_USER_ROLE_ASSIGN]
+          enum: [TENANT_OWNER_PASSWORD_RESET, TENANT_USER_CREATE, TENANT_USER_ROLE_ASSIGN, MOBILE_CHANGE, MOBILE_UNBIND, PLATFORM_SMS_POLICY_UPDATE]
+    SmsPasswordResetVerificationRequest:
+      type: object
+      additionalProperties: false
+      required: [appCode, challengeId, code]
+      properties:
+        appCode: {type: string, enum: [TENANT_ADMIN, TENANT_PORTAL]}
+        challengeId: {type: string, maxLength: 64}
+        code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}
+    SmsPasswordResetAccountSelectionRequest:
+      type: object
+      additionalProperties: false
+      required: [appCode, accountSelectorTicket, accountId]
+      properties:
+        appCode: {type: string, enum: [TENANT_ADMIN, TENANT_PORTAL]}
+        accountSelectorTicket:
+          type: string
+          maxLength: 256
+          writeOnly: true
+        accountId: {type: string, pattern: '^[1-9][0-9]{0,18}$'}
+    MobileAccountCandidate:
+      type: object
+      additionalProperties: false
+      required: [accountId, tenantName, organizationName, username, displayName]
+      properties:
+        accountId: {type: string, pattern: '^[1-9][0-9]{0,18}$'}
+        tenantName: {type: string}
+        organizationName: {type: string}
+        username: {type: string}
+        displayName: {type: string}
+        latestLoginTime: {type: [string, 'null'], format: date-time}
+    SmsPasswordResetResult:
+      type: object
+      additionalProperties: false
+      required: [nextStep, accountCandidates]
+      properties:
+        nextStep:
+          type: string
+          enum: [RESET_PASSWORD, ACCOUNT_SELECTION_REQUIRED]
+        passwordResetTicket:
+          type: [string, 'null']
+          writeOnly: true
+          pattern: '^[A-Za-z0-9_-]{43,128}$'
+        accountSelectorTicket:
+          type: [string, 'null']
+          writeOnly: true
+          maxLength: 256
+        accountCandidates:
+          type: array
+          items: {$ref: '#/components/schemas/MobileAccountCandidate'}
     CompletePasswordResetRequest:
       type: object
       additionalProperties: false
@@ -401,6 +650,69 @@ components:
       properties:
         reauthTicket: {type: string, writeOnly: true, pattern: '^[A-Za-z0-9_-]{43,128}$'}
         expiresAt: {type: string, format: date-time}
+    MobileBindingChallengeRequest:
+      type: object
+      additionalProperties: false
+      required: [mobile, deviceId]
+      properties:
+        mobile: {type: string, minLength: 1, maxLength: 32, writeOnly: true}
+        deviceId: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+        captchaTicket: {type: [string, 'null'], maxLength: 256, writeOnly: true}
+    MobileBindingConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [mobile, challengeId, code]
+      properties:
+        mobile: {type: string, minLength: 1, maxLength: 32, writeOnly: true}
+        challengeId: {type: string, minLength: 1, maxLength: 128}
+        code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}
+    CurrentMobileChallengeRequest:
+      type: object
+      additionalProperties: false
+      required: [deviceId]
+      properties:
+        deviceId: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+        captchaTicket: {type: [string, 'null'], maxLength: 256, writeOnly: true}
+    CurrentMobileVerificationRequest:
+      type: object
+      additionalProperties: false
+      required: [challengeId, code, allowedAction]
+      properties:
+        challengeId: {type: string, minLength: 1, maxLength: 128}
+        code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}
+        allowedAction: {type: string, enum: [MOBILE_CHANGE, MOBILE_UNBIND]}
+    MobileChangeChallengeRequest:
+      type: object
+      additionalProperties: false
+      required: [reauthTicket, mobile, deviceId]
+      properties:
+        reauthTicket: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+        mobile: {type: string, minLength: 1, maxLength: 32, writeOnly: true}
+        deviceId: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+        captchaTicket: {type: [string, 'null'], maxLength: 256, writeOnly: true}
+    MobileChangeConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [reauthTicket, newMobile, newChallengeId, newCode]
+      properties:
+        reauthTicket: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+        newMobile: {type: string, minLength: 1, maxLength: 32, writeOnly: true}
+        newChallengeId: {type: string, minLength: 1, maxLength: 128}
+        newCode: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}
+    MobileUnbindConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [reauthTicket]
+      properties:
+        reauthTicket: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+    MobileBindingStatus:
+      type: object
+      additionalProperties: false
+      required: [bound]
+      properties:
+        bound: {type: boolean}
+        maskedMobile: {type: [string, 'null']}
+        verifiedTime: {type: [string, 'null'], format: date-time}
     PasswordResetContext:
       type: object
       additionalProperties: false
@@ -495,6 +807,12 @@ components:
         - type: object
           properties:
             data: {$ref: '#/components/schemas/ReauthTicket'}
+    MobileBindingStatusApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/MobileBindingStatus'}
     PasswordResetContextApiResponse:
       allOf:
         - {$ref: '#/components/schemas/SuccessEnvelope'}
@@ -507,6 +825,12 @@ components:
         - type: object
           properties:
             data: {$ref: '#/components/schemas/PasswordResetComplete'}
+    SmsPasswordResetResultApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/SmsPasswordResetResult'}
     VoidApiResponse:
       allOf:
         - {$ref: '#/components/schemas/SuccessEnvelope'}

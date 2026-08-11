@@ -4,6 +4,11 @@ import type {
   MobileBindingConfirmRequest,
   MobileBindingStatus,
   SmsChallenge,
+  CurrentMobileChallengeRequest,
+  CurrentMobileVerificationRequest,
+  MobileChangeChallengeRequest,
+  MobileChangeConfirmRequest,
+  MobileUnbindConfirmRequest,
 } from '@canteen-smile/contracts'
 import { http } from '@/shared/http'
 import type {
@@ -22,6 +27,9 @@ import type {
   PasswordResetCompleteResult,
   PasswordReauthRequest,
   ReauthTicket,
+  SmsPasswordResetAccountSelectionRequest,
+  SmsPasswordResetResult,
+  SmsPasswordResetVerificationRequest,
 } from '../types'
 
 /** 创建绑定业务用途的一次性密码加密挑战。 */
@@ -81,8 +89,8 @@ export async function passwordLogin(request: PasswordLoginRequest): Promise<Logi
   return requireData(response.data)
 }
 
-/** 创建 LOGIN 用途短信验证码挑战。 */
-export async function createSmsLoginChallenge(
+/** 创建调用方明确指定用途的短信验证码挑战。 */
+export async function createSmsChallenge(
   request: SmsChallengeCreateRequest,
 ): Promise<SmsChallenge> {
   const response = await http.post<ApiResponse<SmsChallenge>>('/auth/v1/sms/challenges', request)
@@ -101,6 +109,28 @@ export async function accountSelectionLogin(
 ): Promise<LoginResult> {
   const response = await http.post<ApiResponse<LoginResult>>(
     '/auth/v1/login/account-selection',
+    request,
+  )
+  return requireData(response.data)
+}
+
+/** 消费 PASSWORD_RESET 用途短信验证码并开始自助找回密码。 */
+export async function verifySmsPasswordReset(
+  request: SmsPasswordResetVerificationRequest,
+): Promise<SmsPasswordResetResult> {
+  const response = await http.post<ApiResponse<SmsPasswordResetResult>>(
+    '/auth/v1/password-resets/sms/verification',
+    request,
+  )
+  return requireData(response.data)
+}
+
+/** 多账号场景选择本次需要找回密码的具体账号。 */
+export async function selectSmsPasswordResetAccount(
+  request: SmsPasswordResetAccountSelectionRequest,
+): Promise<SmsPasswordResetResult> {
+  const response = await http.post<ApiResponse<SmsPasswordResetResult>>(
+    '/auth/v1/password-resets/sms/account-selection',
     request,
   )
   return requireData(response.data)
@@ -140,6 +170,61 @@ export async function confirmMobileBinding(
 ): Promise<MobileBindingStatus> {
   const response = await http.post<ApiResponse<MobileBindingStatus>>(
     '/auth/v1/mobile/binding/confirm',
+    request,
+  )
+  return requireData(response.data)
+}
+
+/** 向当前账号已验证手机号发送换绑或解绑验证码。 */
+export async function createCurrentMobileChallenge(
+  request: CurrentMobileChallengeRequest,
+): Promise<SmsChallenge> {
+  const response = await http.post<ApiResponse<SmsChallenge>>(
+    '/auth/v1/mobile/binding/current-mobile/challenges',
+    request,
+  )
+  return requireData(response.data)
+}
+
+/** 使用当前手机号验证码取得换绑或解绑单用途票据。 */
+export async function verifyCurrentMobile(
+  request: CurrentMobileVerificationRequest,
+): Promise<ReauthTicket> {
+  const response = await http.post<ApiResponse<ReauthTicket>>(
+    '/auth/v1/mobile/binding/current-mobile/verification',
+    request,
+  )
+  return requireData(response.data)
+}
+
+/** 向与当前号码不同的新手机号发送换绑验证码。 */
+export async function createMobileChangeChallenge(
+  request: MobileChangeChallengeRequest,
+): Promise<SmsChallenge> {
+  const response = await http.post<ApiResponse<SmsChallenge>>(
+    '/auth/v1/mobile/binding/change/challenges',
+    request,
+  )
+  return requireData(response.data)
+}
+
+/** 使用再认证票据与新手机号验证码完成换绑。 */
+export async function confirmMobileChange(
+  request: MobileChangeConfirmRequest,
+): Promise<MobileBindingStatus> {
+  const response = await http.post<ApiResponse<MobileBindingStatus>>(
+    '/auth/v1/mobile/binding/change/confirm',
+    request,
+  )
+  return requireData(response.data)
+}
+
+/** 使用单用途再认证票据完成手机号解绑。 */
+export async function confirmMobileUnbind(
+  request: MobileUnbindConfirmRequest,
+): Promise<MobileBindingStatus> {
+  const response = await http.post<ApiResponse<MobileBindingStatus>>(
+    '/auth/v1/mobile/binding/unbind/confirm',
     request,
   )
   return requireData(response.data)

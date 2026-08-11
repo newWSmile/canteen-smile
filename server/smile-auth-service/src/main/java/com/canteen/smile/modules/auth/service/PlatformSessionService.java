@@ -44,8 +44,6 @@ public class PlatformSessionService {
     private static final String SESSION_ID_ATTRIBUTE = "businessSessionId";
 
     /** Token Session 中的应用编码属性名。 */
-    private static final String APP_CODE_ATTRIBUTE = "appCode";
-
     /** Token Session 中的主体类型属性名。 */
     private static final String SUBJECT_TYPE_ATTRIBUTE = "subjectType";
 
@@ -125,10 +123,15 @@ public class PlatformSessionService {
         /** 当前 Token 独立会话。 */
         SaSession tokenSession = StpUtil.getTokenSession();
         tokenSession.set(SESSION_ID_ATTRIBUTE, sessionId);
-        tokenSession.set(APP_CODE_ATTRIBUTE, context.appCode());
+        tokenSession.set(AuthConstants.TOKEN_APP_CODE_ATTRIBUTE, context.appCode());
         tokenSession.set(SUBJECT_TYPE_ATTRIBUTE, AuthConstants.PLATFORM_IDENTITY_SUBJECT);
         tokenSession.set(PLATFORM_IDENTITY_ID_ATTRIBUTE, context.platformIdentityId());
         tokenSession.set(AUTHZ_VERSION_ATTRIBUTE, context.authzVersion());
+        tokenSession.set(AuthConstants.TOKEN_USERNAME_ATTRIBUTE, context.username());
+        tokenSession.set(
+                AuthConstants.TOKEN_DISPLAY_NAME_ATTRIBUTE,
+                context.displayName() == null ? context.username() : context.displayName()
+        );
 
         try {
             persistenceService.create(
