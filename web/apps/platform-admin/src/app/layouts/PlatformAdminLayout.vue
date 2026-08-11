@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { AppBreadcrumb, type BreadcrumbItem } from '@canteen-smile/ui'
 import { usePlatformSessionStore } from '@/app/store/platformSession'
@@ -11,6 +11,12 @@ import { clearPlatformToken } from '@/shared/http/client'
 const route = useRoute()
 const router = useRouter()
 const platformSession = usePlatformSessionStore()
+const smsMenuExpanded = ref(route.path.startsWith('/sms'))
+
+/** 通过其它入口进入短信页面时，自动展开当前路由所在的菜单分组。 */
+watch(() => route.path, (path) => {
+  if (path.startsWith('/sms')) smsMenuExpanded.value = true
+})
 
 /** 根据嵌套路由生成可点击的后台面包屑。 */
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
@@ -64,9 +70,17 @@ const logoutFlight = useSingleFlight(async () => {
         <RouterLink :class="{ active: route.name === 'permission-resources' }" :to="{ name: 'permission-resources' }"><span>◆</span>权限资源</RouterLink>
         <span class="disabled"><b>◇</b>平台身份</span>
         <RouterLink :class="{ active: route.name === 'platform-audit' }" :to="{ name: 'platform-audit' }"><span>◎</span>平台审计</RouterLink>
-        <div class="nav-group" :class="{ active: route.path.startsWith('/sms') }">
-          <div class="nav-group-title"><span>✉</span><strong>短信管理</strong></div>
-          <div class="nav-children">
+        <div class="nav-group" :class="{ active: route.path.startsWith('/sms'), expanded: smsMenuExpanded }">
+          <button
+            class="nav-group-title"
+            type="button"
+            :aria-expanded="smsMenuExpanded"
+            aria-controls="platform-sms-menu"
+            @click="smsMenuExpanded = !smsMenuExpanded"
+          >
+            <span>✉</span><strong>短信管理</strong><i class="nav-group-chevron" aria-hidden="true" />
+          </button>
+          <div v-show="smsMenuExpanded" id="platform-sms-menu" class="nav-children">
             <RouterLink :class="{ active: route.name === 'sms-deliveries' }" :to="{ name: 'sms-deliveries' }">短信列表</RouterLink>
             <RouterLink :class="{ active: route.name === 'sms-settings' }" :to="{ name: 'sms-settings' }">短信设置</RouterLink>
             <RouterLink :class="{ active: route.name === 'sms-security' }" :to="{ name: 'sms-security' }">短信安全</RouterLink>
@@ -101,22 +115,26 @@ const logoutFlight = useSingleFlight(async () => {
 
 <style scoped>
 .platform-shell { min-height: 100vh; display: grid; grid-template-columns: 244px minmax(0, 1fr); color: #242129; background: #f3f4f1; }
-.platform-sidebar { position: sticky; top: 0; height: 100vh; padding: 28px 20px; display: flex; flex-direction: column; color: #eeeaf5; background: #211a2d; }
+.platform-sidebar { position: sticky; top: 0; height: 100vh; padding: 28px 20px; display: flex; flex-direction: column; box-sizing: border-box; color: #eeeaf5; background: #211a2d; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand > span { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid #86749e; border-radius: 12px; font-size: 12px; }
 .workspace-label { margin: 30px 8px 12px; color: #8d7ca3; font-size: 10px; letter-spacing: .12em; }
-nav { display: grid; gap: 6px; }
+nav { min-height: 0; display: grid; gap: 6px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #544663 transparent; }
 nav a, nav .disabled { min-height: 44px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; color: #a9a0b3; border-radius: 10px; text-decoration: none; }
 nav a.active { color: #fff; background: #6d48c4; }
 nav .disabled { cursor: not-allowed; opacity: .65; }
 nav .disabled b { font-weight: 400; }
-.nav-group { padding: 8px; border-radius: 10px; }
-.nav-group.active { background: rgba(109,72,196,.16); }
-.nav-group-title { min-height: 36px; padding: 7px 6px; display: flex; align-items: center; gap: 12px; color: #d8d1e1; }
-.nav-group-title strong { font-weight: 600; }
-.nav-children { margin-left: 26px; display: grid; gap: 3px; }
-.nav-children a { min-height: 34px; padding: 8px 10px; font-size: 13px; }
-.boundary-note { margin-top: auto; padding: 16px; display: flex; gap: 12px; align-items: flex-start; border: 1px solid #40364f; border-radius: 14px; background: #2a2237; }
+.nav-group { border-radius: 10px; }
+.nav-group-title { width: 100%; min-height: 44px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; color: #a9a0b3; border: 0; border-radius: 10px; background: transparent; cursor: pointer; font: inherit; text-align: left; transition: color .16s ease, background-color .16s ease; }
+.nav-group-title:hover { color: #f5f1fa; background: rgba(255,255,255,.055); }
+.nav-group-title strong { font-weight: 500; }
+.nav-group.active .nav-group-title { color: #fff; }
+.nav-group.active:not(.expanded) .nav-group-title { background: #6d48c4; }
+.nav-group-chevron { width: 7px; height: 7px; margin-left: auto; flex: none; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .18s ease; }
+.nav-group.expanded .nav-group-chevron { transform: rotate(45deg); }
+.nav-children { margin: 3px 0 3px 20px; padding: 2px 0 2px 12px; display: grid; gap: 2px; border-left: 1px solid rgba(216,209,225,.18); }
+.nav-children a { min-height: 36px; padding: 8px 11px; border-radius: 8px; font-size: 13px; }
+.boundary-note { margin-top: auto; padding: 16px; flex: none; display: flex; gap: 12px; align-items: flex-start; border: 1px solid #40364f; border-radius: 14px; background: #2a2237; }
 .boundary-note div { display: grid; gap: 5px; }
 .boundary-note small { color: #8f849c; line-height: 1.5; }
 .boundary-dot { width: 8px; height: 8px; margin-top: 5px; flex: none; border-radius: 99px; background: #5cdcaa; }
