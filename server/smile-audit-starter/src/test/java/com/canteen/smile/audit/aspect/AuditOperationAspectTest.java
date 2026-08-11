@@ -94,6 +94,63 @@ class AuditOperationAspectTest {
         });
     }
 
+    /** 验证登录事件使用服务端已验证上下文固化主体和登录信息。 */
+    @Test
+    void shouldCaptureLoginActorFromTrustedContext() throws Throwable {
+        List<AuditEvent> events = new ArrayList<>();
+        AuditOperationAspect aspect = new AuditOperationAspect(
+                AuditActor::system, events::add, new AuditExpressionEvaluator()
+        );
+        LoginService service = new LoginService();
+        Method method = LoginService.class.getMethod("login", LoginContext.class);
+        LoginContext context = new LoginContext(
+                2L, 9L, 12L, "login_user", "登录用户", "WEB", "Chrome"
+        );
+        ProceedingJoinPoint joinPoint = joinPoint(service, method, context);
+        when(joinPoint.proceed()).thenReturn("OK");
+
+        aspect.around(joinPoint, method.getAnnotation(AuditOperation.class));
+
+        assertThat(events).singleElement().satisfies(event -> {
+            assertThat(event.actor().operatorType()).isEqualTo("TENANT_ACCOUNT");
+            assertThat(event.actor().operatorId()).isEqualTo(9L);
+            assertThat(event.actor().tenantId()).isEqualTo(2L);
+            assertThat(event.actor().organizationId()).isEqualTo(12L);
+            assertThat(event.loginMethod()).isEqualTo("SMS");
+            assertThat(event.deviceSummary()).isEqualTo("WEB / Chrome");
+            assertThat(event.durationMs()).isGreaterThanOrEqualTo(0L);
+        });
+    }
+
+    /** 验证无登录会话的敏感流程可从服务端可信上下文固化真实操作者。 */
+    @Test
+    void shouldOverrideActorFromTrustedServerContext() throws Throwable {
+        List<AuditEvent> events = new ArrayList<>();
+        AuditOperationAspect aspect = new AuditOperationAspect(
+                AuditActor::system, events::add, new AuditExpressionEvaluator()
+        );
+        PasswordResetService service = new PasswordResetService();
+        Method method = PasswordResetService.class.getMethod(
+                "reset", ResetContext.class
+        );
+        ResetContext context = new ResetContext(
+                2L, 9L, 12L, "reset_user", "找回用户"
+        );
+        ProceedingJoinPoint joinPoint = joinPoint(service, method, context);
+        when(joinPoint.proceed()).thenReturn("OK");
+
+        aspect.around(joinPoint, method.getAnnotation(AuditOperation.class));
+
+        assertThat(events).singleElement().satisfies(event -> {
+            assertThat(event.actor().operatorType()).isEqualTo("TENANT_ACCOUNT");
+            assertThat(event.actor().operatorId()).isEqualTo(9L);
+            assertThat(event.actor().tenantId()).isEqualTo(2L);
+            assertThat(event.actor().organizationId()).isEqualTo(12L);
+            assertThat(event.actor().username()).isEqualTo("reset_user");
+            assertThat(event.targetId()).isEqualTo("9");
+        });
+    }
+
     /** 创建暴露具体方法、参数和目标对象的连接点替身。 */
     private ProceedingJoinPoint joinPoint(Object target, Method method, Object... arguments) {
         ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
@@ -123,7 +180,78 @@ class AuditOperationAspectTest {
         }
     }
 
+    /** 仅用于验证登录后主体解析的样例 Service。 */
+    static class LoginService {
+
+        /** @return 样例登录结果 */
+        @AuditOperation(
+                source = "AUTH",
+                categoryPath = {"租户端", "认证安全", "登录"},
+                actionCode = "auth:login:sms",
+                actionName = "手机号验证码登录",
+                targetType = "TENANT_ACCOUNT",
+                targetId = "#context.accountId",
+                loginMethod = "SMS",
+                deviceSummary = "#context.deviceType + ' / ' + #context.deviceName",
+                actorType = "TENANT_ACCOUNT",
+                actorId = "#context.accountId",
+                actorTenantId = "#context.tenantId",
+                actorOrganizationId = "#context.organizationId",
+                actorUsername = "#context.username",
+                actorDisplayName = "#context.displayName",
+                actorAppCode = "TENANT_ADMIN"
+        )
+        public String login(LoginContext context) {
+            return "OK";
+        }
+    }
+
+    /** 仅用于验证服务端可信主体覆盖的样例 Service。 */
+    static class PasswordResetService {
+
+        /** @return 样例密码重置结果 */
+        @AuditOperation(
+                source = "AUTH",
+                categoryPath = {"租户端", "账号安全", "密码凭证"},
+                actionCode = "auth:password:reset:sms",
+                actionName = "手机号验证码自助重置密码",
+                targetType = "TENANT_ACCOUNT",
+                targetId = "#context.accountId",
+                actorType = "TENANT_ACCOUNT",
+                actorId = "#context.accountId",
+                actorTenantId = "#context.tenantId",
+                actorOrganizationId = "#context.organizationId",
+                actorUsername = "#context.username",
+                actorDisplayName = "#context.displayName"
+        )
+        public String reset(ResetContext context) {
+            return "OK";
+        }
+    }
+
     /** @param maskedMobile 样例脱敏手机号 */
     record SampleResult(String maskedMobile) {
+    }
+
+    /** @param tenantId 租户 ID @param accountId 账号 ID @param organizationId 机构 ID @param username 用户名 @param displayName 显示名称 @param deviceType 设备类型 @param deviceName 设备名称 */
+    record LoginContext(
+            long tenantId,
+            long accountId,
+            long organizationId,
+            String username,
+            String displayName,
+            String deviceType,
+            String deviceName
+    ) {
+    }
+
+    /** @param tenantId 租户 ID @param accountId 账号 ID @param organizationId 机构 ID @param username 用户名 @param displayName 显示名称 */
+    record ResetContext(
+            long tenantId,
+            long accountId,
+            long organizationId,
+            String username,
+            String displayName
+    ) {
     }
 }

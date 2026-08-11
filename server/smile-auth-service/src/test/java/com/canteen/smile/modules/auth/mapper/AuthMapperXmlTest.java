@@ -76,11 +76,7 @@ class AuthMapperXmlTest {
         assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
                 + ".selectPage")).isTrue();
         assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
-                + ".insertSessionCreatedAudit")).isTrue();
-        assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
                 + ".insertAsyncAudit")).isTrue();
-        assertThat(configuration.hasStatement("com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper"
-                + ".insertSmsPasswordResetAudit")).isTrue();
     }
 
     /** 将一个 Mapper XML 注册到测试配置。 */

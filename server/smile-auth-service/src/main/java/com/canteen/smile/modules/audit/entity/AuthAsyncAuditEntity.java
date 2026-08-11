@@ -42,6 +42,9 @@ public class AuthAsyncAuditEntity {
     /** 操作人身份 ID。 */
     private Long operatorId;
 
+    /** 操作人所属机构 ID 快照。 */
+    private Long operatorOrganizationId;
+
     /** 操作人用户名快照。 */
     private String operatorUsernameSnapshot;
 
@@ -77,6 +80,12 @@ public class AuthAsyncAuditEntity {
 
     /** 可选脱敏手机号。 */
     private String maskedMobile;
+
+    /** 可选登录或再认证方式。 */
+    private String loginMethod;
+
+    /** 可选脱敏设备摘要。 */
+    private String deviceSummary;
 
     /** 请求链路 ID。 */
     private String traceId;

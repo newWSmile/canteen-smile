@@ -45,6 +45,7 @@ public class AuthAsyncAuditWriter {
         }
         entity.setOperatorType(actor.operatorType());
         entity.setOperatorId(actor.operatorId());
+        entity.setOperatorOrganizationId(actor.organizationId());
         entity.setOperatorUsernameSnapshot(actor.username());
         entity.setOperatorDisplayNameSnapshot(actor.displayName());
         entity.setActionCode(event.actionCode());
@@ -57,10 +58,20 @@ public class AuthAsyncAuditWriter {
         entity.setResult(event.result());
         entity.setFailureReasonCode(event.failureReasonCode());
         entity.setMaskedMobile(event.maskedMobile());
+        entity.setLoginMethod(event.loginMethod());
+        entity.setDeviceSummary(limit(event.deviceSummary(), 256));
         entity.setTraceId(event.traceId());
         entity.setOccurredTime(event.occurredTime());
         entity.setDurationMs(event.durationMs());
         return entity;
+    }
+
+    /** @return 不超过数据库字段上限的可选文本 */
+    private String limit(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     /** @return PostgreSQL jsonb 字段使用的分类路径 JSON 数组 */
@@ -72,4 +83,3 @@ public class AuthAsyncAuditWriter {
         }
     }
 }
-

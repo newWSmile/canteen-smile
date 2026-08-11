@@ -5,6 +5,7 @@ import cn.dev33.satoken.stp.SaTokenInfo;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.parameter.SaLoginParameter;
 import cn.dev33.satoken.stp.parameter.enums.SaReplacedRange;
+import com.canteen.smile.audit.annotation.AuditOperation;
 import com.canteen.smile.common.exception.BusinessException;
 import com.canteen.smile.infrastructure.security.HmacRequestSigner;
 import com.canteen.smile.modules.auth.entity.DeviceSessionEntity;
@@ -63,6 +64,23 @@ public class PlatformSessionService {
      * @param loginIp 服务端解析的登录 IP
      * @return 当前设备会话
      */
+    @AuditOperation(
+            source = "AUTH",
+            categoryPath = {"平台管理端", "认证安全", "登录"},
+            actionCode = "auth:login:password",
+            actionName = "用户名密码登录",
+            targetType = "PLATFORM_IDENTITY",
+            targetId = "#context.platformIdentityId",
+            targetName = "#context.displayName ?: #context.username",
+            targetCode = "#context.username",
+            loginMethod = "PASSWORD",
+            deviceSummary = "#context.deviceType + (#context.deviceName == null ? '' : ' / ' + #context.deviceName)",
+            actorType = "PLATFORM_IDENTITY",
+            actorId = "#context.platformIdentityId",
+            actorUsername = "#context.username",
+            actorDisplayName = "#context.displayName ?: #context.username",
+            actorAppCode = "#context.appCode"
+    )
     public SessionVO createPasswordSession(PlatformSecondFactorContext context, String loginIp) {
         return create(context, loginIp, AuthConstants.PASSWORD_LOGIN_METHOD);
     }
@@ -74,6 +92,23 @@ public class PlatformSessionService {
      * @param loginIp 服务端解析的登录 IP
      * @return 当前设备会话
      */
+    @AuditOperation(
+            source = "AUTH",
+            categoryPath = {"平台管理端", "认证安全", "登录"},
+            actionCode = "auth:login:recovery-code",
+            actionName = "恢复码登录",
+            targetType = "PLATFORM_IDENTITY",
+            targetId = "#context.platformIdentityId",
+            targetName = "#context.displayName ?: #context.username",
+            targetCode = "#context.username",
+            loginMethod = "RECOVERY_CODE",
+            deviceSummary = "#context.deviceType + (#context.deviceName == null ? '' : ' / ' + #context.deviceName)",
+            actorType = "PLATFORM_IDENTITY",
+            actorId = "#context.platformIdentityId",
+            actorUsername = "#context.username",
+            actorDisplayName = "#context.displayName ?: #context.username",
+            actorAppCode = "#context.appCode"
+    )
     public SessionVO createRecoveryCodeSession(PlatformSecondFactorContext context, String loginIp) {
         return create(context, loginIp, AuthConstants.RECOVERY_CODE_LOGIN_METHOD);
     }
@@ -134,20 +169,16 @@ public class PlatformSessionService {
         );
 
         try {
-            persistenceService.create(
-                    toEntity(
-                            context,
-                            tokenInfo.getTokenValue(),
-                            sessionId,
-                            loginMethod,
-                            loginIp,
-                            now,
-                            idleExpiresAt,
-                            absoluteExpiresAt
-                    ),
-                    context.username(),
-                    context.displayName()
-            );
+            persistenceService.create(toEntity(
+                    context,
+                    tokenInfo.getTokenValue(),
+                    sessionId,
+                    loginMethod,
+                    loginIp,
+                    now,
+                    idleExpiresAt,
+                    absoluteExpiresAt
+            ));
         } catch (RuntimeException exception) {
             StpUtil.logoutByTokenValue(tokenInfo.getTokenValue());
             throw exception;

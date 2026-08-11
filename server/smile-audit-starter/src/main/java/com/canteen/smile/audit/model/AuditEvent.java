@@ -20,6 +20,8 @@ import java.util.List;
  * @param result SUCCESS、FAILURE 或 DENIED
  * @param failureReasonCode 可选失败原因码
  * @param maskedMobile 可选脱敏手机号
+ * @param loginMethod 可选登录或再认证方式
+ * @param deviceSummary 可选脱敏设备摘要
  * @param actor 登录人不可变快照
  * @param traceId 请求链路 ID
  * @param occurredTime 业务操作实际发生时间
@@ -40,6 +42,8 @@ public record AuditEvent(
         String result,
         String failureReasonCode,
         String maskedMobile,
+        String loginMethod,
+        String deviceSummary,
         AuditActor actor,
         String traceId,
         OffsetDateTime occurredTime,

@@ -5,58 +5,24 @@
     <insert id="insertAsyncAudit" parameterType="com.canteen.smile.modules.audit.entity.AuthAsyncAuditEntity">
         INSERT INTO public.auth_audit_log (
             event_id, schema_version, source_code, category_path_snapshot, app_code_snapshot,
-            tenant_id, subject_type, subject_id, operator_type, operator_id,
+            tenant_id, subject_type, subject_id, operator_type, operator_id, operator_organization_id,
             subject_username_snapshot, subject_display_name_snapshot,
             operator_username_snapshot, operator_display_name_snapshot,
             action_code, action_name_snapshot, target_type, target_id,
             target_name_snapshot, target_code_snapshot, reason,
-            result, failure_reason_code, masked_mobile, trace_id,
+            result, failure_reason_code, masked_mobile, login_method, device_summary, trace_id,
             occurred_time, duration_ms, created_by, updated_by
         ) VALUES (
             #{eventId}, #{schemaVersion}, #{sourceCode}, CAST(#{categoryPathJson} AS jsonb), #{appCodeSnapshot},
-            #{tenantId}, #{subjectType}, #{subjectId}, #{operatorType}, #{operatorId},
+            #{tenantId}, #{subjectType}, #{subjectId}, #{operatorType}, #{operatorId}, #{operatorOrganizationId},
             #{operatorUsernameSnapshot}, #{operatorDisplayNameSnapshot},
             #{operatorUsernameSnapshot}, #{operatorDisplayNameSnapshot},
             #{actionCode}, #{actionNameSnapshot}, #{targetType}, #{targetId},
             #{targetNameSnapshot}, #{targetCodeSnapshot}, #{reason},
-            #{result}, #{failureReasonCode}, #{maskedMobile}, #{traceId},
+            #{result}, #{failureReasonCode}, #{maskedMobile}, #{loginMethod}, #{deviceSummary}, #{traceId},
             #{occurredTime}, #{durationMs}, #{operatorId}, #{operatorId}
         )
         ON CONFLICT DO NOTHING
-    </insert>
-
-    <insert id="insertSessionCreatedAudit">
-        INSERT INTO public.auth_audit_log (
-            tenant_id, subject_type, subject_id, operator_type, operator_id,
-            subject_username_snapshot, subject_display_name_snapshot,
-            operator_username_snapshot, operator_display_name_snapshot,
-            action_code, action_name_snapshot, result, login_method, device_summary, trace_id,
-            created_by, updated_by
-        ) VALUES (
-            #{entity.tenantId}, #{entity.subjectType}, #{entity.subjectId},
-            #{entity.subjectType}, #{entity.subjectId},
-            #{username}, COALESCE(#{displayName}, #{username}),
-            #{username}, COALESCE(#{displayName}, #{username}),
-            #{actionCode}, #{actionNameSnapshot}, 'SUCCESS', #{entity.loginMethod},
-            LEFT(CONCAT(#{entity.deviceType}, ' / ', #{entity.deviceName}), 256),
-            #{traceId}, #{entity.subjectId}, #{entity.subjectId}
-        )
-    </insert>
-
-    <insert id="insertSmsPasswordResetAudit">
-        INSERT INTO public.auth_audit_log (
-            tenant_id, subject_type, subject_id, operator_type, operator_id,
-            subject_username_snapshot, subject_display_name_snapshot,
-            operator_username_snapshot, operator_display_name_snapshot,
-            action_code, action_name_snapshot, result, login_method, trace_id,
-            created_by, updated_by
-        ) VALUES (
-            #{tenantId}, 'TENANT_ACCOUNT', #{accountId}, 'TENANT_ACCOUNT', #{accountId},
-            #{username}, COALESCE(#{displayName}, #{username}),
-            #{username}, COALESCE(#{displayName}, #{username}),
-            'auth:password:reset:sms', '手机号验证码自助重置密码', 'SUCCESS', 'SMS', #{traceId},
-            #{accountId}, #{accountId}
-        )
     </insert>
 
     <sql id="scopeAndFilters">

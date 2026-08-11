@@ -5,6 +5,7 @@ import cn.dev33.satoken.stp.SaTokenInfo;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.parameter.SaLoginParameter;
 import cn.dev33.satoken.stp.parameter.enums.SaReplacedRange;
+import com.canteen.smile.audit.annotation.AuditOperation;
 import com.canteen.smile.infrastructure.security.HmacRequestSigner;
 import com.canteen.smile.modules.auth.entity.DeviceSessionEntity;
 import com.canteen.smile.modules.auth.model.AuthConstants;
@@ -25,11 +26,49 @@ public class TenantSessionService {
     private final DeviceSessionPersistenceService persistenceService;
 
     /** @param context 已验证租户会话上下文 @param loginIp 登录 IP @return 新设备会话 */
+    @AuditOperation(
+            source = "AUTH",
+            categoryPath = {"租户端", "认证安全", "登录"},
+            actionCode = "auth:login:password",
+            actionName = "用户名密码登录",
+            targetType = "TENANT_ACCOUNT",
+            targetId = "#context.accountId",
+            targetName = "#context.displayName ?: #context.username",
+            targetCode = "#context.username",
+            loginMethod = "PASSWORD",
+            deviceSummary = "#context.deviceType + (#context.deviceName == null ? '' : ' / ' + #context.deviceName)",
+            actorType = "TENANT_ACCOUNT",
+            actorId = "#context.accountId",
+            actorTenantId = "#context.tenantId",
+            actorOrganizationId = "#context.organizationId",
+            actorUsername = "#context.username",
+            actorDisplayName = "#context.displayName ?: #context.username",
+            actorAppCode = "#context.appCode"
+    )
     public SessionVO createPasswordSession(TenantSessionContext context, String loginIp) {
         return create(context, loginIp, AuthConstants.PASSWORD_LOGIN_METHOD);
     }
 
     /** @param context 已验证租户会话上下文 @param loginIp 登录 IP @return 短信登录设备会话 */
+    @AuditOperation(
+            source = "AUTH",
+            categoryPath = {"租户端", "认证安全", "登录"},
+            actionCode = "auth:login:sms",
+            actionName = "手机号验证码登录",
+            targetType = "TENANT_ACCOUNT",
+            targetId = "#context.accountId",
+            targetName = "#context.displayName ?: #context.username",
+            targetCode = "#context.username",
+            loginMethod = "SMS",
+            deviceSummary = "#context.deviceType + (#context.deviceName == null ? '' : ' / ' + #context.deviceName)",
+            actorType = "TENANT_ACCOUNT",
+            actorId = "#context.accountId",
+            actorTenantId = "#context.tenantId",
+            actorOrganizationId = "#context.organizationId",
+            actorUsername = "#context.username",
+            actorDisplayName = "#context.displayName ?: #context.username",
+            actorAppCode = "#context.appCode"
+    )
     public SessionVO createSmsSession(TenantSessionContext context, String loginIp) {
         return create(context, loginIp, AuthConstants.SMS_LOGIN_METHOD);
     }
@@ -67,14 +106,10 @@ public class TenantSessionService {
                 context.displayName() == null ? context.username() : context.displayName()
         );
         try {
-            persistenceService.create(
-                    entity(
-                            context, tokenInfo.getTokenValue(), sessionId, loginIp,
-                            now, idleExpiresAt, absoluteExpiresAt, loginMethod
-                    ),
-                    context.username(),
-                    context.displayName()
-            );
+            persistenceService.create(entity(
+                    context, tokenInfo.getTokenValue(), sessionId, loginIp,
+                    now, idleExpiresAt, absoluteExpiresAt, loginMethod
+            ));
         } catch (RuntimeException exception) {
             StpUtil.logoutByTokenValue(tokenInfo.getTokenValue());
             throw exception;

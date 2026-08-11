@@ -171,6 +171,10 @@ public class AuditOperationAspect {
             String failureCode,
             long startedNanos
     ) {
+        /** 合并当前会话主体与注解中基于服务端可信上下文声明的主体覆盖。 */
+        AuditActor eventActor = overrideActor(
+                operation, method, arguments, result, error, actor
+        );
         /** 注解声明并去除空项后的纯审计分类路径。 */
         List<String> categoryPath = Arrays.stream(operation.categoryPath())
                 .filter(value -> value != null && !value.isBlank())
@@ -178,10 +182,10 @@ public class AuditOperationAspect {
                 .toList();
         /** 注解表达式解析的目标 ID，缺失时使用当前操作者 ID。 */
         String targetId = expression(
-                operation.targetId(), method, arguments, result, error, actor
+                operation.targetId(), method, arguments, result, error, eventActor
         );
         if (targetId == null) {
-            targetId = Long.toString(actor.operatorId());
+            targetId = Long.toString(eventActor.operatorId());
         }
         return new AuditEvent(
                 UUID.randomUUID().toString(),
@@ -192,17 +196,112 @@ public class AuditOperationAspect {
                 required(operation.actionName(), "actionName"),
                 required(operation.targetType(), "targetType"),
                 targetId,
-                expression(operation.targetName(), method, arguments, result, error, actor),
-                expression(operation.targetCode(), method, arguments, result, error, actor),
-                expression(operation.reason(), method, arguments, result, error, actor),
+                expression(operation.targetName(), method, arguments, result, error, eventActor),
+                expression(operation.targetCode(), method, arguments, result, error, eventActor),
+                expression(operation.reason(), method, arguments, result, error, eventActor),
                 auditResult,
                 failureCode,
-                expression(operation.maskedMobile(), method, arguments, result, error, actor),
-                actor,
+                expression(operation.maskedMobile(), method, arguments, result, error, eventActor),
+                expression(operation.loginMethod(), method, arguments, result, error, eventActor),
+                expression(operation.deviceSummary(), method, arguments, result, error, eventActor),
+                eventActor,
                 MDC.get("traceId"),
                 OffsetDateTime.now(),
                 Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000L)
         );
+    }
+
+    /** 使用服务端已验证参数或返回值覆盖无会话流程的操作者快照。 */
+    private AuditActor overrideActor(
+            AuditOperation operation,
+            Method method,
+            Object[] arguments,
+            Object result,
+            Throwable error,
+            AuditActor baseActor
+    ) {
+        String operatorType = expression(
+                operation.actorType(), method, arguments, result, error, baseActor
+        );
+        String operatorId = expression(
+                operation.actorId(), method, arguments, result, error, baseActor
+        );
+        String tenantId = expression(
+                operation.actorTenantId(), method, arguments, result, error, baseActor
+        );
+        String organizationId = expression(
+                operation.actorOrganizationId(), method, arguments, result, error, baseActor
+        );
+        String username = expression(
+                operation.actorUsername(), method, arguments, result, error, baseActor
+        );
+        String displayName = expression(
+                operation.actorDisplayName(), method, arguments, result, error, baseActor
+        );
+        String appCode = expression(
+                operation.actorAppCode(), method, arguments, result, error, baseActor
+        );
+        if (operatorType == null && operatorId == null && tenantId == null
+                && organizationId == null && username == null
+                && displayName == null && appCode == null) {
+            return baseActor;
+        }
+        String resolvedType = firstText(operatorType, baseActor.operatorType());
+        long resolvedId = requiredLong(operatorId, baseActor.operatorId(), "actorId");
+        if (!"SYSTEM".equals(resolvedType)
+                && !"ANONYMOUS".equals(resolvedType)
+                && resolvedId <= 0) {
+            throw new IllegalArgumentException(
+                    "Audit annotation actorId is required for a named actor"
+            );
+        }
+        boolean replacesSystemActor = baseActor.operatorId() == 0L
+                && operatorType != null
+                && !"SYSTEM".equals(operatorType)
+                && !"ANONYMOUS".equals(operatorType);
+        return new AuditActor(
+                nullableLong(tenantId, baseActor.tenantId(), "actorTenantId"),
+                resolvedType,
+                resolvedId,
+                nullableLong(
+                        organizationId, baseActor.organizationId(), "actorOrganizationId"
+                ),
+                firstText(username, baseActor.username()),
+                firstText(displayName, baseActor.displayName()),
+                appCode == null && replacesSystemActor ? null
+                        : firstText(appCode, baseActor.appCode())
+        );
+    }
+
+    /** @return 注解文本优先、原主体文本兜底的快照值 */
+    private String firstText(String annotationValue, String baseValue) {
+        return annotationValue == null ? baseValue : annotationValue;
+    }
+
+    /** @return 操作者正整数 ID；注解未声明时沿用当前主体 */
+    private long requiredLong(String value, long baseValue, String field) {
+        if (value == null) {
+            return baseValue;
+        }
+        try {
+            long parsed = Long.parseLong(value);
+            if (parsed <= 0) {
+                throw new NumberFormatException("non-positive");
+            }
+            return parsed;
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException(
+                    "Audit annotation " + field + " must be a positive bigint"
+            );
+        }
+    }
+
+    /** @return 可空正整数 ID；注解未声明时沿用当前主体 */
+    private Long nullableLong(String value, Long baseValue, String field) {
+        if (value == null) {
+            return baseValue;
+        }
+        return requiredLong(value, 0L, field);
     }
 
     /** 安全计算注解显式字段；表达式错误不允许影响业务执行结果。 */

@@ -1,8 +1,8 @@
 package com.canteen.smile.modules.auth.service;
 
 import com.canteen.smile.common.exception.BusinessException;
+import com.canteen.smile.audit.annotation.AuditOperation;
 import com.canteen.smile.internal.client.dto.TenantAccountActivationContextInternalResponse;
-import com.canteen.smile.modules.audit.mapper.AuthAuditLogMapper;
 import com.canteen.smile.modules.auth.entity.AccountSelectorTicketEntity;
 import com.canteen.smile.modules.auth.entity.PasswordResetTicketEntity;
 import com.canteen.smile.modules.auth.entity.ReauthTicketEntity;
@@ -14,7 +14,6 @@ import com.canteen.smile.modules.auth.mapper.PasswordResetTicketMapper;
 import com.canteen.smile.modules.auth.mapper.ReauthTicketMapper;
 import com.canteen.smile.modules.auth.model.AuthConstants;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,9 +42,6 @@ public class PasswordResetPersistenceService {
 
     /** 账号选择票据数据访问接口。 */
     private final AccountSelectorTicketMapper accountSelectorTicketMapper;
-
-    /** Auth 安全审计数据访问接口。 */
-    private final AuthAuditLogMapper auditLogMapper;
 
     /**
      * 消费平台再认证票据、使账号进入待重置并替换恢复票据。
@@ -123,13 +119,30 @@ public class PasswordResetPersistenceService {
     }
 
     /**
-     * 原子替换当前有效密码、消费短信自助找回票据、失效全部设备并记录审计。
+     * 原子替换当前有效密码、消费短信自助找回票据并失效全部设备。
      *
      * @param ticket 已校验的短信自助找回票据
      * @param passwordHash 新 Argon2id 密码摘要
      * @param context IAM 当前账号安全快照
      */
     @Transactional
+    @AuditOperation(
+            source = "AUTH",
+            categoryPath = {"租户端", "账号安全", "密码凭证"},
+            actionCode = "auth:password:reset:sms",
+            actionName = "手机号验证码自助重置密码",
+            targetType = "TENANT_ACCOUNT",
+            targetId = "#ticket.subjectId",
+            targetName = "#context.displayName ?: #context.username",
+            targetCode = "#context.username",
+            loginMethod = "SMS",
+            actorType = "TENANT_ACCOUNT",
+            actorId = "#ticket.subjectId",
+            actorTenantId = "#context.tenantId",
+            actorOrganizationId = "#context.organizationId",
+            actorUsername = "#context.username",
+            actorDisplayName = "#context.displayName ?: #context.username"
+    )
     public void completeSmsSelfService(
             PasswordResetTicketEntity ticket,
             String passwordHash,
@@ -152,15 +165,6 @@ public class PasswordResetPersistenceService {
                 AuthConstants.TENANT_ACCOUNT_SUBJECT,
                 ticket.getSubjectId()
         );
-        if (auditLogMapper.insertSmsPasswordResetAudit(
-                Long.parseLong(context.tenantId()),
-                ticket.getSubjectId(),
-                context.username(),
-                context.displayName(),
-                MDC.get("traceId")
-        ) != 1) {
-            throw new IllegalStateException("SMS password reset audit was not inserted");
-        }
     }
 
     /** @param message 对外稳定消息 @return 密码恢复冲突异常 */

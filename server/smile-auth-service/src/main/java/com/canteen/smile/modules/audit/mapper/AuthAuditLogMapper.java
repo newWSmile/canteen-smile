@@ -1,7 +1,6 @@
 package com.canteen.smile.modules.audit.mapper;
 
 import com.canteen.smile.internal.dto.AuthAuditLogSearchRequest;
-import com.canteen.smile.modules.auth.entity.DeviceSessionEntity;
 import com.canteen.smile.modules.audit.entity.AuthAsyncAuditEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -15,44 +14,6 @@ public interface AuthAuditLogMapper {
 
     /** @param entity 通用注解生成的不可变异步审计实体 @return 新增行数；幂等重复时为零 */
     int insertAsyncAudit(AuthAsyncAuditEntity entity);
-
-    /**
-     * 在设备会话创建事务内追加登录成功审计。
-     *
-     * @param entity 已持久化设备会话
-     * @param actionCode 与登录方式对应的动作编码
-     * @param actionNameSnapshot 事件发生时的中文动作名称
-     * @param username 已验证主体的用户名快照
-     * @param displayName 已验证主体的显示名称快照
-     * @param traceId 当前链路 ID
-     * @return 新增行数
-     */
-    int insertSessionCreatedAudit(
-            @Param("entity") DeviceSessionEntity entity,
-            @Param("actionCode") String actionCode,
-            @Param("actionNameSnapshot") String actionNameSnapshot,
-            @Param("username") String username,
-            @Param("displayName") String displayName,
-            @Param("traceId") String traceId
-    );
-
-    /**
-     * 在手机号自助找回密码事务内追加成功安全审计。
-     *
-     * @param tenantId 租户 ID
-     * @param accountId 找回密码的租户账号 ID
-     * @param username 用户名快照
-     * @param displayName 显示名称快照
-     * @param traceId 当前链路 ID
-     * @return 新增行数
-     */
-    int insertSmsPasswordResetAudit(
-            @Param("tenantId") long tenantId,
-            @Param("accountId") long accountId,
-            @Param("username") String username,
-            @Param("displayName") String displayName,
-            @Param("traceId") String traceId
-    );
 
     /** @param query 已验证查询条件 @return 符合权限边界的记录数 */
     long countPage(@Param("query") AuthAuditLogSearchRequest query);

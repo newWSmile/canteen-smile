@@ -30,5 +30,6 @@
 | `AUTH_DDL_0009` | AUTH | DDL | `auth/ddl/AUTH_DDL_0009__create_sms_runtime_policy.sql` | `AUTH_DDL_0008` | `EXECUTED` | 用户已确认在 LOCAL 环境执行；创建平台可维护的短信验证码限流和敏感正文留存策略，并标记投递记录是否保留敏感内容 |
 | `AUTH_DDL_0010` | AUTH | DDL | `auth/ddl/AUTH_DDL_0010__separate_account_selector_flows.sql` | `AUTH_DDL_0009` | `READY` | 为手机号多账号选择票据增加流程用途，禁止登录票据与密码找回票据交叉复用 |
 | `AUTH_DDL_0011` | AUTH | DDL | `auth/ddl/AUTH_DDL_0011__add_generic_async_audit_metadata.sql` | `AUTH_DDL_0010` | `READY` | 为注解驱动异步审计增加事件幂等 ID、端和任意层级分类快照、目标快照、原因与耗时字段 |
+| `AUTH_DDL_0012` | AUTH | DDL | `auth/ddl/AUTH_DDL_0012__add_audit_operator_organization_snapshot.sql` | `AUTH_DDL_0011` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；为注解异步审计补充操作人所属机构 ID 快照，确保认证安全事件可以追溯真实组织归属 |
 
 规则：一旦脚本状态进入 `EXECUTED`，文件内容、编号和文件名都不得修改；后续修正必须新增脚本并在“依赖”列关联原脚本。
