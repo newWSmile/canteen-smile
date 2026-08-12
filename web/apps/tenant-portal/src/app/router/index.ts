@@ -16,6 +16,12 @@ export const router = createRouter({
           component: () => import('@/modules/home/pages/HomePage.vue'),
           meta: { title: '工作台' },
         },
+        {
+          path: 'security/sessions',
+          name: 'device-sessions',
+          component: () => import('@/modules/security/pages/DeviceSessionsPage.vue'),
+          meta: { title: '登录设备' },
+        },
       ],
     },
   ],

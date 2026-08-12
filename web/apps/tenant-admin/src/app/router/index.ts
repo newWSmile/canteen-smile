@@ -73,6 +73,18 @@ export const router = createRouter({
           component: () => import('@/modules/profile/pages/ProfileSecurityPage.vue'),
           meta: { title: '个人安全' },
         },
+        {
+          path: 'security/sessions',
+          name: 'device-sessions',
+          component: () => import('@/modules/security/pages/DeviceSessionsPage.vue'),
+          meta: { title: '登录设备' },
+        },
+        {
+          path: 'tenant/security',
+          name: 'tenant-security-policy',
+          component: () => import('@/modules/security/pages/TenantSecurityPolicyPage.vue'),
+          meta: { title: '租户安全策略' },
+        },
       ],
     },
   ],

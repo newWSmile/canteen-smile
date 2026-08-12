@@ -162,6 +162,7 @@ export type ReauthAction =
   | 'TENANT_USER_ROLE_ASSIGN'
   | 'MOBILE_CHANGE'
   | 'MOBILE_UNBIND'
+  | 'TENANT_SECURITY_POLICY_UPDATE'
 
 /** 当前密码再认证请求。 */
 export interface PasswordReauthRequest {

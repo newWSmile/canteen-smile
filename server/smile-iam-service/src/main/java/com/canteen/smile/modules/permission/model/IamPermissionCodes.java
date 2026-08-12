@@ -36,6 +36,12 @@ public final class IamPermissionCodes {
     /** 查看授权范围内的租户管理和认证审计。 */
     public static final String IAM_AUDIT_VIEW = "iam:audit:view";
 
+    /** 查看当前租户的安全策略。 */
+    public static final String IAM_TENANT_SECURITY_VIEW = "iam:tenant-security:view";
+
+    /** 修改当前租户的安全策略。 */
+    public static final String IAM_TENANT_SECURITY_MANAGE = "iam:tenant-security:manage";
+
     /** 平台端维护机构类型模板。 */
     public static final String PLATFORM_ORG_TEMPLATE_MANAGE = "platform:org-template:manage";
 

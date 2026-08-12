@@ -179,13 +179,22 @@ const createTenantFlight = useSingleFlight(async () => {
 
 const activationFlight = useSingleFlight(async (tenantId: string) => {
   const result = await issueTenantOwnerActivationLink(tenantId)
-  const tenantAdminBaseUrl = (import.meta.env.VITE_TENANT_ADMIN_BASE_URL || 'http://localhost:5174')
-    .replace(/\/$/, '')
+  const tenantAdminBaseUrl = resolveTenantAdminBaseUrl()
   activationLink.value = `${tenantAdminBaseUrl}/activate?ticket=${encodeURIComponent(result.activationTicket)}`
   activationExpiresAt.value = result.expiresAt
   activationDialogVisible.value = true
   feedback.success('新的所有者激活链接已生成，旧链接已失效')
 })
+
+/**
+ * 默认沿用当前浏览器访问的协议和主机，仅切换到租户管理端开发端口。
+ * 部署到独立域名时可用 VITE_TENANT_ADMIN_BASE_URL 显式覆盖。
+ */
+function resolveTenantAdminBaseUrl(): string {
+  const configured = import.meta.env.VITE_TENANT_ADMIN_BASE_URL?.trim()
+  if (configured) return configured.replace(/\/$/, '')
+  return `${window.location.protocol}//${window.location.hostname}:5174`
+}
 
 async function copyActivationLink(): Promise<void> {
   try {
@@ -224,8 +233,7 @@ const passwordResetFlight = useSingleFlight(async () => {
       reauthTicket: reauth.reauthTicket,
       reason: passwordResetReason.value.trim(),
     })
-    const tenantAdminBaseUrl = (import.meta.env.VITE_TENANT_ADMIN_BASE_URL || 'http://localhost:5174')
-      .replace(/\/$/, '')
+    const tenantAdminBaseUrl = resolveTenantAdminBaseUrl()
     passwordResetLink.value = `${tenantAdminBaseUrl}/reset-password?ticket=${encodeURIComponent(result.resetTicket)}`
     passwordResetExpiresAt.value = result.expiresAt
     passwordResetDialogVisible.value = false

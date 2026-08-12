@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.tenant.mapper.TenantSecurityPolicyMapper">
+
+    <resultMap id="securityPolicyResultMap"
+               type="com.canteen.smile.modules.tenant.entity.TenantSecurityPolicyEntity">
+        <id property="id" column="id"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="concurrentLoginEnabled" column="concurrent_login_enabled"/>
+        <result property="maxDevices" column="max_devices"/>
+        <result property="rememberMeEnabled" column="remember_me_enabled"/>
+        <result property="idleSeconds" column="idle_seconds"/>
+        <result property="absoluteSeconds" column="absolute_seconds"/>
+        <result property="rememberIdleSeconds" column="remember_idle_seconds"/>
+        <result property="rememberAbsoluteSeconds" column="remember_absolute_seconds"/>
+        <result property="passwordExpiryEnabled" column="password_expiry_enabled"/>
+        <result property="passwordExpiryDays" column="password_expiry_days"/>
+        <result property="auditRetentionDays" column="audit_retention_days"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <select id="selectByTenantId" resultMap="securityPolicyResultMap">
+        SELECT id, tenant_id, concurrent_login_enabled, max_devices, remember_me_enabled,
+               idle_seconds, absolute_seconds, remember_idle_seconds, remember_absolute_seconds,
+               password_expiry_enabled, password_expiry_days, audit_retention_days, version
+        FROM public.iam_tenant_security_policy
+        WHERE tenant_id = #{tenantId} AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <select id="selectTenantSecurityVersion" resultType="long">
+        SELECT security_version
+        FROM public.iam_tenant
+        WHERE id = #{tenantId} AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <update id="updatePolicy">
+        UPDATE public.iam_tenant_security_policy
+        SET concurrent_login_enabled = #{request.concurrentLoginEnabled},
+            max_devices = #{request.maxDevices},
+            remember_me_enabled = #{request.rememberMeEnabled},
+            idle_seconds = #{request.idleSeconds},
+            absolute_seconds = #{request.absoluteSeconds},
+            remember_idle_seconds = #{request.rememberIdleSeconds},
+            remember_absolute_seconds = #{request.rememberAbsoluteSeconds},
+            password_expiry_enabled = #{request.passwordExpiryEnabled},
+            password_expiry_days = #{request.passwordExpiryDays},
+            audit_retention_days = #{request.auditRetentionDays},
+            updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE tenant_id = #{tenantId} AND version = #{request.version} AND is_deleted = false
+    </update>
+
+    <update id="bumpTenantSecurityVersion">
+        UPDATE public.iam_tenant
+        SET security_version = security_version + 1,
+            updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE id = #{tenantId} AND status = 'ACTIVE' AND is_deleted = false
+    </update>
+
+    <insert id="insertSecurityPolicyChangedEvents">
+        INSERT INTO public.iam_outbox_event (
+            event_id, aggregate_type, aggregate_id, tenant_id, event_type, payload_json,
+            status, created_by, updated_by
+        )
+        SELECT 'tsp-' || md5(#{tenantId}::text || ':' || #{securityVersion}::text || ':' || account.id::text),
+               'TENANT_ACCOUNT', account.id::varchar, #{tenantId}, 'TENANT_SECURITY_POLICY_CHANGED',
+               jsonb_build_object(
+                   'tenantId', #{tenantId}::varchar,
+                   'accountId', account.id::varchar,
+                   'securityVersion', #{securityVersion}::varchar,
+                   'actionNameSnapshot', '租户安全策略收紧，强制会话失效',
+                   'usernameSnapshot', account.username,
+                   'displayNameSnapshot', COALESCE(account.display_name, account.username)
+               ),
+               'PENDING', #{operatorId}, #{operatorId}
+        FROM public.iam_account account
+        WHERE account.tenant_id = #{tenantId}
+          AND account.status &lt;&gt; 'CANCELLED'
+          AND account.is_deleted = false
+    </insert>
+</mapper>

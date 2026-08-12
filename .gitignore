@@ -13,6 +13,8 @@ web/.env.local
 web/.env.*.local
 web/**/.env.local
 web/**/.env.*.local
+web/.certs/
+web/.tools/
 
 server/**/target/
 server/.env

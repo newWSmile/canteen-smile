@@ -128,6 +128,22 @@
           AND is_deleted = false
     </update>
 
+    <update id="invalidateActiveExceptSessions">
+        UPDATE public.auth_device_session
+        SET status = 'INVALIDATED',
+            updated_by = #{subjectId},
+            updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE subject_type = #{subjectType}
+          AND subject_id = #{subjectId}
+          AND status = 'ACTIVE'
+          AND is_deleted = false
+          AND session_id NOT IN
+          <foreach collection="activeSessionIds" item="sessionId" open="(" separator="," close=")">
+              #{sessionId}
+          </foreach>
+    </update>
+
     <select id="selectLatestTenantLogins"
             resultType="com.canteen.smile.modules.auth.mapper.DeviceSessionMapper$LatestLoginRow">
         SELECT subject_id AS account_id,
@@ -141,4 +157,58 @@
           AND is_deleted = false
         GROUP BY subject_id
     </select>
+
+    <sql id="tenantAccountActiveWhere">
+        tenant_id = #{tenantId}
+        AND subject_type = 'TENANT_ACCOUNT'
+        AND subject_id = #{accountId}
+        AND status = 'ACTIVE'
+        AND absolute_expires_at &gt; CURRENT_TIMESTAMP
+        AND is_deleted = false
+    </sql>
+
+    <select id="countActiveByTenantAccount" resultType="long">
+        SELECT COUNT(*)
+        FROM public.auth_device_session
+        WHERE <include refid="tenantAccountActiveWhere"/>
+    </select>
+
+    <select id="selectActiveByTenantAccount" resultMap="deviceSessionResultMap">
+        SELECT id, session_id, subject_type, subject_id, tenant_id, organization_id, app_code,
+               token_digest, device_id_hash, device_type, device_name, login_method, login_ip_masked,
+               login_time, last_active_time, idle_expires_at, absolute_expires_at,
+               status, snapshot_version, version
+        FROM public.auth_device_session
+        WHERE <include refid="tenantAccountActiveWhere"/>
+        ORDER BY login_time DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="selectOwnedActiveSession" resultMap="deviceSessionResultMap">
+        SELECT id, session_id, subject_type, subject_id, tenant_id, organization_id, app_code,
+               token_digest, device_id_hash, device_type, device_name, login_method, login_ip_masked,
+               login_time, last_active_time, idle_expires_at, absolute_expires_at,
+               status, snapshot_version, version
+        FROM public.auth_device_session
+        WHERE <include refid="tenantAccountActiveWhere"/>
+          AND session_id = #{sessionId}
+        LIMIT 1
+    </select>
+
+    <update id="invalidateOwnedSession">
+        UPDATE public.auth_device_session
+        SET status = 'INVALIDATED', updated_by = #{accountId},
+            updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE <include refid="tenantAccountActiveWhere"/>
+          AND session_id = #{sessionId}
+          AND version = #{version}
+    </update>
+
+    <update id="invalidateOtherSessions">
+        UPDATE public.auth_device_session
+        SET status = 'INVALIDATED', updated_by = #{accountId},
+            updated_time = CURRENT_TIMESTAMP, version = version + 1
+        WHERE <include refid="tenantAccountActiveWhere"/>
+          AND session_id &lt;&gt; #{currentSessionId}
+    </update>
 </mapper>

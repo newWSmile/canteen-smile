@@ -63,6 +63,9 @@ public final class IamApiPaths {
     /** 租户管理端当前身份与租户上下文。 */
     public static final String TENANT_CONTEXT = EXTERNAL_V1 + "/tenant/context";
 
+    /** 租户根机构所有者维护登录、会话、密码和审计保留策略的资源路径。 */
+    public static final String TENANT_SECURITY_POLICY = EXTERNAL_V1 + "/tenant/security-policy";
+
     /** 租户独立机构类型资源。 */
     public static final String TENANT_ORGANIZATION_TYPES = EXTERNAL_V1 + "/tenant/organization-types";
 

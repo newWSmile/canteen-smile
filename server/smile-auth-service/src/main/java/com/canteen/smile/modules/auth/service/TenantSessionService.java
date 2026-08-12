@@ -1,6 +1,7 @@
 package com.canteen.smile.modules.auth.service;
 
 import cn.dev33.satoken.session.SaSession;
+import cn.dev33.satoken.session.SaTerminalInfo;
 import cn.dev33.satoken.stp.SaTokenInfo;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.parameter.SaLoginParameter;
@@ -17,6 +18,9 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /** 按租户安全策略创建租户账号独立设备会话的服务。 */
@@ -133,7 +137,7 @@ public class TenantSessionService {
         OffsetDateTime idleExpiresAt = now.plusSeconds(context.idleSeconds());
         OffsetDateTime absoluteExpiresAt = now.plusSeconds(context.absoluteSeconds());
         SaSession tokenSession = StpUtil.getTokenSession();
-        tokenSession.set("businessSessionId", sessionId);
+        tokenSession.set(AuthConstants.TOKEN_BUSINESS_SESSION_ID_ATTRIBUTE, sessionId);
         tokenSession.set(AuthConstants.TOKEN_APP_CODE_ATTRIBUTE, context.appCode());
         tokenSession.set("subjectType", AuthConstants.TENANT_ACCOUNT_SUBJECT);
         tokenSession.set(AuthConstants.TOKEN_TENANT_ID_ATTRIBUTE, context.tenantId());
@@ -145,10 +149,14 @@ public class TenantSessionService {
                 context.displayName() == null ? context.username() : context.displayName()
         );
         try {
-            persistenceService.create(entity(
-                    context, tokenInfo.getTokenValue(), sessionId, loginIp,
-                    now, idleExpiresAt, absoluteExpiresAt, loginMethod
-            ));
+            List<String> activeSessionIds = activeBusinessSessionIds(loginId, sessionId);
+            persistenceService.createAndReconcile(
+                    entity(
+                            context, tokenInfo.getTokenValue(), sessionId, loginIp,
+                            now, idleExpiresAt, absoluteExpiresAt, loginMethod
+                    ),
+                    activeSessionIds
+            );
         } catch (RuntimeException exception) {
             StpUtil.logoutByTokenValue(tokenInfo.getTokenValue());
             throw exception;
@@ -159,6 +167,31 @@ public class TenantSessionService {
                 Long.toString(context.tenantId()), Long.toString(context.organizationId()),
                 idleExpiresAt, absoluteExpiresAt
         );
+    }
+
+    /**
+     * 从 Sa-Token 当前有效终端中解析业务设备会话 ID，作为数据库在线状态的事实来源。
+     *
+     * @param loginId Sa-Token 登录主体标识
+     * @param currentSessionId 当前刚建立的业务设备会话 ID
+     * @return 当前仍有效的业务设备会话 ID
+     */
+    private List<String> activeBusinessSessionIds(String loginId, String currentSessionId) {
+        Set<String> sessionIds = new LinkedHashSet<>();
+        sessionIds.add(currentSessionId);
+        List<SaTerminalInfo> terminals = StpUtil.getTerminalListByLoginId(loginId);
+        for (SaTerminalInfo terminal : terminals.stream().limit(100).toList()) {
+            SaSession terminalSession = StpUtil.getStpLogic()
+                    .getTokenSessionByToken(terminal.getTokenValue(), false);
+            if (terminalSession == null) {
+                continue;
+            }
+            Object sessionId = terminalSession.get(AuthConstants.TOKEN_BUSINESS_SESSION_ID_ATTRIBUTE);
+            if (sessionId != null && !String.valueOf(sessionId).isBlank()) {
+                sessionIds.add(String.valueOf(sessionId));
+            }
+        }
+        return List.copyOf(sessionIds);
     }
 
     /** @return 待持久化的设备会话实体 */

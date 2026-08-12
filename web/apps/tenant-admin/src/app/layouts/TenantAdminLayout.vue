@@ -87,6 +87,15 @@ const logoutFlight = useSingleFlight(async () => {
           :class="{ active: route.name === 'profile-security' }"
           :to="{ name: 'profile-security' }"
         >个人安全</RouterLink>
+        <RouterLink
+          :class="{ active: route.name === 'device-sessions' }"
+          :to="{ name: 'device-sessions' }"
+        >登录设备</RouterLink>
+        <RouterLink
+          v-if="tenantContext.hasPermission('iam:tenant-security:view')"
+          :class="{ active: route.name === 'tenant-security-policy' }"
+          :to="{ name: 'tenant-security-policy' }"
+        >租户安全策略</RouterLink>
       </nav>
       <div class="boundary">
         <strong>租户隔离边界</strong>

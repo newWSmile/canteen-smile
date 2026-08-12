@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Canteen Smile Auth API
-  version: 1.6.0
+  version: 1.7.0
   description: Auth 服务当前已经实现的首次引导、登录、短信挑战、密码恢复、手机号绑定与换绑解绑、平台恢复能力和设备会话契约。
 servers:
   - url: /api/auth/v1
@@ -232,6 +232,66 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionApiResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /sessions:
+    get:
+      operationId: pageCurrentAccountDeviceSessions
+      summary: 分页查询当前租户账号的有效设备会话
+      tags: [Session]
+      security: [{SaToken: []}]
+      parameters:
+        - name: pageNo
+          in: query
+          schema: {type: integer, minimum: 1, default: 1}
+        - name: pageSize
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        '200':
+          description: 返回脱敏设备会话分页，current 标识当前请求设备。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DeviceSessionPageApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /sessions/{sessionId}:
+    delete:
+      operationId: logoutCurrentAccountDeviceSession
+      summary: 下线当前租户账号的指定设备会话
+      tags: [Session]
+      security: [{SaToken: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LogoutDeviceSessionRequest'}
+      responses:
+        '200':
+          description: 指定设备会话已失效。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VoidApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /sessions/actions/logout-others:
+    post:
+      operationId: logoutCurrentAccountOtherDeviceSessions
+      summary: 下线当前请求设备以外的全部设备会话
+      tags: [Session]
+      security: [{SaToken: []}]
+      responses:
+        '200':
+          description: 其它设备会话已失效。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VoidApiResponse'}
         '401': {$ref: '#/components/responses/Unauthorized'}
   /logout:
     post:
@@ -587,7 +647,7 @@ components:
         passwordEnvelope: {$ref: '#/components/schemas/PasswordEnvelopeRequest'}
         allowedAction:
           type: string
-          enum: [TENANT_OWNER_PASSWORD_RESET, TENANT_USER_CREATE, TENANT_USER_ROLE_ASSIGN, MOBILE_CHANGE, MOBILE_UNBIND, PLATFORM_SMS_POLICY_UPDATE]
+          enum: [TENANT_OWNER_PASSWORD_RESET, TENANT_USER_CREATE, TENANT_USER_ROLE_ASSIGN, TENANT_SECURITY_POLICY_UPDATE, MOBILE_CHANGE, MOBILE_UNBIND, PLATFORM_SMS_POLICY_UPDATE]
     SmsPasswordResetVerificationRequest:
       type: object
       additionalProperties: false
@@ -771,6 +831,38 @@ components:
         organizationId: {type: ['null']}
         idleExpiresAt: {type: string, format: date-time}
         absoluteExpiresAt: {type: string, format: date-time}
+    DeviceSession:
+      type: object
+      additionalProperties: false
+      required: [sessionId, appCode, deviceType, deviceName, loginMethod, loginIpMasked, loginTime, lastActiveTime, idleExpiresAt, absoluteExpiresAt, current, version]
+      properties:
+        sessionId: {type: string, format: uuid}
+        appCode: {type: string, enum: [TENANT_ADMIN, TENANT_PORTAL]}
+        deviceType: {type: string}
+        deviceName: {type: string}
+        loginMethod: {type: string, enum: [PASSWORD, SMS]}
+        loginIpMasked: {type: string, description: 脱敏登录 IP 快照。}
+        loginTime: {type: string, format: date-time}
+        lastActiveTime: {type: string, format: date-time}
+        idleExpiresAt: {type: string, format: date-time}
+        absoluteExpiresAt: {type: string, format: date-time}
+        current: {type: boolean}
+        version: {type: integer, format: int64, minimum: 0}
+    DeviceSessionPage:
+      type: object
+      additionalProperties: false
+      required: [items, pageNo, pageSize, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/DeviceSession'}}
+        pageNo: {type: integer, minimum: 1}
+        pageSize: {type: integer, minimum: 1, maximum: 100}
+        total: {type: integer, format: int64, minimum: 0}
+    LogoutDeviceSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version: {type: integer, format: int64, minimum: 0}
     PlatformBootstrapApiResponse:
       allOf:
         - {$ref: '#/components/schemas/SuccessEnvelope'}
@@ -801,6 +893,12 @@ components:
         - type: object
           properties:
             data: {$ref: '#/components/schemas/Session'}
+    DeviceSessionPageApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/SuccessEnvelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/DeviceSessionPage'}
     ReauthTicketApiResponse:
       allOf:
         - {$ref: '#/components/schemas/SuccessEnvelope'}

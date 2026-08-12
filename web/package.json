@@ -8,6 +8,7 @@
     "pnpm": "10.34.5"
   },
   "scripts": {
+    "https:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-dev-https.ps1",
     "dev:platform": "pnpm --filter @canteen-smile/platform-admin dev",
     "dev:tenant-admin": "pnpm --filter @canteen-smile/tenant-admin dev",
     "dev:tenant-portal": "pnpm --filter @canteen-smile/tenant-portal dev",

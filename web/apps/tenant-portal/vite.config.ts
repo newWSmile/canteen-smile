@@ -1,8 +1,9 @@
 import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig, loadEnv } from 'vite'
+import { createDevHttpsConfig } from '../../config/devHttps'
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
@@ -13,6 +14,8 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      host: '0.0.0.0',
+      https: command === 'serve' ? createDevHttpsConfig(env) : undefined,
       port: 5175,
       strictPort: true,
       proxy: {

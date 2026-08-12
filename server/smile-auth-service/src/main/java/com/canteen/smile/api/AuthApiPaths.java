@@ -63,6 +63,12 @@ public final class AuthApiPaths {
     /** 当前设备退出登录路径。 */
     public static final String LOGOUT = EXTERNAL_V1 + "/logout";
 
+    /** 当前登录账号的有效设备会话集合路径。 */
+    public static final String DEVICE_SESSIONS = EXTERNAL_V1 + "/sessions";
+
+    /** 下线当前设备以外全部有效设备的动作路径。 */
+    public static final String LOGOUT_OTHER_DEVICE_SESSIONS = DEVICE_SESSIONS + "/actions/logout-others";
+
     /** 当前租户账号已验证手机号绑定状态路径。 */
     public static final String MOBILE_BINDING = EXTERNAL_V1 + "/mobile/binding";
 

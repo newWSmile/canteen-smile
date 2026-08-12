@@ -32,7 +32,7 @@ const currentTitle = computed(() =>
       <nav aria-label="租户业务端主导航">
         <RouterLink :class="{ active: route.name === 'home' }" :to="{ name: 'home' }">业务工作台</RouterLink>
         <span class="coming">个人工作台 · 待业务契约</span>
-        <span class="coming">安全中心 · 待身份契约</span>
+        <RouterLink :class="{ active: route.name === 'device-sessions' }" :to="{ name: 'device-sessions' }">登录设备</RouterLink>
       </nav>
       <div class="boundary">
         <strong>业务访问边界</strong>

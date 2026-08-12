@@ -56,6 +56,22 @@ export interface AuditLog {
   durationMs: number | null
 }
 
+/** 当前账号有效设备会话的脱敏视图。 */
+export interface DeviceSession {
+  sessionId: string
+  appCode: 'TENANT_ADMIN' | 'TENANT_PORTAL'
+  deviceType: string
+  deviceName: string | null
+  loginMethod: 'PASSWORD' | 'SMS' | string
+  loginIpMasked: string | null
+  loginTime: string
+  lastActiveTime: string
+  idleExpiresAt: string
+  absoluteExpiresAt: string
+  current: boolean
+  version: number
+}
+
 /** 审计日志精确筛选与分页参数。 */
 export interface AuditLogPageQuery {
   pageNo: number

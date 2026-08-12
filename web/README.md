@@ -65,6 +65,24 @@ pnpm build
 
 ## 独立启动
 
+开发服务器统一启用 HTTPS。在 `web` 目录执行以下命令生成三个应用共用的本地证书：
+
+```powershell
+pnpm https:setup
+```
+
+若系统未安装 `mkcert`，脚本会从 mkcert 官方 GitHub Release 下载 Windows 可执行文件到已被 Git 忽略的 `web/.tools`；不要求安装 Chocolatey、Scoop，也不会修改系统 PATH。
+
+脚本默认自动识别当前局域网 IPv4；多网卡或识别结果不正确时显式指定：
+
+```powershell
+pnpm https:setup -- -LanIp 192.168.0.64
+```
+
+证书与私钥只保存在已被 Git 忽略的 `web/.certs`。严禁提交或向他人提供 `dev-key.pem`、`rootCA-key.pem`。局域网其他电脑只需将 `mkcert -CAROOT` 目录下的 `rootCA.pem` 导入系统“受信任的根证书颁发机构”。
+
+证书准备完成后使用固定命令启动：
+
 ```bash
 pnpm dev:platform
 pnpm dev:tenant-admin
@@ -73,9 +91,9 @@ pnpm dev:tenant-portal
 
 默认端口：
 
-- 平台管理端：`5173`
-- 租户管理端：`5174`
-- 租户业务端：`5175`
+- 平台管理端：`https://localhost:5173`
+- 租户管理端：`https://localhost:5174`
+- 租户业务端：`https://localhost:5175`
 
 也可以同时启动三个应用：
 

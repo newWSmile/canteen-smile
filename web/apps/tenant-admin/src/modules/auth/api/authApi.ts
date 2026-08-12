@@ -1,4 +1,4 @@
-import type { ApiResponse } from '@canteen-smile/contracts'
+import type { ApiResponse, DeviceSession, PageResult } from '@canteen-smile/contracts'
 import type {
   MobileBindingChallengeRequest,
   MobileBindingConfirmRequest,
@@ -145,6 +145,29 @@ export async function getCurrentSession(): Promise<TenantSession> {
 /** 退出当前设备会话。 */
 export async function logoutCurrentSession(): Promise<void> {
   await http.post<ApiResponse<null>>('/auth/v1/logout')
+}
+
+/** 分页查询当前账号在两个租户端的有效设备会话。 */
+export async function getDeviceSessions(
+  pageNo: number,
+  pageSize: number,
+): Promise<PageResult<DeviceSession>> {
+  const response = await http.get<ApiResponse<PageResult<DeviceSession>>>('/auth/v1/sessions', {
+    params: { pageNo, pageSize },
+  })
+  return requireData(response.data)
+}
+
+/** 下线当前账号指定设备会话。 */
+export async function logoutDeviceSession(sessionId: string, version: number): Promise<void> {
+  await http.delete<ApiResponse<null>>(`/auth/v1/sessions/${encodeURIComponent(sessionId)}`, {
+    data: { version },
+  })
+}
+
+/** 下线当前请求设备之外的全部有效设备。 */
+export async function logoutOtherDeviceSessions(): Promise<void> {
+  await http.post<ApiResponse<null>>('/auth/v1/sessions/actions/logout-others')
 }
 
 /** 查询当前账号不泄露完整手机号的绑定状态。 */

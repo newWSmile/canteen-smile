@@ -21,5 +21,8 @@ public enum ReauthAction {
     MOBILE_UNBIND,
 
     /** 平台身份修改短信验证码限流或敏感内容留存策略。 */
-    PLATFORM_SMS_POLICY_UPDATE
+    PLATFORM_SMS_POLICY_UPDATE,
+
+    /** 租户根机构所有者修改租户登录、会话、密码和审计保留策略。 */
+    TENANT_SECURITY_POLICY_UPDATE
 }

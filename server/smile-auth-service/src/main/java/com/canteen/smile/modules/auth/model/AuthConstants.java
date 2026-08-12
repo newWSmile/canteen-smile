@@ -42,6 +42,9 @@ public final class AuthConstants {
     /** Token Session 中的当前应用编码属性名。 */
     public static final String TOKEN_APP_CODE_ATTRIBUTE = "appCode";
 
+    /** Token Session 中的业务设备会话 ID 属性名。 */
+    public static final String TOKEN_BUSINESS_SESSION_ID_ATTRIBUTE = "businessSessionId";
+
     /** 恢复码二次验证登录方式。 */
     public static final String RECOVERY_CODE_LOGIN_METHOD = "RECOVERY_CODE";
 
