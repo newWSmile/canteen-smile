@@ -177,6 +177,8 @@ public class AuditOperationAspect {
                 expression(operation.maskedMobile(), method, arguments, result, error, actor),
                 expression(operation.loginMethod(), method, arguments, result, error, actor),
                 expression(operation.deviceSummary(), method, arguments, result, error, actor),
+                null,
+                null,
                 actor
         );
     }

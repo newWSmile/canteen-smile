@@ -115,7 +115,7 @@ class AuditLogQueryServiceTest {
                 "101", "2", "TENANT_ACCOUNT", "9", "audit_user", "审计用户",
                 "TENANT_ACCOUNT", "9", "audit_user", "审计用户",
                 "auth:login:password", "用户名密码登录", "SUCCESS", "PASSWORD", null,
-                "138****0000", "Web / Chrome", "trace-1", occurredTime,
+                "138****0000", "Web / Chrome", "192.168.0.64", "trace-1", occurredTime,
                 "TENANT_ADMIN", List.of("租户端", "账号安全"),
                 null, null, null, null, null, 12L
         );
@@ -136,6 +136,7 @@ class AuditLogQueryServiceTest {
             assertThat(item.targetCode()).isEqualTo("audit_user");
             assertThat(item.loginMethodName()).isEqualTo("用户名密码");
             assertThat(item.actionCode()).isEqualTo("auth:login:password");
+            assertThat(item.ipAddress()).isEqualTo("192.168.0.64");
             assertThat(item.traceId()).isEqualTo("trace-1");
             assertThat(item.appCode()).isEqualTo("TENANT_ADMIN");
             assertThat(item.categoryPath()).containsExactly("租户端", "账号安全");

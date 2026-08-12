@@ -31,6 +31,8 @@ class SecurityEventServiceTest {
                 .thenReturn(1);
         when(mapper.insertSecurityAudit(2L, 9L, "audit_user", "审计用户",
                 "auth:session:invalidate:ACCOUNT_ROLES_CHANGED", "用户角色变化，强制会话失效",
+                "192.168.0.64", com.canteen.smile.infrastructure.security.HmacRequestSigner.sha256Hex(
+                        "192.168.0.64".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
                 request.traceId())).thenReturn(1);
         SecurityEventService service = new SecurityEventService(mapper, invalidator, objectMapper);
 
@@ -89,7 +91,8 @@ class SecurityEventServiceTest {
                 .put("accountId", "9")
                 .put("actionNameSnapshot", "用户角色变化，强制会话失效")
                 .put("usernameSnapshot", "audit_user")
-                .put("displayNameSnapshot", "审计用户");
+                .put("displayNameSnapshot", "审计用户")
+                .put("ipAddress", "192.168.0.64");
         return new SecurityEventRequest(
                 "event-1", "ACCOUNT_ROLES_CHANGED", "TENANT_ACCOUNT", "9", "2",
                 OffsetDateTime.now(), 1, "trace-1", payload

@@ -52,6 +52,8 @@ public class IamAsyncAuditWriter {
         entity.setReason(event.reason());
         entity.setResult(event.result());
         entity.setFailureReasonCode(event.failureReasonCode());
+        entity.setIpAddress(event.ipAddress());
+        entity.setIpHash(event.ipHash());
         entity.setTraceId(event.traceId());
         entity.setOccurredTime(event.occurredTime());
         entity.setDurationMs(event.durationMs());
@@ -69,4 +71,3 @@ public class IamAsyncAuditWriter {
         }
     }
 }
-

@@ -102,7 +102,8 @@ public interface RoleMapper {
                                       @Param("tenantId") long tenantId,
                                       @Param("organizationId") long organizationId,
                                       @Param("roleId") long roleId,
-                                      @Param("operatorId") long operatorId);
+                                      @Param("operatorId") long operatorId,
+                                      @Param("ipAddress") String ipAddress);
     /** @return 普通租户账号当前有效权限码 */
     List<String> selectEffectivePermissionCodes(@Param("tenantId") long tenantId,
                                                 @Param("accountId") long accountId);

@@ -87,7 +87,7 @@ onMounted(load)
         <el-table-column label="登录方式" min-width="130">
           <template #default="{ row }">{{ loginMethodName(row.loginMethod) }}</template>
         </el-table-column>
-        <el-table-column label="登录 IP" min-width="120" prop="loginIpMasked" />
+        <el-table-column label="登录 IP" min-width="140" prop="loginIpAddress" />
         <el-table-column label="登录时间" min-width="180">
           <template #default="{ row }">{{ formatTime(row.loginTime) }}</template>
         </el-table-column>

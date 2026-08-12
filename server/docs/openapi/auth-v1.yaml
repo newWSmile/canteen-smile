@@ -834,14 +834,14 @@ components:
     DeviceSession:
       type: object
       additionalProperties: false
-      required: [sessionId, appCode, deviceType, deviceName, loginMethod, loginIpMasked, loginTime, lastActiveTime, idleExpiresAt, absoluteExpiresAt, current, version]
+      required: [sessionId, appCode, deviceType, deviceName, loginMethod, loginIpAddress, loginTime, lastActiveTime, idleExpiresAt, absoluteExpiresAt, current, version]
       properties:
         sessionId: {type: string, format: uuid}
         appCode: {type: string, enum: [TENANT_ADMIN, TENANT_PORTAL]}
         deviceType: {type: string}
         deviceName: {type: string}
         loginMethod: {type: string, enum: [PASSWORD, SMS]}
-        loginIpMasked: {type: string, description: 脱敏登录 IP 快照。}
+        loginIpAddress: {type: string, description: 由网关确认的完整登录客户端 IP，仅向当前账号本人返回。}
         loginTime: {type: string, format: date-time}
         lastActiveTime: {type: string, format: date-time}
         idleExpiresAt: {type: string, format: date-time}

@@ -59,6 +59,7 @@ public record AuditLogVO(
         String failureReason,
         String maskedMobile,
         String deviceSummary,
+        String ipAddress,
         String traceId,
         OffsetDateTime occurredTime,
         String appCode,

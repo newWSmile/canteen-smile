@@ -25,5 +25,6 @@ public interface TenantSecurityPolicyMapper {
     /** @return 为租户账号批量生成会话失效事件的行数。 */
     int insertSecurityPolicyChangedEvents(@Param("tenantId") long tenantId,
                                           @Param("securityVersion") long securityVersion,
-                                          @Param("operatorId") long operatorId);
+                                          @Param("operatorId") long operatorId,
+                                          @Param("ipAddress") String ipAddress);
 }

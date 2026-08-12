@@ -60,6 +60,8 @@ public class AuthAsyncAuditWriter {
         entity.setMaskedMobile(event.maskedMobile());
         entity.setLoginMethod(event.loginMethod());
         entity.setDeviceSummary(limit(event.deviceSummary(), 256));
+        entity.setIpAddress(limit(event.ipAddress(), 128));
+        entity.setIpHash(limit(event.ipHash(), 64));
         entity.setTraceId(event.traceId());
         entity.setOccurredTime(event.occurredTime());
         entity.setDurationMs(event.durationMs());

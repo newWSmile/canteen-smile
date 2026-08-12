@@ -17,7 +17,7 @@
         <result property="deviceType" column="device_type"/>
         <result property="deviceName" column="device_name"/>
         <result property="loginMethod" column="login_method"/>
-        <result property="loginIpMasked" column="login_ip_masked"/>
+        <result property="loginIpAddress" column="login_ip_address"/>
         <result property="loginTime" column="login_time"/>
         <result property="lastActiveTime" column="last_active_time"/>
         <result property="idleExpiresAt" column="idle_expires_at"/>
@@ -44,7 +44,7 @@
             device_type,
             device_name,
             login_method,
-            login_ip_masked,
+            login_ip_address,
             login_time,
             last_active_time,
             idle_expires_at,
@@ -65,7 +65,7 @@
             #{deviceType},
             #{deviceName},
             #{loginMethod},
-            #{loginIpMasked},
+            #{loginIpAddress},
             #{loginTime},
             #{lastActiveTime},
             #{idleExpiresAt},
@@ -91,7 +91,7 @@
             device_type,
             device_name,
             login_method,
-            login_ip_masked,
+            login_ip_address,
             login_time,
             last_active_time,
             idle_expires_at,
@@ -175,7 +175,7 @@
 
     <select id="selectActiveByTenantAccount" resultMap="deviceSessionResultMap">
         SELECT id, session_id, subject_type, subject_id, tenant_id, organization_id, app_code,
-               token_digest, device_id_hash, device_type, device_name, login_method, login_ip_masked,
+               token_digest, device_id_hash, device_type, device_name, login_method, login_ip_address,
                login_time, last_active_time, idle_expires_at, absolute_expires_at,
                status, snapshot_version, version
         FROM public.auth_device_session
@@ -186,7 +186,7 @@
 
     <select id="selectOwnedActiveSession" resultMap="deviceSessionResultMap">
         SELECT id, session_id, subject_type, subject_id, tenant_id, organization_id, app_code,
-               token_digest, device_id_hash, device_type, device_name, login_method, login_ip_masked,
+               token_digest, device_id_hash, device_type, device_name, login_method, login_ip_address,
                login_time, last_active_time, idle_expires_at, absolute_expires_at,
                status, snapshot_version, version
         FROM public.auth_device_session

@@ -87,6 +87,12 @@ public class AuthAsyncAuditEntity {
     /** 可选脱敏设备摘要。 */
     private String deviceSummary;
 
+    /** 登录或安全操作发生时的完整客户端 IP。 */
+    private String ipAddress;
+
+    /** 登录或安全操作来源 IP 的不可逆摘要。 */
+    private String ipHash;
+
     /** 请求链路 ID。 */
     private String traceId;
 

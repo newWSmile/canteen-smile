@@ -34,6 +34,9 @@ public class TenantSessionService {
     /** 无登录态认证流程使用的编程式审计记录器。 */
     private final AuditRecorder auditRecorder;
 
+    /** 客户端 IP 脱敏与摘要服务。 */
+    private final ClientIpService clientIpService;
+
     /** @param context 已验证租户会话上下文 @param loginIp 登录 IP @return 新设备会话 */
     public SessionVO createPasswordSession(TenantSessionContext context, String loginIp) {
         return createWithAudit(
@@ -66,7 +69,7 @@ public class TenantSessionService {
     ) {
         long startedNanos = System.nanoTime();
         AuditRecordCommand command = tenantLoginAudit(
-                context, loginMethod, actionCode, actionName
+                context, loginMethod, actionCode, actionName, loginIp
         );
         try {
             SessionVO session = create(context, loginIp, loginMethod);
@@ -83,7 +86,8 @@ public class TenantSessionService {
             TenantSessionContext context,
             String loginMethod,
             String actionCode,
-            String actionName
+            String actionName,
+            String loginIp
     ) {
         String displayName = context.displayName() == null
                 ? context.username() : context.displayName();
@@ -98,6 +102,8 @@ public class TenantSessionService {
                 .targetCode(context.username())
                 .loginMethod(loginMethod)
                 .deviceSummary(deviceSummary(context.deviceType(), context.deviceName()))
+                .ipAddress(loginIp)
+                .ipHash(clientIpService.hash(loginIp))
                 .actor(new AuditActor(
                         context.tenantId(),
                         AuthConstants.TENANT_ACCOUNT_SUBJECT,
@@ -217,7 +223,7 @@ public class TenantSessionService {
         entity.setDeviceType(context.deviceType());
         entity.setDeviceName(context.deviceName());
         entity.setLoginMethod(loginMethod);
-        entity.setLoginIpMasked(maskIp(loginIp));
+        entity.setLoginIpAddress(loginIp);
         entity.setLoginTime(now);
         entity.setLastActiveTime(now);
         entity.setIdleExpiresAt(idleExpiresAt);
@@ -232,13 +238,4 @@ public class TenantSessionService {
         return HmacRequestSigner.sha256Hex(value.getBytes(StandardCharsets.UTF_8));
     }
 
-    /** @param ipAddress 原始 IP @return 脱敏 IP */
-    private String maskIp(String ipAddress) {
-        if (ipAddress == null || ipAddress.isBlank()) return null;
-        if (ipAddress.contains(".")) return ipAddress.replaceFirst("\\d+$", "*");
-        String[] segments = ipAddress.split(":", -1);
-        return segments.length > 4
-                ? String.join(":", segments[0], segments[1], segments[2], segments[3]) + ":*"
-                : "*";
-    }
 }

@@ -14,6 +14,7 @@ import com.canteen.smile.modules.auth.vo.MobileBindingStatusVO;
 import com.canteen.smile.modules.auth.vo.ReauthTicketVO;
 import com.canteen.smile.modules.sms.vo.SmsChallengeVO;
 import jakarta.servlet.http.HttpServletRequest;
+import com.canteen.smile.modules.auth.service.ClientIpService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,6 +30,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 public class MobileBindingController {
+
+    /** 网关可信客户端 IP 解析服务。 */
+    private final ClientIpService clientIpService;
 
     /** 手机号绑定业务编排服务。 */
     private final MobileBindingService mobileBindingService;
@@ -54,7 +58,7 @@ public class MobileBindingController {
     ) {
         return ApiResponse.success(mobileBindingService.createChallenge(
                 request,
-                servletRequest.getRemoteAddr()
+                clientIpService.resolve(servletRequest)
         ));
     }
 
@@ -80,7 +84,7 @@ public class MobileBindingController {
             HttpServletRequest servletRequest
     ) {
         return ApiResponse.success(mobileBindingService.createCurrentMobileChallenge(
-                request, servletRequest.getRemoteAddr()
+                request, clientIpService.resolve(servletRequest)
         ));
     }
 
@@ -106,7 +110,7 @@ public class MobileBindingController {
             HttpServletRequest servletRequest
     ) {
         return ApiResponse.success(mobileBindingService.createChangeChallenge(
-                request, servletRequest.getRemoteAddr()
+                request, clientIpService.resolve(servletRequest)
         ));
     }
 

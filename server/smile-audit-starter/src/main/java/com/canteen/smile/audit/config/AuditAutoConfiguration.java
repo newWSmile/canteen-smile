@@ -5,7 +5,9 @@ import com.canteen.smile.audit.expression.AuditExpressionEvaluator;
 import com.canteen.smile.audit.model.AuditActor;
 import com.canteen.smile.audit.service.AuditRecorder;
 import com.canteen.smile.audit.spi.AuditActorResolver;
+import com.canteen.smile.audit.spi.AuditClientIpResolver;
 import com.canteen.smile.audit.spi.AuditEventPublisher;
+import com.canteen.smile.audit.support.ServletAuditClientIpResolver;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.ApplicationEventPublisher;
@@ -38,11 +40,21 @@ public class AuditAutoConfiguration {
         return applicationEventPublisher::publishEvent;
     }
 
-    /** @param eventPublisher 审计事件发布边界 @return 注解与编程式入口共用的事件记录器 */
+    /** @return 从当前 Servlet 请求读取由网关确认的完整客户端 IP */
+    @Bean
+    @ConditionalOnMissingBean(AuditClientIpResolver.class)
+    public AuditClientIpResolver servletAuditClientIpResolver() {
+        return new ServletAuditClientIpResolver();
+    }
+
+    /** @param eventPublisher 审计事件发布边界 @param clientIpResolver 客户端 IP 解析器 @return 注解与编程式入口共用的事件记录器 */
     @Bean
     @ConditionalOnMissingBean
-    public AuditRecorder auditRecorder(AuditEventPublisher eventPublisher) {
-        return new AuditRecorder(eventPublisher);
+    public AuditRecorder auditRecorder(
+            AuditEventPublisher eventPublisher,
+            AuditClientIpResolver clientIpResolver
+    ) {
+        return new AuditRecorder(eventPublisher, clientIpResolver);
     }
 
     /** @return 审计 Service 方法的统一切面 */

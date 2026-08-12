@@ -18,7 +18,7 @@ class AuditRecorderTest {
     @Test
     void shouldRecordTrustedActorForProgrammaticLogin() {
         List<AuditEvent> events = new ArrayList<>();
-        AuditRecorder recorder = new AuditRecorder(events::add);
+        AuditRecorder recorder = new AuditRecorder(events::add, () -> "192.168.0.64");
         AuditActor actor = new AuditActor(
                 2L, "TENANT_ACCOUNT", 9L, 12L,
                 "login_user", "登录用户", "TENANT_ADMIN"
@@ -45,6 +45,8 @@ class AuditRecorderTest {
             assertThat(event.targetId()).isEqualTo("9");
             assertThat(event.loginMethod()).isEqualTo("SMS");
             assertThat(event.deviceSummary()).isEqualTo("WEB / Chrome");
+            assertThat(event.ipAddress()).isEqualTo("192.168.0.64");
+            assertThat(event.ipHash()).hasSize(64);
             assertThat(event.durationMs()).isGreaterThanOrEqualTo(0L);
         });
     }

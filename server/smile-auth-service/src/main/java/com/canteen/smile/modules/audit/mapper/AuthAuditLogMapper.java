@@ -45,6 +45,7 @@ public interface AuthAuditLogMapper {
      * @param failureReasonCode 失败原因码
      * @param maskedMobile 脱敏手机号
      * @param deviceSummary 脱敏设备摘要
+     * @param ipAddress 完整客户端 IP
      * @param traceId 链路 ID
      * @param occurredTime 事件发生时间
      * @param appCodeSnapshot 操作人所在应用端编码快照
@@ -74,6 +75,7 @@ public interface AuthAuditLogMapper {
             String failureReasonCode,
             String maskedMobile,
             String deviceSummary,
+            String ipAddress,
             String traceId,
             OffsetDateTime occurredTime,
             String appCodeSnapshot,

@@ -24,6 +24,8 @@
         <result property="reason" column="reason"/>
         <result property="result" column="result"/>
         <result property="failureReasonCode" column="failure_reason_code"/>
+        <result property="ipAddress" column="ip_address"/>
+        <result property="ipHash" column="ip_hash"/>
         <result property="durationMs" column="duration_ms"/>
         <result property="traceId" column="trace_id"/>
         <result property="occurredTime" column="occurred_time"/>
@@ -77,6 +79,8 @@
             target_code_snapshot,
             reason,
             result,
+            ip_address,
+            ip_hash,
             trace_id,
             created_by,
             updated_by
@@ -136,6 +140,8 @@
             END,
             #{reason},
             #{result},
+            #{ipAddress},
+            #{ipHash},
             #{traceId},
             #{createdBy},
             #{updatedBy}
@@ -149,7 +155,7 @@
             operator_username_snapshot, operator_display_name_snapshot,
             operator_organization_id, action_code, action_name_snapshot,
             target_type, target_id, target_name_snapshot, target_code_snapshot,
-            reason, result, failure_reason_code, trace_id,
+            reason, result, failure_reason_code, ip_address, ip_hash, trace_id,
             occurred_time, duration_ms, created_by, updated_by
         ) VALUES (
             #{eventId}, #{schemaVersion}, #{sourceCode}, CAST(#{categoryPathJson} AS jsonb), #{appCodeSnapshot},
@@ -157,7 +163,7 @@
             #{operatorUsernameSnapshot}, #{operatorDisplayNameSnapshot},
             #{operatorOrganizationId}, #{actionCode}, #{actionNameSnapshot},
             #{targetType}, #{targetId}, #{targetNameSnapshot}, #{targetCodeSnapshot},
-            #{reason}, #{result}, #{failureReasonCode}, #{traceId},
+            #{reason}, #{result}, #{failureReasonCode}, #{ipAddress}, #{ipHash}, #{traceId},
             #{occurredTime}, #{durationMs}, #{createdBy}, #{updatedBy}
         )
         ON CONFLICT DO NOTHING
@@ -176,7 +182,7 @@
                operator_username_snapshot, operator_display_name_snapshot, operator_organization_id,
                action_code, action_name_snapshot, target_type, target_id,
                target_name_snapshot, target_code_snapshot,
-               reason, result, failure_reason_code, trace_id,
+               reason, result, failure_reason_code, ip_address, ip_hash, trace_id,
                occurred_time, duration_ms, created_time
         FROM public.iam_audit_log
         WHERE <include refid="auditScopeAndFilters"/>

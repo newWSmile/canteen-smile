@@ -1,5 +1,6 @@
 package com.canteen.smile.modules.tenant.service;
 
+import com.canteen.smile.audit.spi.AuditClientIpResolver;
 import com.canteen.smile.common.exception.BusinessException;
 import com.canteen.smile.modules.account.service.TenantActorContext;
 import com.canteen.smile.modules.tenant.dto.UpdateTenantSecurityPolicyRequest;
@@ -16,6 +17,8 @@ public class TenantSecurityPolicyCommandService {
 
     /** 租户安全策略数据访问接口。 */
     private final TenantSecurityPolicyMapper mapper;
+    /** 当前受信任客户端 IP 解析器。 */
+    private final AuditClientIpResolver clientIpResolver;
 
     /**
      * 修改策略；只有收紧策略时才提升安全版本并使已有会话失效。
@@ -43,7 +46,8 @@ public class TenantSecurityPolicyCommandService {
             if (securityVersion == null) {
                 throw new IllegalStateException("Tenant security version is unavailable");
             }
-            mapper.insertSecurityPolicyChangedEvents(actor.tenantId(), securityVersion, actor.accountId());
+            mapper.insertSecurityPolicyChangedEvents(
+                    actor.tenantId(), securityVersion, actor.accountId(), clientIpResolver.resolve());
         }
         return requirePolicy(actor.tenantId());
     }

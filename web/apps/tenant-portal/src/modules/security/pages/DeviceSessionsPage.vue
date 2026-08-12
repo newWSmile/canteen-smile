@@ -61,7 +61,7 @@ onMounted(load)
     <div class="panel" v-loading="loading">
       <el-table :data="items" empty-text="暂无有效设备会话">
         <el-table-column label="设备" min-width="200"><template #default="{ row }"><strong>{{ row.deviceName || row.deviceType }}</strong><small>{{ appName(row.appCode) }}</small></template></el-table-column>
-        <el-table-column label="登录 IP" min-width="120" prop="loginIpMasked" />
+        <el-table-column label="登录 IP" min-width="140" prop="loginIpAddress" />
         <el-table-column label="登录时间" min-width="180"><template #default="{ row }">{{ time(row.loginTime) }}</template></el-table-column>
         <el-table-column label="最近活动" min-width="180"><template #default="{ row }">{{ time(row.lastActiveTime) }}</template></el-table-column>
         <el-table-column label="状态" width="100"><template #default="{ row }"><el-tag :type="row.current ? 'success' : 'info'">{{ row.current ? '当前设备' : '在线' }}</el-tag></template></el-table-column>

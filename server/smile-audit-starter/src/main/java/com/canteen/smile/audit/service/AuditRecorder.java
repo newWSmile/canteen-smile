@@ -4,6 +4,7 @@ import com.canteen.smile.audit.model.AuditActor;
 import com.canteen.smile.audit.model.AuditEvent;
 import com.canteen.smile.audit.model.AuditRecordCommand;
 import com.canteen.smile.audit.spi.AuditEventPublisher;
+import com.canteen.smile.audit.spi.AuditClientIpResolver;
 import com.canteen.smile.common.exception.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,10 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.OffsetDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,14 +27,26 @@ public class AuditRecorder {
     private static final Logger log = LoggerFactory.getLogger(AuditRecorder.class);
 
     /** 当前通用审计事件契约版本。 */
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
 
     /** 可替换为 Outbox 或 MQ 的审计事件发布器。 */
     private final AuditEventPublisher eventPublisher;
 
-    /** @param eventPublisher 审计事件发布边界 */
+    /** 在原业务线程中捕获客户端 IP 的解析器。 */
+    private final AuditClientIpResolver clientIpResolver;
+
+    /** @param eventPublisher 审计事件发布边界；测试或非 Web 场景默认不解析 IP */
     public AuditRecorder(AuditEventPublisher eventPublisher) {
+        this(eventPublisher, () -> null);
+    }
+
+    /** @param eventPublisher 审计事件发布边界 @param clientIpResolver 客户端 IP 解析器 */
+    public AuditRecorder(
+            AuditEventPublisher eventPublisher,
+            AuditClientIpResolver clientIpResolver
+    ) {
         this.eventPublisher = eventPublisher;
+        this.clientIpResolver = clientIpResolver;
     }
 
     /**
@@ -110,6 +127,8 @@ public class AuditRecorder {
                 .filter(value -> value != null && !value.isBlank())
                 .map(String::strip)
                 .toList();
+        String ipAddress = firstText(command.ipAddress(), resolveClientIp());
+        String ipHash = firstText(command.ipHash(), hashIp(ipAddress));
         return new AuditEvent(
                 UUID.randomUUID().toString(),
                 SCHEMA_VERSION,
@@ -127,6 +146,8 @@ public class AuditRecorder {
                 text(command.maskedMobile()),
                 text(command.loginMethod()),
                 text(command.deviceSummary()),
+                ipAddress,
+                ipHash,
                 actor,
                 MDC.get("traceId"),
                 OffsetDateTime.now(),
@@ -178,5 +199,36 @@ public class AuditRecorder {
             throw new IllegalArgumentException("Audit command " + field + " must not be blank");
         }
         return normalized;
+    }
+
+    /** @return 当前请求的完整客户端 IP，解析异常时为空且不影响业务 */
+    private String resolveClientIp() {
+        try {
+            return text(clientIpResolver.resolve());
+        } catch (RuntimeException exception) {
+            log.warn("Audit client IP resolution failed: {}", exception.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    /** @param ipAddress 完整客户端 IP @return SHA-256 小写十六进制摘要 */
+    private String hashIp(String ipAddress) {
+        if (ipAddress == null) {
+            return null;
+        }
+        try {
+            return HexFormat.of().formatHex(
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(ipAddress.getBytes(StandardCharsets.UTF_8))
+            );
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 algorithm unavailable", exception);
+        }
+    }
+
+    /** @return 第一个非空白文本 */
+    private String firstText(String primary, String fallback) {
+        String normalized = text(primary);
+        return normalized == null ? text(fallback) : normalized;
     }
 }

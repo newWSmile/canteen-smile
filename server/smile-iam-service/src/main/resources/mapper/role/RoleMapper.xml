@@ -270,7 +270,8 @@
                 'accountId', account.id::varchar,
                 'actionNameSnapshot', '角色授权变化，强制会话失效',
                 'usernameSnapshot', account.username,
-                'displayNameSnapshot', COALESCE(account.display_name, account.username)
+                'displayNameSnapshot', COALESCE(account.display_name, account.username),
+                'ipAddress', #{ipAddress}
             ),
             'PENDING', #{operatorId}, #{operatorId}
         FROM public.iam_account account

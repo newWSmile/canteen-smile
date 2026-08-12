@@ -30,6 +30,8 @@ public interface SecurityEventMapper {
                             @Param("displayNameSnapshot") String displayNameSnapshot,
                             @Param("actionCode") String actionCode,
                             @Param("actionNameSnapshot") String actionNameSnapshot,
+                            @Param("ipAddress") String ipAddress,
+                            @Param("ipHash") String ipHash,
                             @Param("traceId") String traceId);
 
     /** 已消费事件最小投影。 */

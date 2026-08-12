@@ -125,7 +125,7 @@ public class AuditLogQueryService {
                 row.getTargetNameSnapshot(), row.getTargetCodeSnapshot(), row.getResult(), row.getReason(),
                 null, null, row.getFailureReasonCode(),
                 AuditDisplayCatalog.failureReasonName(row.getFailureReasonCode()),
-                null, null, row.getTraceId(), row.getOccurredTime(),
+                null, null, row.getIpAddress(), row.getTraceId(), row.getOccurredTime(),
                 row.getAppCodeSnapshot(), categoryPath(row.getCategoryPathJson()), row.getDurationMs()
         );
     }
@@ -146,7 +146,7 @@ public class AuditLogQueryService {
                 row.result(), row.reason(),
                 row.loginMethod(), AuditDisplayCatalog.loginMethodName(row.loginMethod()),
                 row.failureReasonCode(), AuditDisplayCatalog.failureReasonName(row.failureReasonCode()),
-                row.maskedMobile(), row.deviceSummary(), row.traceId(), row.occurredTime(),
+                row.maskedMobile(), row.deviceSummary(), row.ipAddress(), row.traceId(), row.occurredTime(),
                 row.appCode(), row.categoryPath(), row.durationMs()
         )).toList();
         return new PageResult<>(items, page.pageNo(), page.pageSize(), page.total());

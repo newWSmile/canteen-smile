@@ -1,11 +1,15 @@
 package com.canteen.smile.modules.audit.service;
 
+import com.canteen.smile.audit.spi.AuditClientIpResolver;
+import com.canteen.smile.infrastructure.security.HmacRequestSigner;
 import com.canteen.smile.modules.audit.entity.IamAuditLogEntity;
 import com.canteen.smile.modules.audit.mapper.IamAuditLogMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
 
 /** IAM 只追加管理审计日志服务。 */
 @Service
@@ -14,6 +18,9 @@ public class IamAuditLogService {
 
     /** 审计日志数据访问接口。 */
     private final IamAuditLogMapper mapper;
+
+    /** 当前请求中由网关确认的完整客户端 IP 解析器。 */
+    private final AuditClientIpResolver clientIpResolver;
 
     /**
      * 记录平台身份对租户账号执行的敏感操作结果。
@@ -46,6 +53,7 @@ public class IamAuditLogService {
         entity.setTargetId(Long.toString(targetId));
         entity.setReason(reason);
         entity.setResult(result);
+        applyClientIp(entity);
         entity.setTraceId(MDC.get("traceId"));
         entity.setCreatedBy(operatorId);
         entity.setUpdatedBy(operatorId);
@@ -81,6 +89,7 @@ public class IamAuditLogService {
         entity.setTargetType(targetType);
         entity.setTargetId(targetId);
         entity.setResult(result);
+        applyClientIp(entity);
         entity.setTraceId(MDC.get("traceId"));
         entity.setCreatedBy(operatorId);
         entity.setUpdatedBy(operatorId);
@@ -119,6 +128,7 @@ public class IamAuditLogService {
         entity.setTargetId(targetId);
         entity.setReason(reason);
         entity.setResult(result);
+        applyClientIp(entity);
         entity.setTraceId(MDC.get("traceId"));
         entity.setCreatedBy(operatorId);
         entity.setUpdatedBy(operatorId);
@@ -163,6 +173,7 @@ public class IamAuditLogService {
         entity.setTargetId(targetId);
         entity.setReason(reason);
         entity.setResult(result);
+        applyClientIp(entity);
         entity.setTraceId(MDC.get("traceId"));
         entity.setCreatedBy(operatorId);
         entity.setUpdatedBy(operatorId);
@@ -177,5 +188,14 @@ public class IamAuditLogService {
             throw new IllegalArgumentException("Audit action name must not be blank");
         }
         return actionName.strip();
+    }
+
+    /** 为尚未迁移到通用注解的旧审计入口补充当前请求客户端 IP。 */
+    private void applyClientIp(IamAuditLogEntity entity) {
+        String ipAddress = clientIpResolver.resolve();
+        String normalizedIp = ipAddress == null || ipAddress.isBlank() ? null : ipAddress.strip();
+        entity.setIpAddress(normalizedIp);
+        entity.setIpHash(normalizedIp == null ? null
+                : HmacRequestSigner.sha256Hex(normalizedIp.getBytes(StandardCharsets.UTF_8)));
     }
 }

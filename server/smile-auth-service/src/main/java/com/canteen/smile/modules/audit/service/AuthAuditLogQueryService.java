@@ -94,6 +94,7 @@ public class AuthAuditLogQueryService {
                 row.failureReasonCode(),
                 row.maskedMobile(),
                 row.deviceSummary(),
+                row.ipAddress(),
                 row.traceId(),
                 row.occurredTime(),
                 row.appCodeSnapshot(),

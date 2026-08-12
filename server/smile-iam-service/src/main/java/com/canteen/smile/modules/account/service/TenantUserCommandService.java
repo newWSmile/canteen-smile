@@ -1,5 +1,6 @@
 package com.canteen.smile.modules.account.service;
 
+import com.canteen.smile.audit.spi.AuditClientIpResolver;
 import com.canteen.smile.common.exception.BusinessException;
 import com.canteen.smile.modules.account.dto.CreateTenantUserRequest;
 import com.canteen.smile.modules.account.dto.ReplaceTenantUserRolesRequest;
@@ -29,6 +30,8 @@ public class TenantUserCommandService {
     private final TenantUserMapper mapper;
     /** IAM 审计服务。 */
     private final IamAuditLogService auditLogService;
+    /** 当前受信任客户端 IP 解析器。 */
+    private final AuditClientIpResolver clientIpResolver;
 
     /** @param actor 当前操作者 @param request 创建请求 @return 跨 Auth 编排上下文 */
     @Transactional
@@ -99,7 +102,7 @@ public class TenantUserCommandService {
         mapper.deactivateAccountRoles(actor.tenantId(), actor.organizationId(), accountId, actor.accountId());
         mapper.insertAccountRoles(actor.tenantId(), actor.organizationId(), accountId, roleIds, actor.accountId());
         mapper.insertRolesChangedOutbox(mapper.nextOutboxId(), UUID.randomUUID().toString(), actor.tenantId(),
-                accountId, actor.accountId());
+                accountId, actor.accountId(), clientIpResolver.resolve());
         auditLogService.recordTenantOrganizationAction(actor.tenantId(), actor.organizationId(), actor.accountId(),
                 "iam:user:role-assign", "分配用户角色", "TENANT_ACCOUNT", Long.toString(accountId),
                 request.reason().strip(), "SUCCESS");
@@ -215,7 +218,7 @@ public class TenantUserCommandService {
             String actionNameSnapshot
     ) {
         mapper.insertAccountChangedOutbox(mapper.nextOutboxId(), UUID.randomUUID().toString(), actor.tenantId(),
-                accountId, eventType, actionNameSnapshot, actor.accountId());
+                accountId, eventType, actionNameSnapshot, actor.accountId(), clientIpResolver.resolve());
     }
 
     /** @return 统一乐观锁冲突异常 */

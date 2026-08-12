@@ -22,6 +22,12 @@ export default defineConfig(({ command, mode }) => {
         '/api': {
           target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
           changeOrigin: true,
+          configure(proxy) {
+            proxy.on('proxyReq', (proxyRequest, request) => {
+              const remoteAddress = request.socket.remoteAddress
+              if (remoteAddress) proxyRequest.setHeader('X-Forwarded-For', remoteAddress)
+            })
+          },
         },
       },
     },

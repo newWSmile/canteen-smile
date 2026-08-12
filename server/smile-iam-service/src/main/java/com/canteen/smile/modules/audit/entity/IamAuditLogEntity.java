@@ -75,6 +75,12 @@ public class IamAuditLogEntity {
     /** 可选稳定失败原因码。 */
     private String failureReasonCode;
 
+    /** 管理操作发生时由网关确认的完整客户端 IP。 */
+    private String ipAddress;
+
+    /** 客户端 IP 的不可逆摘要。 */
+    private String ipHash;
+
     /** 被审计业务方法执行耗时毫秒数。 */
     private Long durationMs;
 

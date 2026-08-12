@@ -170,7 +170,8 @@
           'tenantId',CAST(#{tenantId} AS varchar),
           'actionNameSnapshot','用户角色变化，强制会话失效',
           'usernameSnapshot',(SELECT account.username FROM public.iam_account account WHERE account.id=#{accountId}),
-          'displayNameSnapshot',(SELECT COALESCE(account.display_name, account.username) FROM public.iam_account account WHERE account.id=#{accountId})),'PENDING',#{operatorId},#{operatorId})
+          'displayNameSnapshot',(SELECT COALESCE(account.display_name, account.username) FROM public.iam_account account WHERE account.id=#{accountId}),
+          'ipAddress',#{ipAddress}),'PENDING',#{operatorId},#{operatorId})
     </insert>
     <update id="updateUserProfile">
         UPDATE public.iam_account
@@ -201,6 +202,7 @@
           'tenantId',CAST(#{tenantId} AS varchar),
           'actionNameSnapshot',#{actionNameSnapshot},
           'usernameSnapshot',(SELECT account.username FROM public.iam_account account WHERE account.id=#{accountId}),
-          'displayNameSnapshot',(SELECT COALESCE(account.display_name, account.username) FROM public.iam_account account WHERE account.id=#{accountId})),'PENDING',#{operatorId},#{operatorId})
+          'displayNameSnapshot',(SELECT COALESCE(account.display_name, account.username) FROM public.iam_account account WHERE account.id=#{accountId}),
+          'ipAddress',#{ipAddress}),'PENDING',#{operatorId},#{operatorId})
     </insert>
 </mapper>

@@ -104,6 +104,7 @@ onMounted(load)
         <el-descriptions-item v-if="selected.failureReasonCode" label="失败码"><code>{{ selected.failureReasonCode }}</code></el-descriptions-item>
         <el-descriptions-item v-if="selected.maskedMobile" label="脱敏手机号">{{ selected.maskedMobile }}</el-descriptions-item>
         <el-descriptions-item v-if="selected.deviceSummary" label="设备摘要">{{ selected.deviceSummary }}</el-descriptions-item>
+        <el-descriptions-item v-if="selected.ipAddress" label="来源 IP">{{ selected.ipAddress }}</el-descriptions-item>
         <el-descriptions-item label="链路 ID"><code>{{ selected.traceId || '—' }}</code></el-descriptions-item>
         <el-descriptions-item v-if="selected.durationMs != null" label="执行耗时">{{ selected.durationMs }} ms</el-descriptions-item>
       </el-descriptions>

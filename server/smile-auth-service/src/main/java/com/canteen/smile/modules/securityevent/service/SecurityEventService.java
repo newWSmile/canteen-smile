@@ -63,7 +63,7 @@ public class SecurityEventService {
         if (mapper.insertSecurityAudit(
                 context.tenantId(), context.accountId(), context.usernameSnapshot(), context.displayNameSnapshot(),
                 "auth:session:invalidate:" + request.eventType(), context.actionNameSnapshot(),
-                request.traceId()) != 1) {
+                context.ipAddress(), hashIp(context.ipAddress()), request.traceId()) != 1) {
             throw new IllegalStateException("Security event audit was not inserted");
         }
         return new SecurityEventResponse(request.eventId(), "SUCCESS", false);
@@ -88,7 +88,8 @@ public class SecurityEventService {
                 accountId,
                 optionalTextField(request.payload(), "usernameSnapshot", 128),
                 optionalTextField(request.payload(), "displayNameSnapshot", 128),
-                requiredTextField(request.payload(), "actionNameSnapshot", 200)
+                requiredTextField(request.payload(), "actionNameSnapshot", 200),
+                optionalTextField(request.payload(), "ipAddress", 128)
         );
     }
 
@@ -108,6 +109,11 @@ public class SecurityEventService {
         } catch (JsonProcessingException exception) {
             throw invalid("安全事件载荷无法序列化");
         }
+    }
+
+    /** @param ipAddress 原始客户端 IP @return 用于关联检索的 SHA-256 摘要。 */
+    private String hashIp(String ipAddress) {
+        return ipAddress == null ? null : HmacRequestSigner.sha256Hex(ipAddress.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     /** 读取必需的文本身份字段。 */
@@ -159,7 +165,8 @@ public class SecurityEventService {
             long accountId,
             String usernameSnapshot,
             String displayNameSnapshot,
-            String actionNameSnapshot
+            String actionNameSnapshot,
+            String ipAddress
     ) {
     }
 }

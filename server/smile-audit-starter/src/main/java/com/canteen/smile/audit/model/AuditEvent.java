@@ -22,6 +22,8 @@ import java.util.List;
  * @param maskedMobile 可选脱敏手机号
  * @param loginMethod 可选登录或再认证方式
  * @param deviceSummary 可选脱敏设备摘要
+ * @param ipAddress 完整客户端 IP；非 HTTP 系统任务可以为空
+ * @param ipHash 客户端 IP 不可逆摘要
  * @param actor 登录人不可变快照
  * @param traceId 请求链路 ID
  * @param occurredTime 业务操作实际发生时间
@@ -44,6 +46,8 @@ public record AuditEvent(
         String maskedMobile,
         String loginMethod,
         String deviceSummary,
+        String ipAddress,
+        String ipHash,
         AuditActor actor,
         String traceId,
         OffsetDateTime occurredTime,

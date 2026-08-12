@@ -10,7 +10,7 @@ import java.time.OffsetDateTime;
  * @param deviceType 设备类型
  * @param deviceName 设备名称
  * @param loginMethod 登录方式
- * @param loginIpMasked 脱敏登录 IP
+ * @param loginIpAddress 由网关确认的完整登录客户端 IP
  * @param loginTime 登录时间
  * @param lastActiveTime 最近活动时间
  * @param idleExpiresAt 空闲失效时间
@@ -24,7 +24,7 @@ public record DeviceSessionVO(
         String deviceType,
         String deviceName,
         String loginMethod,
-        String loginIpMasked,
+        String loginIpAddress,
         OffsetDateTime loginTime,
         OffsetDateTime lastActiveTime,
         OffsetDateTime idleExpiresAt,

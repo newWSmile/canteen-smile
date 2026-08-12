@@ -1,5 +1,6 @@
 package com.canteen.smile.modules.role.service;
 
+import com.canteen.smile.audit.spi.AuditClientIpResolver;
 import com.canteen.smile.common.api.PageResult;
 import com.canteen.smile.common.exception.BusinessException;
 import com.canteen.smile.modules.account.service.TenantActorContext;
@@ -43,6 +44,8 @@ public class RoleService {
     private final TenantActorService actorService;
     /** IAM 审计服务。 */
     private final IamAuditLogService auditLogService;
+    /** 当前受信任客户端 IP 解析器。 */
+    private final AuditClientIpResolver clientIpResolver;
 
     /** @param query 分页条件 @return 当前机构角色分页 */
     @Transactional(readOnly = true)
@@ -288,7 +291,8 @@ public class RoleService {
     private void authorizationChanged(TenantActorContext actor, long roleId) {
         mapper.bumpAssignedAccountAuthzVersions(actor.tenantId(), actor.organizationId(), roleId, actor.accountId());
         mapper.insertRoleAuthorizationOutbox(
-                UUID.randomUUID().toString(), actor.tenantId(), actor.organizationId(), roleId, actor.accountId()
+                UUID.randomUUID().toString(), actor.tenantId(), actor.organizationId(), roleId, actor.accountId(),
+                clientIpResolver.resolve()
         );
     }
 

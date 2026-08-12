@@ -52,6 +52,7 @@ public record AuthAuditLogInternalResponse(
         String failureReasonCode,
         String maskedMobile,
         String deviceSummary,
+        String ipAddress,
         String traceId,
         OffsetDateTime occurredTime,
         String appCode,

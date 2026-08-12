@@ -13,6 +13,7 @@ import com.canteen.smile.modules.auth.service.TenantPasswordLoginService;
 import com.canteen.smile.modules.auth.model.AuthConstants;
 import com.canteen.smile.modules.auth.service.PlatformRecoveryLoginService;
 import com.canteen.smile.modules.auth.service.TenantSmsLoginService;
+import com.canteen.smile.modules.auth.service.ClientIpService;
 import com.canteen.smile.modules.auth.vo.LoginResultVO;
 import com.canteen.smile.modules.auth.vo.SessionVO;
 import jakarta.servlet.http.HttpServletRequest;
@@ -44,6 +45,9 @@ public class LoginController {
     /** 租户手机号验证码登录与账号选择服务。 */
     private final TenantSmsLoginService tenantSmsLoginService;
 
+    /** 网关可信客户端 IP 解析服务。 */
+    private final ClientIpService clientIpService;
+
     /**
      * 校验平台用户名和密码并直接建立设备会话。
      *
@@ -65,8 +69,8 @@ public class LoginController {
                         : PasswordEnvelopePurpose.PLATFORM_PASSWORD_LOGIN
         );
         return ApiResponse.success(tenantAdmin
-                ? tenantPasswordLoginService.login(request, password, servletRequest.getRemoteAddr())
-                : platformPasswordLoginService.login(request, password, servletRequest.getRemoteAddr()));
+                ? tenantPasswordLoginService.login(request, password, clientIpService.resolve(servletRequest))
+                : platformPasswordLoginService.login(request, password, clientIpService.resolve(servletRequest)));
     }
 
     /**
@@ -81,7 +85,7 @@ public class LoginController {
             @Valid @RequestBody SmsLoginRequest request,
             HttpServletRequest servletRequest
     ) {
-        return ApiResponse.success(tenantSmsLoginService.login(request, servletRequest.getRemoteAddr()));
+        return ApiResponse.success(tenantSmsLoginService.login(request, clientIpService.resolve(servletRequest)));
     }
 
     /**
@@ -97,7 +101,7 @@ public class LoginController {
             HttpServletRequest servletRequest
     ) {
         return ApiResponse.success(tenantSmsLoginService.selectAccount(
-                request, servletRequest.getRemoteAddr()
+                request, clientIpService.resolve(servletRequest)
         ));
     }
 
@@ -113,6 +117,8 @@ public class LoginController {
             @Valid @RequestBody PlatformRecoveryLoginRequest request,
             HttpServletRequest servletRequest
     ) {
-        return ApiResponse.success(platformRecoveryLoginService.login(request, servletRequest.getRemoteAddr()));
+        return ApiResponse.success(platformRecoveryLoginService.login(
+                request, clientIpService.resolve(servletRequest)
+        ));
     }
 }

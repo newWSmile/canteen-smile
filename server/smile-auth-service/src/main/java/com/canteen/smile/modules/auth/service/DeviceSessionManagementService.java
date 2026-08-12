@@ -126,7 +126,7 @@ public class DeviceSessionManagementService {
     private DeviceSessionVO toVO(DeviceSessionEntity entity, String currentSessionId) {
         return new DeviceSessionVO(
                 entity.getSessionId(), entity.getAppCode(), entity.getDeviceType(), entity.getDeviceName(),
-                entity.getLoginMethod(), entity.getLoginIpMasked(), entity.getLoginTime(),
+                entity.getLoginMethod(), entity.getLoginIpAddress(), entity.getLoginTime(),
                 entity.getLastActiveTime(), entity.getIdleExpiresAt(), entity.getAbsoluteExpiresAt(),
                 entity.getSessionId().equals(currentSessionId), entity.getVersion()
         );

@@ -62,6 +62,9 @@ public class PlatformSessionService {
     /** 无登录态认证流程使用的编程式审计记录器。 */
     private final AuditRecorder auditRecorder;
 
+    /** 客户端 IP 脱敏与摘要服务。 */
+    private final ClientIpService clientIpService;
+
     /**
      * 为已经完成密码校验的平台身份创建独立设备会话。
      *
@@ -106,7 +109,7 @@ public class PlatformSessionService {
     ) {
         long startedNanos = System.nanoTime();
         AuditRecordCommand command = platformLoginAudit(
-                context, loginMethod, actionCode, actionName
+                context, loginMethod, actionCode, actionName, loginIp
         );
         try {
             SessionVO session = create(context, loginIp, loginMethod);
@@ -123,7 +126,8 @@ public class PlatformSessionService {
             PlatformSecondFactorContext context,
             String loginMethod,
             String actionCode,
-            String actionName
+            String actionName,
+            String loginIp
     ) {
         String displayName = context.displayName() == null
                 ? context.username() : context.displayName();
@@ -138,6 +142,8 @@ public class PlatformSessionService {
                 .targetCode(context.username())
                 .loginMethod(loginMethod)
                 .deviceSummary(deviceSummary(context.deviceType(), context.deviceName()))
+                .ipAddress(loginIp)
+                .ipHash(clientIpService.hash(loginIp))
                 .actor(new AuditActor(
                         null,
                         AuthConstants.PLATFORM_IDENTITY_SUBJECT,
@@ -311,7 +317,7 @@ public class PlatformSessionService {
         entity.setDeviceType(context.deviceType());
         entity.setDeviceName(context.deviceName());
         entity.setLoginMethod(loginMethod);
-        entity.setLoginIpMasked(maskIp(loginIp));
+        entity.setLoginIpAddress(loginIp);
         entity.setLoginTime(now);
         entity.setLastActiveTime(now);
         entity.setIdleExpiresAt(idleExpiresAt);
@@ -348,19 +354,4 @@ public class PlatformSessionService {
         return HmacRequestSigner.sha256Hex(value.getBytes(StandardCharsets.UTF_8));
     }
 
-    /** @param ipAddress 来源 IP @return 不暴露完整地址的展示值 */
-    private String maskIp(String ipAddress) {
-        if (ipAddress == null || ipAddress.isBlank()) {
-            return null;
-        }
-        if (ipAddress.contains(".")) {
-            return ipAddress.replaceFirst("\\d+$", "*");
-        }
-        /** IPv6 地址片段。 */
-        String[] segments = ipAddress.split(":", -1);
-        if (segments.length > 4) {
-            return String.join(":", segments[0], segments[1], segments[2], segments[3]) + ":*";
-        }
-        return "*";
-    }
 }

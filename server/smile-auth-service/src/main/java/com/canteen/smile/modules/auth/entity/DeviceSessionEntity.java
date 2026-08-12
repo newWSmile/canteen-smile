@@ -48,8 +48,8 @@ public class DeviceSessionEntity {
     /** 建立会话所用登录方式。 */
     private String loginMethod;
 
-    /** 脱敏登录 IP。 */
-    private String loginIpMasked;
+    /** 由网关确认的完整登录客户端 IP。 */
+    private String loginIpAddress;
 
     /** 登录时间。 */
     private OffsetDateTime loginTime;

@@ -17,6 +17,8 @@ import java.util.List;
  * @param maskedMobile 可选脱敏手机号
  * @param loginMethod 可选登录或再认证方式
  * @param deviceSummary 可选脱敏设备摘要
+ * @param ipAddress 可选完整客户端 IP；未提供时由审计基础设施从当前 HTTP 请求捕获
+ * @param ipHash 可选客户端 IP 不可逆摘要
  * @param actor 后端已确认的操作人不可变快照
  */
 public record AuditRecordCommand(
@@ -32,6 +34,8 @@ public record AuditRecordCommand(
         String maskedMobile,
         String loginMethod,
         String deviceSummary,
+        String ipAddress,
+        String ipHash,
         AuditActor actor
 ) {
 
@@ -78,6 +82,12 @@ public record AuditRecordCommand(
 
         /** 可选脱敏设备摘要。 */
         private String deviceSummary;
+
+        /** 可选完整客户端 IP。 */
+        private String ipAddress;
+
+        /** 可选客户端 IP 不可逆摘要。 */
+        private String ipHash;
 
         /** 后端已确认的操作人快照。 */
         private AuditActor actor;
@@ -159,6 +169,18 @@ public record AuditRecordCommand(
             return this;
         }
 
+        /** @param value 完整客户端 IP @return 当前构建器 */
+        public Builder ipAddress(String value) {
+            this.ipAddress = value;
+            return this;
+        }
+
+        /** @param value 客户端 IP 不可逆摘要 @return 当前构建器 */
+        public Builder ipHash(String value) {
+            this.ipHash = value;
+            return this;
+        }
+
         /** @param value 后端已确认的操作人快照 @return 当前构建器 */
         public Builder actor(AuditActor value) {
             this.actor = value;
@@ -180,6 +202,8 @@ public record AuditRecordCommand(
                     maskedMobile,
                     loginMethod,
                     deviceSummary,
+                    ipAddress,
+                    ipHash,
                     actor
             );
         }

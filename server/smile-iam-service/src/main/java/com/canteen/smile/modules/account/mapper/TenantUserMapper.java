@@ -75,7 +75,8 @@ public interface TenantUserMapper {
     /** 写入用户角色变化事件。 */
     int insertRolesChangedOutbox(@Param("outboxId") long outboxId, @Param("eventId") String eventId,
                                  @Param("tenantId") long tenantId, @Param("accountId") long accountId,
-                                 @Param("operatorId") long operatorId);
+                                 @Param("operatorId") long operatorId,
+                                 @Param("ipAddress") String ipAddress);
     /** 修改用户显示资料和有效期。 */
     int updateUserProfile(@Param("tenantId") long tenantId, @Param("organizationId") long organizationId,
                           @Param("accountId") long accountId, @Param("displayName") String displayName,
@@ -97,7 +98,8 @@ public interface TenantUserMapper {
                                    @Param("tenantId") long tenantId, @Param("accountId") long accountId,
                                    @Param("eventType") String eventType,
                                    @Param("actionNameSnapshot") String actionNameSnapshot,
-                                   @Param("operatorId") long operatorId);
+                                   @Param("operatorId") long operatorId,
+                                   @Param("ipAddress") String ipAddress);
 
     /** 用户分页投影。 */
     record UserRow(long id, String username, String displayName, String employeeNumber,

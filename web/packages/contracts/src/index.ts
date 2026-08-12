@@ -49,6 +49,7 @@ export interface AuditLog {
   failureReason: string | null
   maskedMobile: string | null
   deviceSummary: string | null
+  ipAddress: string | null
   traceId: string | null
   occurredTime: string
   appCode: string | null
@@ -63,7 +64,7 @@ export interface DeviceSession {
   deviceType: string
   deviceName: string | null
   loginMethod: 'PASSWORD' | 'SMS' | string
-  loginIpMasked: string | null
+  loginIpAddress: string | null
   loginTime: string
   lastActiveTime: string
   idleExpiresAt: string

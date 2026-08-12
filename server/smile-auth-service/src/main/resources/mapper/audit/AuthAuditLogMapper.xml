@@ -10,7 +10,7 @@
             operator_username_snapshot, operator_display_name_snapshot,
             action_code, action_name_snapshot, target_type, target_id,
             target_name_snapshot, target_code_snapshot, reason,
-            result, failure_reason_code, masked_mobile, login_method, device_summary, trace_id,
+            result, failure_reason_code, masked_mobile, login_method, device_summary, ip_address, ip_hash, trace_id,
             occurred_time, duration_ms, created_by, updated_by
         ) VALUES (
             #{eventId}, #{schemaVersion}, #{sourceCode}, CAST(#{categoryPathJson} AS jsonb), #{appCodeSnapshot},
@@ -19,7 +19,7 @@
             #{operatorUsernameSnapshot}, #{operatorDisplayNameSnapshot},
             #{actionCode}, #{actionNameSnapshot}, #{targetType}, #{targetId},
             #{targetNameSnapshot}, #{targetCodeSnapshot}, #{reason},
-            #{result}, #{failureReasonCode}, #{maskedMobile}, #{loginMethod}, #{deviceSummary}, #{traceId},
+            #{result}, #{failureReasonCode}, #{maskedMobile}, #{loginMethod}, #{deviceSummary}, #{ipAddress}, #{ipHash}, #{traceId},
             #{occurredTime}, #{durationMs}, #{operatorId}, #{operatorId}
         )
         ON CONFLICT DO NOTHING
@@ -69,7 +69,7 @@
                subject_username_snapshot, subject_display_name_snapshot,
                operator_type, operator_id, operator_username_snapshot, operator_display_name_snapshot,
                action_code, action_name_snapshot, result, login_method, failure_reason_code, masked_mobile,
-               device_summary, trace_id, occurred_time,
+               device_summary, ip_address, trace_id, occurred_time,
                app_code_snapshot, category_path_snapshot::text AS category_path_json,
                target_type, target_id, target_name_snapshot, target_code_snapshot,
                reason, duration_ms

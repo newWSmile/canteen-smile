@@ -6,6 +6,7 @@ import com.canteen.smile.modules.sms.dto.SmsChallengeCreateRequest;
 import com.canteen.smile.modules.sms.service.SmsChallengeService;
 import com.canteen.smile.modules.sms.vo.SmsChallengeVO;
 import jakarta.servlet.http.HttpServletRequest;
+import com.canteen.smile.modules.auth.service.ClientIpService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 public class SmsChallengeController {
+
+    /** 网关可信客户端 IP 解析服务。 */
+    private final ClientIpService clientIpService;
 
     /** 短信挑战创建和一次性校验服务。 */
     private final SmsChallengeService smsChallengeService;
@@ -37,6 +41,8 @@ public class SmsChallengeController {
             @Valid @RequestBody SmsChallengeCreateRequest request,
             HttpServletRequest servletRequest
     ) {
-        return ApiResponse.success(smsChallengeService.create(request, servletRequest.getRemoteAddr()));
+        return ApiResponse.success(smsChallengeService.create(
+                request, clientIpService.resolve(servletRequest)
+        ));
     }
 }
