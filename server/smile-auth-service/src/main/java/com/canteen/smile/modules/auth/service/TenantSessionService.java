@@ -5,7 +5,9 @@ import cn.dev33.satoken.stp.SaTokenInfo;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.parameter.SaLoginParameter;
 import cn.dev33.satoken.stp.parameter.enums.SaReplacedRange;
-import com.canteen.smile.audit.annotation.AuditOperation;
+import com.canteen.smile.audit.model.AuditActor;
+import com.canteen.smile.audit.model.AuditRecordCommand;
+import com.canteen.smile.audit.service.AuditRecorder;
 import com.canteen.smile.infrastructure.security.HmacRequestSigner;
 import com.canteen.smile.modules.auth.entity.DeviceSessionEntity;
 import com.canteen.smile.modules.auth.model.AuthConstants;
@@ -25,52 +27,89 @@ public class TenantSessionService {
     /** 设备会话持久化事务服务。 */
     private final DeviceSessionPersistenceService persistenceService;
 
+    /** 无登录态认证流程使用的编程式审计记录器。 */
+    private final AuditRecorder auditRecorder;
+
     /** @param context 已验证租户会话上下文 @param loginIp 登录 IP @return 新设备会话 */
-    @AuditOperation(
-            source = "AUTH",
-            categoryPath = {"租户端", "认证安全", "登录"},
-            actionCode = "auth:login:password",
-            actionName = "用户名密码登录",
-            targetType = "TENANT_ACCOUNT",
-            targetId = "#context.accountId",
-            targetName = "#context.displayName ?: #context.username",
-            targetCode = "#context.username",
-            loginMethod = "PASSWORD",
-            deviceSummary = "#context.deviceType + (#context.deviceName == null ? '' : ' / ' + #context.deviceName)",
-            actorType = "TENANT_ACCOUNT",
-            actorId = "#context.accountId",
-            actorTenantId = "#context.tenantId",
-            actorOrganizationId = "#context.organizationId",
-            actorUsername = "#context.username",
-            actorDisplayName = "#context.displayName ?: #context.username",
-            actorAppCode = "#context.appCode"
-    )
     public SessionVO createPasswordSession(TenantSessionContext context, String loginIp) {
-        return create(context, loginIp, AuthConstants.PASSWORD_LOGIN_METHOD);
+        return createWithAudit(
+                context,
+                loginIp,
+                AuthConstants.PASSWORD_LOGIN_METHOD,
+                "auth:login:password",
+                "用户名密码登录"
+        );
     }
 
     /** @param context 已验证租户会话上下文 @param loginIp 登录 IP @return 短信登录设备会话 */
-    @AuditOperation(
-            source = "AUTH",
-            categoryPath = {"租户端", "认证安全", "登录"},
-            actionCode = "auth:login:sms",
-            actionName = "手机号验证码登录",
-            targetType = "TENANT_ACCOUNT",
-            targetId = "#context.accountId",
-            targetName = "#context.displayName ?: #context.username",
-            targetCode = "#context.username",
-            loginMethod = "SMS",
-            deviceSummary = "#context.deviceType + (#context.deviceName == null ? '' : ' / ' + #context.deviceName)",
-            actorType = "TENANT_ACCOUNT",
-            actorId = "#context.accountId",
-            actorTenantId = "#context.tenantId",
-            actorOrganizationId = "#context.organizationId",
-            actorUsername = "#context.username",
-            actorDisplayName = "#context.displayName ?: #context.username",
-            actorAppCode = "#context.appCode"
-    )
     public SessionVO createSmsSession(TenantSessionContext context, String loginIp) {
-        return create(context, loginIp, AuthConstants.SMS_LOGIN_METHOD);
+        return createWithAudit(
+                context,
+                loginIp,
+                AuthConstants.SMS_LOGIN_METHOD,
+                "auth:login:sms",
+                "手机号验证码登录"
+        );
+    }
+
+    /** @return 创建会话并以已验证身份上下文记录成功或失败审计 */
+    private SessionVO createWithAudit(
+            TenantSessionContext context,
+            String loginIp,
+            String loginMethod,
+            String actionCode,
+            String actionName
+    ) {
+        long startedNanos = System.nanoTime();
+        AuditRecordCommand command = tenantLoginAudit(
+                context, loginMethod, actionCode, actionName
+        );
+        try {
+            SessionVO session = create(context, loginIp, loginMethod);
+            auditRecorder.recordSuccess(command, startedNanos);
+            return session;
+        } catch (RuntimeException exception) {
+            auditRecorder.recordFailure(command, exception, startedNanos);
+            throw exception;
+        }
+    }
+
+    /** @return 只使用后端已验证租户身份构造的登录审计声明 */
+    private AuditRecordCommand tenantLoginAudit(
+            TenantSessionContext context,
+            String loginMethod,
+            String actionCode,
+            String actionName
+    ) {
+        String displayName = context.displayName() == null
+                ? context.username() : context.displayName();
+        return AuditRecordCommand.builder()
+                .source("AUTH")
+                .categoryPath("租户端", "认证安全", "登录")
+                .actionCode(actionCode)
+                .actionName(actionName)
+                .targetType(AuthConstants.TENANT_ACCOUNT_SUBJECT)
+                .targetId(context.accountId())
+                .targetName(displayName)
+                .targetCode(context.username())
+                .loginMethod(loginMethod)
+                .deviceSummary(deviceSummary(context.deviceType(), context.deviceName()))
+                .actor(new AuditActor(
+                        context.tenantId(),
+                        AuthConstants.TENANT_ACCOUNT_SUBJECT,
+                        context.accountId(),
+                        context.organizationId(),
+                        context.username(),
+                        displayName,
+                        context.appCode()
+                ))
+                .build();
+    }
+
+    /** @return 不包含设备标识的脱敏设备类型和名称摘要 */
+    private String deviceSummary(String deviceType, String deviceName) {
+        return deviceName == null || deviceName.isBlank()
+                ? deviceType : deviceType + " / " + deviceName;
     }
 
     /** @return 按指定认证方式创建并持久化的租户设备会话 */

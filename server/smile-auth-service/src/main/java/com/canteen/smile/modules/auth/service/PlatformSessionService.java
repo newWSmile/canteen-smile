@@ -5,7 +5,9 @@ import cn.dev33.satoken.stp.SaTokenInfo;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.parameter.SaLoginParameter;
 import cn.dev33.satoken.stp.parameter.enums.SaReplacedRange;
-import com.canteen.smile.audit.annotation.AuditOperation;
+import com.canteen.smile.audit.model.AuditActor;
+import com.canteen.smile.audit.model.AuditRecordCommand;
+import com.canteen.smile.audit.service.AuditRecorder;
 import com.canteen.smile.common.exception.BusinessException;
 import com.canteen.smile.infrastructure.security.HmacRequestSigner;
 import com.canteen.smile.modules.auth.entity.DeviceSessionEntity;
@@ -57,6 +59,9 @@ public class PlatformSessionService {
     /** 设备会话数据库事务服务。 */
     private final DeviceSessionPersistenceService persistenceService;
 
+    /** 无登录态认证流程使用的编程式审计记录器。 */
+    private final AuditRecorder auditRecorder;
+
     /**
      * 为已经完成密码校验的平台身份创建独立设备会话。
      *
@@ -64,25 +69,14 @@ public class PlatformSessionService {
      * @param loginIp 服务端解析的登录 IP
      * @return 当前设备会话
      */
-    @AuditOperation(
-            source = "AUTH",
-            categoryPath = {"平台管理端", "认证安全", "登录"},
-            actionCode = "auth:login:password",
-            actionName = "用户名密码登录",
-            targetType = "PLATFORM_IDENTITY",
-            targetId = "#context.platformIdentityId",
-            targetName = "#context.displayName ?: #context.username",
-            targetCode = "#context.username",
-            loginMethod = "PASSWORD",
-            deviceSummary = "#context.deviceType + (#context.deviceName == null ? '' : ' / ' + #context.deviceName)",
-            actorType = "PLATFORM_IDENTITY",
-            actorId = "#context.platformIdentityId",
-            actorUsername = "#context.username",
-            actorDisplayName = "#context.displayName ?: #context.username",
-            actorAppCode = "#context.appCode"
-    )
     public SessionVO createPasswordSession(PlatformSecondFactorContext context, String loginIp) {
-        return create(context, loginIp, AuthConstants.PASSWORD_LOGIN_METHOD);
+        return createWithAudit(
+                context,
+                loginIp,
+                AuthConstants.PASSWORD_LOGIN_METHOD,
+                "auth:login:password",
+                "用户名密码登录"
+        );
     }
 
     /**
@@ -92,25 +86,74 @@ public class PlatformSessionService {
      * @param loginIp 服务端解析的登录 IP
      * @return 当前设备会话
      */
-    @AuditOperation(
-            source = "AUTH",
-            categoryPath = {"平台管理端", "认证安全", "登录"},
-            actionCode = "auth:login:recovery-code",
-            actionName = "恢复码登录",
-            targetType = "PLATFORM_IDENTITY",
-            targetId = "#context.platformIdentityId",
-            targetName = "#context.displayName ?: #context.username",
-            targetCode = "#context.username",
-            loginMethod = "RECOVERY_CODE",
-            deviceSummary = "#context.deviceType + (#context.deviceName == null ? '' : ' / ' + #context.deviceName)",
-            actorType = "PLATFORM_IDENTITY",
-            actorId = "#context.platformIdentityId",
-            actorUsername = "#context.username",
-            actorDisplayName = "#context.displayName ?: #context.username",
-            actorAppCode = "#context.appCode"
-    )
     public SessionVO createRecoveryCodeSession(PlatformSecondFactorContext context, String loginIp) {
-        return create(context, loginIp, AuthConstants.RECOVERY_CODE_LOGIN_METHOD);
+        return createWithAudit(
+                context,
+                loginIp,
+                AuthConstants.RECOVERY_CODE_LOGIN_METHOD,
+                "auth:login:recovery-code",
+                "恢复码登录"
+        );
+    }
+
+    /** @return 创建平台会话并使用已验证身份上下文记录成功或失败审计 */
+    private SessionVO createWithAudit(
+            PlatformSecondFactorContext context,
+            String loginIp,
+            String loginMethod,
+            String actionCode,
+            String actionName
+    ) {
+        long startedNanos = System.nanoTime();
+        AuditRecordCommand command = platformLoginAudit(
+                context, loginMethod, actionCode, actionName
+        );
+        try {
+            SessionVO session = create(context, loginIp, loginMethod);
+            auditRecorder.recordSuccess(command, startedNanos);
+            return session;
+        } catch (RuntimeException exception) {
+            auditRecorder.recordFailure(command, exception, startedNanos);
+            throw exception;
+        }
+    }
+
+    /** @return 只使用后端已验证平台身份构造的登录审计声明 */
+    private AuditRecordCommand platformLoginAudit(
+            PlatformSecondFactorContext context,
+            String loginMethod,
+            String actionCode,
+            String actionName
+    ) {
+        String displayName = context.displayName() == null
+                ? context.username() : context.displayName();
+        return AuditRecordCommand.builder()
+                .source("AUTH")
+                .categoryPath("平台管理端", "认证安全", "登录")
+                .actionCode(actionCode)
+                .actionName(actionName)
+                .targetType(AuthConstants.PLATFORM_IDENTITY_SUBJECT)
+                .targetId(context.platformIdentityId())
+                .targetName(displayName)
+                .targetCode(context.username())
+                .loginMethod(loginMethod)
+                .deviceSummary(deviceSummary(context.deviceType(), context.deviceName()))
+                .actor(new AuditActor(
+                        null,
+                        AuthConstants.PLATFORM_IDENTITY_SUBJECT,
+                        context.platformIdentityId(),
+                        null,
+                        context.username(),
+                        displayName,
+                        context.appCode()
+                ))
+                .build();
+    }
+
+    /** @return 不包含设备标识的脱敏设备类型和名称摘要 */
+    private String deviceSummary(String deviceType, String deviceName) {
+        return deviceName == null || deviceName.isBlank()
+                ? deviceType : deviceType + " / " + deviceName;
     }
 
     /**

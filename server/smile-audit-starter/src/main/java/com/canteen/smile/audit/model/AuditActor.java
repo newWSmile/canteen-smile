@@ -25,4 +25,9 @@ public record AuditActor(
     public static AuditActor system() {
         return new AuditActor(null, "SYSTEM", 0L, null, null, "系统", "SERVICE");
     }
+
+    /** @return 未通过身份校验前用于登录失败记录的明确匿名主体 */
+    public static AuditActor anonymous(String appCode) {
+        return new AuditActor(null, "ANONYMOUS", 0L, null, null, "匿名访问者", appCode);
+    }
 }

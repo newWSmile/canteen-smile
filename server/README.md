@@ -120,9 +120,9 @@ AUTH_MOBILE_ENCRYPTION_KEY=Base64 编码的 32 字节随机密钥
 
 通用审计能力位于 `smile-audit-starter`。需要审计的公开 Service 方法使用 `@AuditOperation` 明确声明来源、任意层级中文分类路径、稳定动作编码与中文动作名称、目标类型及必要的目标表达式。`categoryPath` 只是事件发生时的分类快照，不与菜单、路由或权限资源强关联。
 
-操作人禁止由前端请求字段提交。普通登录后业务统一由切面在原业务线程调用方法前，通过当前服务的 `AuditActorResolver` 从 Sa-Token 登录 ID 和 Token Session 捕获租户 ID、机构 ID、账号或平台身份 ID、用户名、显示名称及应用端编码；这份不可变快照随事件进入异步线程。登录和手机号自助找回密码发生时尚未存在有效会话，仅允许注解从密码、短信或恢复码已经验证完成的服务端上下文显式声明主体覆盖，禁止使用未经验证的 DTO 字段。异步消费者不得再次读取 Sa-Token 上下文。无登录内部任务必须明确记录为 `SYSTEM`，不得冒用普通用户。
+操作人禁止由前端请求字段提交。普通登录后业务统一由切面在原业务线程调用方法前，通过当前服务的 `AuditActorResolver` 从 Sa-Token 登录 ID 和 Token Session 捕获租户 ID、机构 ID、账号或平台身份 ID、用户名、显示名称及应用端编码；这份不可变快照随事件进入异步线程。登录、恢复码登录和手机号自助找回密码发生时尚未存在有效会话，不使用注解覆盖操作人，统一注入 `AuditRecorder`，由认证完成后的服务端可信上下文显式构造 `AuditRecordCommand`；失败登录只能记录匿名主体和尝试目标，禁止使用未经验证的 DTO 字段冒充真实操作人。异步消费者不得再次读取 Sa-Token 上下文。无登录内部任务必须明确记录为 `SYSTEM`，不得冒用普通用户。
 
-成功事件在业务事务提交后发布；失败和拒绝事件保留原始业务错误码。当前本地发布器使用 Spring 事件和 `applicationTaskExecutor`，消费者在独立新事务中按 `event_id` 幂等写入 Auth 或 IAM 自有审计表。审计构造、发布或落库失败只记录服务日志，不得改变业务事务和接口响应；后续接入消息队列时替换 `AuditEventPublisher`，注解和业务代码无需变化。
+`@AuditOperation` 与编程式 `AuditRecorder` 共用同一个 `AuditEventPublisher` 和 `AuditEvent` 契约。成功事件在业务事务提交后发布；失败和拒绝事件保留原始业务错误码。当前本地发布器使用 Spring 事件和 `applicationTaskExecutor`，消费者在独立新事务中按 `event_id` 幂等写入 Auth 或 IAM 自有审计表。审计构造、发布或落库失败只记录服务日志，不得改变业务事务和接口响应；后续接入消息队列时替换 `AuditEventPublisher`，两种入口均无需改写落库链路。
 
 租户端手机号登录先调用 `/api/auth/v1/sms/challenges` 创建 `LOGIN` 用途挑战，再调用 `/api/auth/v1/login/sms` 原子消费验证码。Auth 仅按手机号摘要查询绑定账号 ID，并通过 HMAC Client 批量请求 IAM 复核账号、租户、机构、有效期和会话策略；单账号直接创建会话，多账号返回按最近登录排序的安全候选与五分钟一次性选择票据。最终选择调用 `/api/auth/v1/login/account-selection`，Auth 会重新计算候选集合摘要并原子消费票据，禁止篡改账号或重放。
 

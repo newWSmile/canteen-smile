@@ -3,6 +3,7 @@ package com.canteen.smile.audit.config;
 import com.canteen.smile.audit.aspect.AuditOperationAspect;
 import com.canteen.smile.audit.expression.AuditExpressionEvaluator;
 import com.canteen.smile.audit.model.AuditActor;
+import com.canteen.smile.audit.service.AuditRecorder;
 import com.canteen.smile.audit.spi.AuditActorResolver;
 import com.canteen.smile.audit.spi.AuditEventPublisher;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -37,13 +38,20 @@ public class AuditAutoConfiguration {
         return applicationEventPublisher::publishEvent;
     }
 
+    /** @param eventPublisher 审计事件发布边界 @return 注解与编程式入口共用的事件记录器 */
+    @Bean
+    @ConditionalOnMissingBean
+    public AuditRecorder auditRecorder(AuditEventPublisher eventPublisher) {
+        return new AuditRecorder(eventPublisher);
+    }
+
     /** @return 审计 Service 方法的统一切面 */
     @Bean
     public AuditOperationAspect auditOperationAspect(
             AuditActorResolver actorResolver,
-            AuditEventPublisher eventPublisher,
+            AuditRecorder auditRecorder,
             AuditExpressionEvaluator expressionEvaluator
     ) {
-        return new AuditOperationAspect(actorResolver, eventPublisher, expressionEvaluator);
+        return new AuditOperationAspect(actorResolver, auditRecorder, expressionEvaluator);
     }
 }

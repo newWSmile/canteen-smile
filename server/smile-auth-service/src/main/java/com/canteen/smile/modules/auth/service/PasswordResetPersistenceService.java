@@ -1,7 +1,9 @@
 package com.canteen.smile.modules.auth.service;
 
 import com.canteen.smile.common.exception.BusinessException;
-import com.canteen.smile.audit.annotation.AuditOperation;
+import com.canteen.smile.audit.model.AuditActor;
+import com.canteen.smile.audit.model.AuditRecordCommand;
+import com.canteen.smile.audit.service.AuditRecorder;
 import com.canteen.smile.internal.client.dto.TenantAccountActivationContextInternalResponse;
 import com.canteen.smile.modules.auth.entity.AccountSelectorTicketEntity;
 import com.canteen.smile.modules.auth.entity.PasswordResetTicketEntity;
@@ -42,6 +44,9 @@ public class PasswordResetPersistenceService {
 
     /** 账号选择票据数据访问接口。 */
     private final AccountSelectorTicketMapper accountSelectorTicketMapper;
+
+    /** 无登录态自助恢复流程使用的编程式审计记录器。 */
+    private final AuditRecorder auditRecorder;
 
     /**
      * 消费平台再认证票据、使账号进入待重置并替换恢复票据。
@@ -126,45 +131,65 @@ public class PasswordResetPersistenceService {
      * @param context IAM 当前账号安全快照
      */
     @Transactional
-    @AuditOperation(
-            source = "AUTH",
-            categoryPath = {"租户端", "账号安全", "密码凭证"},
-            actionCode = "auth:password:reset:sms",
-            actionName = "手机号验证码自助重置密码",
-            targetType = "TENANT_ACCOUNT",
-            targetId = "#ticket.subjectId",
-            targetName = "#context.displayName ?: #context.username",
-            targetCode = "#context.username",
-            loginMethod = "SMS",
-            actorType = "TENANT_ACCOUNT",
-            actorId = "#ticket.subjectId",
-            actorTenantId = "#context.tenantId",
-            actorOrganizationId = "#context.organizationId",
-            actorUsername = "#context.username",
-            actorDisplayName = "#context.displayName ?: #context.username"
-    )
     public void completeSmsSelfService(
             PasswordResetTicketEntity ticket,
             String passwordHash,
             TenantAccountActivationContextInternalResponse context
     ) {
-        if (passwordHistoryMapper.insertCurrentCredential(
-                AuthConstants.TENANT_ACCOUNT_SUBJECT,
-                ticket.getSubjectId()
-        ) != 1) {
-            throw conflict("账号密码状态已变化，请重新验证手机号");
+        long startedNanos = System.nanoTime();
+        AuditRecordCommand command = smsPasswordResetAudit(ticket, context);
+        try {
+            if (passwordHistoryMapper.insertCurrentCredential(
+                    AuthConstants.TENANT_ACCOUNT_SUBJECT,
+                    ticket.getSubjectId()
+            ) != 1) {
+                throw conflict("账号密码状态已变化，请重新验证手机号");
+            }
+            int credentialRows = credentialMapper.completeActiveTenantAccountPasswordReset(
+                    ticket.getSubjectId(), passwordHash
+            );
+            int ticketRows = resetTicketMapper.consume(ticket.getId(), ticket.getVersion());
+            if (credentialRows != 1 || ticketRows != 1) {
+                throw conflict("密码恢复状态已变化，请重新验证手机号");
+            }
+            deviceSessionMapper.invalidateActiveBySubject(
+                    AuthConstants.TENANT_ACCOUNT_SUBJECT,
+                    ticket.getSubjectId()
+            );
+            auditRecorder.recordSuccess(command, startedNanos);
+        } catch (RuntimeException exception) {
+            auditRecorder.recordFailure(command, exception, startedNanos);
+            throw exception;
         }
-        int credentialRows = credentialMapper.completeActiveTenantAccountPasswordReset(
-                ticket.getSubjectId(), passwordHash
-        );
-        int ticketRows = resetTicketMapper.consume(ticket.getId(), ticket.getVersion());
-        if (credentialRows != 1 || ticketRows != 1) {
-            throw conflict("密码恢复状态已变化，请重新验证手机号");
-        }
-        deviceSessionMapper.invalidateActiveBySubject(
-                AuthConstants.TENANT_ACCOUNT_SUBJECT,
-                ticket.getSubjectId()
-        );
+    }
+
+    /** @return 只使用已验证恢复票据和 IAM 安全快照构造的密码重置审计声明 */
+    private AuditRecordCommand smsPasswordResetAudit(
+            PasswordResetTicketEntity ticket,
+            TenantAccountActivationContextInternalResponse context
+    ) {
+        String displayName = context.displayName() == null
+                ? context.username() : context.displayName();
+        return AuditRecordCommand.builder()
+                .source("AUTH")
+                .categoryPath("租户端", "账号安全", "密码凭证")
+                .actionCode("auth:password:reset:sms")
+                .actionName("手机号验证码自助重置密码")
+                .targetType(AuthConstants.TENANT_ACCOUNT_SUBJECT)
+                .targetId(ticket.getSubjectId())
+                .targetName(displayName)
+                .targetCode(context.username())
+                .loginMethod("SMS")
+                .actor(new AuditActor(
+                        Long.parseLong(context.tenantId()),
+                        AuthConstants.TENANT_ACCOUNT_SUBJECT,
+                        ticket.getSubjectId(),
+                        Long.parseLong(context.organizationId()),
+                        context.username(),
+                        displayName,
+                        null
+                ))
+                .build();
     }
 
     /** @param message 对外稳定消息 @return 密码恢复冲突异常 */

@@ -3,28 +3,22 @@ package com.canteen.smile.audit.aspect;
 import com.canteen.smile.audit.annotation.AuditOperation;
 import com.canteen.smile.audit.expression.AuditExpressionEvaluator;
 import com.canteen.smile.audit.model.AuditActor;
-import com.canteen.smile.audit.model.AuditEvent;
+import com.canteen.smile.audit.model.AuditRecordCommand;
+import com.canteen.smile.audit.service.AuditRecorder;
 import com.canteen.smile.audit.spi.AuditActorResolver;
-import com.canteen.smile.audit.spi.AuditEventPublisher;
-import com.canteen.smile.common.exception.BusinessException;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.lang.reflect.Method;
-import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 /** 拦截审计注解并在业务提交后发布不影响主事务的异步事件。 */
 @Aspect
@@ -34,14 +28,11 @@ public class AuditOperationAspect {
     /** 当前类安全日志记录器。 */
     private static final Logger log = LoggerFactory.getLogger(AuditOperationAspect.class);
 
-    /** 当前通用事件契约版本。 */
-    private static final int SCHEMA_VERSION = 1;
-
     /** 当前服务的登录人解析器。 */
     private final AuditActorResolver actorResolver;
 
-    /** 可替换为 MQ 的审计事件发布器。 */
-    private final AuditEventPublisher eventPublisher;
+    /** 注解与编程式入口共用的审计事件记录器。 */
+    private final AuditRecorder auditRecorder;
 
     /** 注解字段表达式求值器。 */
     private final AuditExpressionEvaluator expressionEvaluator;
@@ -50,16 +41,16 @@ public class AuditOperationAspect {
      * 创建审计切面。
      *
      * @param actorResolver 登录人解析器
-     * @param eventPublisher 审计事件发布器
+     * @param auditRecorder 审计事件记录器
      * @param expressionEvaluator 显式字段表达式求值器
      */
     public AuditOperationAspect(
             AuditActorResolver actorResolver,
-            AuditEventPublisher eventPublisher,
+            AuditRecorder auditRecorder,
             AuditExpressionEvaluator expressionEvaluator
     ) {
         this.actorResolver = actorResolver;
-        this.eventPublisher = eventPublisher;
+        this.auditRecorder = auditRecorder;
         this.expressionEvaluator = expressionEvaluator;
     }
 
@@ -100,11 +91,10 @@ public class AuditOperationAspect {
             long startedNanos
     ) {
         try {
-            AuditEvent event = buildEvent(
-                    operation, method, arguments, result, null, actor,
-                    "SUCCESS", null, startedNanos
+            AuditRecordCommand command = buildCommand(
+                    operation, method, arguments, result, null, actor
             );
-            publishAfterCommit(event);
+            auditRecorder.recordSuccess(command, startedNanos);
         } catch (RuntimeException exception) {
             log.error("Audit success event construction failed for {}.{}",
                     method.getDeclaringClass().getSimpleName(), method.getName(), exception);
@@ -124,16 +114,10 @@ public class AuditOperationAspect {
             return;
         }
         try {
-            String failureCode = error instanceof BusinessException businessException
-                    ? businessException.getCode() : "SYSTEM_ERROR";
-            String auditResult = error instanceof BusinessException businessException
-                    && (businessException.getHttpStatus() == 401
-                    || businessException.getHttpStatus() == 403)
-                    ? "DENIED" : "FAILURE";
-            publishSafely(buildEvent(
-                    operation, method, arguments, null, error, actor,
-                    auditResult, failureCode, startedNanos
-            ));
+            AuditRecordCommand command = buildCommand(
+                    operation, method, arguments, null, error, actor
+            );
+            auditRecorder.recordFailure(command, error, startedNanos);
         } catch (RuntimeException exception) {
             log.error("Audit failure event construction failed for {}.{}",
                     method.getDeclaringClass().getSimpleName(), method.getName(), exception);
@@ -159,22 +143,15 @@ public class AuditOperationAspect {
         return AopUtils.getMostSpecificMethod(signature.getMethod(), joinPoint.getTarget().getClass());
     }
 
-    /** 根据注解、显式 SpEL、登录人和执行结果构建版本化审计事件。 */
-    private AuditEvent buildEvent(
+    /** 根据注解、显式 SpEL 和当前登录人构建编程式审计声明。 */
+    private AuditRecordCommand buildCommand(
             AuditOperation operation,
             Method method,
             Object[] arguments,
             Object result,
             Throwable error,
-            AuditActor actor,
-            String auditResult,
-            String failureCode,
-            long startedNanos
+            AuditActor actor
     ) {
-        /** 合并当前会话主体与注解中基于服务端可信上下文声明的主体覆盖。 */
-        AuditActor eventActor = overrideActor(
-                operation, method, arguments, result, error, actor
-        );
         /** 注解声明并去除空项后的纯审计分类路径。 */
         List<String> categoryPath = Arrays.stream(operation.categoryPath())
                 .filter(value -> value != null && !value.isBlank())
@@ -182,126 +159,26 @@ public class AuditOperationAspect {
                 .toList();
         /** 注解表达式解析的目标 ID，缺失时使用当前操作者 ID。 */
         String targetId = expression(
-                operation.targetId(), method, arguments, result, error, eventActor
+                operation.targetId(), method, arguments, result, error, actor
         );
         if (targetId == null) {
-            targetId = Long.toString(eventActor.operatorId());
+            targetId = Long.toString(actor.operatorId());
         }
-        return new AuditEvent(
-                UUID.randomUUID().toString(),
-                SCHEMA_VERSION,
-                required(operation.source(), "source"),
+        return new AuditRecordCommand(
+                operation.source(),
                 categoryPath,
-                required(operation.actionCode(), "actionCode"),
-                required(operation.actionName(), "actionName"),
-                required(operation.targetType(), "targetType"),
+                operation.actionCode(),
+                operation.actionName(),
+                operation.targetType(),
                 targetId,
-                expression(operation.targetName(), method, arguments, result, error, eventActor),
-                expression(operation.targetCode(), method, arguments, result, error, eventActor),
-                expression(operation.reason(), method, arguments, result, error, eventActor),
-                auditResult,
-                failureCode,
-                expression(operation.maskedMobile(), method, arguments, result, error, eventActor),
-                expression(operation.loginMethod(), method, arguments, result, error, eventActor),
-                expression(operation.deviceSummary(), method, arguments, result, error, eventActor),
-                eventActor,
-                MDC.get("traceId"),
-                OffsetDateTime.now(),
-                Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000L)
+                expression(operation.targetName(), method, arguments, result, error, actor),
+                expression(operation.targetCode(), method, arguments, result, error, actor),
+                expression(operation.reason(), method, arguments, result, error, actor),
+                expression(operation.maskedMobile(), method, arguments, result, error, actor),
+                expression(operation.loginMethod(), method, arguments, result, error, actor),
+                expression(operation.deviceSummary(), method, arguments, result, error, actor),
+                actor
         );
-    }
-
-    /** 使用服务端已验证参数或返回值覆盖无会话流程的操作者快照。 */
-    private AuditActor overrideActor(
-            AuditOperation operation,
-            Method method,
-            Object[] arguments,
-            Object result,
-            Throwable error,
-            AuditActor baseActor
-    ) {
-        String operatorType = expression(
-                operation.actorType(), method, arguments, result, error, baseActor
-        );
-        String operatorId = expression(
-                operation.actorId(), method, arguments, result, error, baseActor
-        );
-        String tenantId = expression(
-                operation.actorTenantId(), method, arguments, result, error, baseActor
-        );
-        String organizationId = expression(
-                operation.actorOrganizationId(), method, arguments, result, error, baseActor
-        );
-        String username = expression(
-                operation.actorUsername(), method, arguments, result, error, baseActor
-        );
-        String displayName = expression(
-                operation.actorDisplayName(), method, arguments, result, error, baseActor
-        );
-        String appCode = expression(
-                operation.actorAppCode(), method, arguments, result, error, baseActor
-        );
-        if (operatorType == null && operatorId == null && tenantId == null
-                && organizationId == null && username == null
-                && displayName == null && appCode == null) {
-            return baseActor;
-        }
-        String resolvedType = firstText(operatorType, baseActor.operatorType());
-        long resolvedId = requiredLong(operatorId, baseActor.operatorId(), "actorId");
-        if (!"SYSTEM".equals(resolvedType)
-                && !"ANONYMOUS".equals(resolvedType)
-                && resolvedId <= 0) {
-            throw new IllegalArgumentException(
-                    "Audit annotation actorId is required for a named actor"
-            );
-        }
-        boolean replacesSystemActor = baseActor.operatorId() == 0L
-                && operatorType != null
-                && !"SYSTEM".equals(operatorType)
-                && !"ANONYMOUS".equals(operatorType);
-        return new AuditActor(
-                nullableLong(tenantId, baseActor.tenantId(), "actorTenantId"),
-                resolvedType,
-                resolvedId,
-                nullableLong(
-                        organizationId, baseActor.organizationId(), "actorOrganizationId"
-                ),
-                firstText(username, baseActor.username()),
-                firstText(displayName, baseActor.displayName()),
-                appCode == null && replacesSystemActor ? null
-                        : firstText(appCode, baseActor.appCode())
-        );
-    }
-
-    /** @return 注解文本优先、原主体文本兜底的快照值 */
-    private String firstText(String annotationValue, String baseValue) {
-        return annotationValue == null ? baseValue : annotationValue;
-    }
-
-    /** @return 操作者正整数 ID；注解未声明时沿用当前主体 */
-    private long requiredLong(String value, long baseValue, String field) {
-        if (value == null) {
-            return baseValue;
-        }
-        try {
-            long parsed = Long.parseLong(value);
-            if (parsed <= 0) {
-                throw new NumberFormatException("non-positive");
-            }
-            return parsed;
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException(
-                    "Audit annotation " + field + " must be a positive bigint"
-            );
-        }
-    }
-
-    /** @return 可空正整数 ID；注解未声明时沿用当前主体 */
-    private Long nullableLong(String value, Long baseValue, String field) {
-        if (value == null) {
-            return baseValue;
-        }
-        return requiredLong(value, 0L, field);
     }
 
     /** 安全计算注解显式字段；表达式错误不允许影响业务执行结果。 */
@@ -323,36 +200,4 @@ public class AuditOperationAspect {
         }
     }
 
-    /** 成功事件等待当前事务提交；无事务或切面位于事务外层时立即发布。 */
-    private void publishAfterCommit(AuditEvent event) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                /** 在业务事务成功提交后发布，回滚时不会产生伪成功记录。 */
-                @Override
-                public void afterCommit() {
-                    publishSafely(event);
-                }
-            });
-            return;
-        }
-        publishSafely(event);
-    }
-
-    /** 发布器故障只写安全日志，不能改变业务返回或事务结果。 */
-    private void publishSafely(AuditEvent event) {
-        try {
-            eventPublisher.publish(event);
-        } catch (RuntimeException exception) {
-            log.error("Audit event publish failed, eventId={}, actionCode={}",
-                    event.eventId(), event.actionCode(), exception);
-        }
-    }
-
-    /** 校验编译期可信注解中的必填文本，避免产生无业务含义事件。 */
-    private String required(String value, String field) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("Audit annotation " + field + " must not be blank");
-        }
-        return value.strip();
-    }
 }

@@ -46,27 +46,6 @@ public @interface AuditOperation {
     /** @return 可选脱敏设备摘要的 SpEL 或固定文本 */
     String deviceSummary() default "";
 
-    /** @return 服务端可信上下文覆盖的操作者类型 SpEL 或固定文本 */
-    String actorType() default "";
-
-    /** @return 服务端可信上下文覆盖的操作者 ID SpEL 或固定文本 */
-    String actorId() default "";
-
-    /** @return 服务端可信上下文覆盖的操作者租户 ID SpEL 或固定文本 */
-    String actorTenantId() default "";
-
-    /** @return 服务端可信上下文覆盖的操作者机构 ID SpEL 或固定文本 */
-    String actorOrganizationId() default "";
-
-    /** @return 服务端可信上下文覆盖的操作者用户名 SpEL 或固定文本 */
-    String actorUsername() default "";
-
-    /** @return 服务端可信上下文覆盖的操作者显示名称 SpEL 或固定文本 */
-    String actorDisplayName() default "";
-
-    /** @return 服务端可信上下文覆盖的操作入口编码 SpEL 或固定文本 */
-    String actorAppCode() default "";
-
     /** @return 是否记录业务拒绝和执行失败 */
     boolean recordFailure() default true;
 }
