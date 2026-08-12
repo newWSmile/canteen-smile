@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Canteen Smile IAM API
-  version: 1.2.0
+  version: 1.3.0
   description: IAM 服务已经实现并冻结的外部 REST 契约；未实现接口不得提前写入本文件。
 servers:
   - url: /api/iam/v1
@@ -98,6 +98,98 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorApiResponse'
+  /platform/tenants/{tenantId}:
+    put:
+      operationId: updatePlatformTenant
+      summary: 修改租户可变基础资料
+      description: 仅修改租户显示名称；租户编码、模板版本和根机构归属不在此接口变更。使用乐观锁防止覆盖并发修改。
+      tags: [PlatformTenant]
+      parameters:
+        - {$ref: '#/components/parameters/TenantId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdatePlatformTenantRequest'}
+      responses:
+        '200':
+          description: 修改成功。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantSummaryApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /platform/tenants/{tenantId}/actions/suspend:
+    post:
+      operationId: suspendPlatformTenant
+      summary: 暂停正常租户
+      description: 要求操作原因和平台密码再认证；提升租户安全版本并通过 Outbox 使租户内全部账号设备会话失效。
+      tags: [PlatformTenant]
+      parameters:
+        - {$ref: '#/components/parameters/TenantId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PlatformTenantStatusRequest'}
+      responses:
+        '200':
+          description: 租户已暂停，可靠会话失效事件已生成。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantSummaryApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /platform/tenants/{tenantId}/actions/resume:
+    post:
+      operationId: resumePlatformTenant
+      summary: 恢复暂停或到期租户
+      description: 要求操作原因和平台密码再认证；允许账号重新登录，但暂停前的历史设备会话不会恢复。
+      tags: [PlatformTenant]
+      parameters:
+        - {$ref: '#/components/parameters/TenantId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PlatformTenantStatusRequest'}
+      responses:
+        '200':
+          description: 租户已恢复。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantSummaryApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /platform/tenants/{tenantId}/actions/cancel:
+    post:
+      operationId: cancelPlatformTenant
+      summary: 不可恢复地注销租户
+      description: 要求独立注销权限、操作原因和平台密码再认证；注销后禁止恢复和重新登录，并通过 Outbox 使全部设备会话失效。
+      tags: [PlatformTenant]
+      parameters:
+        - {$ref: '#/components/parameters/TenantId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PlatformTenantStatusRequest'}
+      responses:
+        '200':
+          description: 租户已永久注销。
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantSummaryApiResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
   /platform/tenants/{tenantId}/owner/activation-links:
     post:
       operationId: issueTenantOwnerActivationLink
@@ -1707,6 +1799,40 @@ components:
         - SUSPENDED
         - EXPIRED
         - CANCELLED
+    UpdatePlatformTenantRequest:
+      type: object
+      additionalProperties: false
+      required: [name, version]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 修改后的租户显示名称。
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 当前租户乐观锁版本。
+    PlatformTenantStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [reauthTicket, reason, version]
+      properties:
+        reauthTicket:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{43,128}$'
+          description: 仅允许 PLATFORM_TENANT_GOVERNANCE 动作消费的一次性平台再认证票据。
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: 审计留痕使用的操作原因。
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 当前租户乐观锁版本。
     TenantProvisionStatus:
       type: string
       description: IAM 与 Auth 的租户初始化编排状态。
@@ -1817,6 +1943,17 @@ components:
           type:
             - string
             - 'null'
+    TenantSummaryApiResponse:
+      type: object
+      description: 统一租户摘要成功响应。
+      additionalProperties: false
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/TenantSummary'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
     TenantCreationApiResponse:
       type: object
       additionalProperties: false

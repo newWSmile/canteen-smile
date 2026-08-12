@@ -9,6 +9,15 @@ public final class IamPermissionCodes {
     /** 平台端创建租户。 */
     public static final String PLATFORM_TENANT_CREATE = "platform:tenant:create";
 
+    /** 修改租户可变基础资料。 */
+    public static final String PLATFORM_TENANT_UPDATE = "platform:tenant:update";
+
+    /** 暂停或恢复租户。 */
+    public static final String PLATFORM_TENANT_STATUS = "platform:tenant:status";
+
+    /** 不可恢复地注销租户。 */
+    public static final String PLATFORM_TENANT_CANCEL = "platform:tenant:cancel";
+
     /** 平台端为租户首位所有者生成激活链接。 */
     public static final String PLATFORM_TENANT_OWNER_ACTIVATE = "platform:tenant-owner:activate";
 

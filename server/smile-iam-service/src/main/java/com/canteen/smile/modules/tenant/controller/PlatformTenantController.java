@@ -8,10 +8,13 @@ import com.canteen.smile.modules.permission.model.IamPermissionCodes;
 import com.canteen.smile.modules.tenant.dto.TenantPageQuery;
 import com.canteen.smile.modules.tenant.dto.CreateTenantRequest;
 import com.canteen.smile.modules.tenant.dto.TenantOwnerPasswordResetRequest;
+import com.canteen.smile.modules.tenant.dto.PlatformTenantStatusRequest;
+import com.canteen.smile.modules.tenant.dto.UpdatePlatformTenantRequest;
 import com.canteen.smile.modules.tenant.service.TenantCreationService;
 import com.canteen.smile.modules.tenant.service.TenantQueryService;
 import com.canteen.smile.modules.tenant.service.TenantOwnerActivationLinkService;
 import com.canteen.smile.modules.tenant.service.TenantOwnerPasswordResetLinkService;
+import com.canteen.smile.modules.tenant.service.PlatformTenantGovernanceService;
 import com.canteen.smile.modules.tenant.vo.TenantSummaryVO;
 import com.canteen.smile.modules.tenant.vo.TenantCreationVO;
 import com.canteen.smile.modules.tenant.vo.TenantOwnerActivationLinkVO;
@@ -30,6 +33,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 
 /** 平台超级管理员租户查询接口。 */
 @Validated
@@ -49,6 +53,9 @@ public class PlatformTenantController {
 
     /** 租户所有者密码恢复链接服务。 */
     private final TenantOwnerPasswordResetLinkService ownerPasswordResetLinkService;
+
+    /** 平台租户资料与生命周期治理服务。 */
+    private final PlatformTenantGovernanceService tenantGovernanceService;
 
     /**
      * 分页查询平台管理范围内的租户。
@@ -113,5 +120,45 @@ public class PlatformTenantController {
             @Valid @RequestBody TenantOwnerPasswordResetRequest request
     ) {
         return ApiResponse.success(ownerPasswordResetLinkService.issue(tenantId, request));
+    }
+
+    /** 修改租户可变基础资料。 */
+    @PutMapping("/{tenantId}")
+    @SaCheckPermission(IamPermissionCodes.PLATFORM_TENANT_UPDATE)
+    public ApiResponse<TenantSummaryVO> updateTenant(
+            @Positive @PathVariable long tenantId,
+            @Valid @RequestBody UpdatePlatformTenantRequest request
+    ) {
+        return ApiResponse.success(tenantGovernanceService.update(tenantId, request));
+    }
+
+    /** 暂停正常租户。 */
+    @PostMapping("/{tenantId}/actions/suspend")
+    @SaCheckPermission(IamPermissionCodes.PLATFORM_TENANT_STATUS)
+    public ApiResponse<TenantSummaryVO> suspendTenant(
+            @Positive @PathVariable long tenantId,
+            @Valid @RequestBody PlatformTenantStatusRequest request
+    ) {
+        return ApiResponse.success(tenantGovernanceService.suspend(tenantId, request));
+    }
+
+    /** 恢复已暂停或已到期租户。 */
+    @PostMapping("/{tenantId}/actions/resume")
+    @SaCheckPermission(IamPermissionCodes.PLATFORM_TENANT_STATUS)
+    public ApiResponse<TenantSummaryVO> resumeTenant(
+            @Positive @PathVariable long tenantId,
+            @Valid @RequestBody PlatformTenantStatusRequest request
+    ) {
+        return ApiResponse.success(tenantGovernanceService.resume(tenantId, request));
+    }
+
+    /** 不可恢复地注销租户。 */
+    @PostMapping("/{tenantId}/actions/cancel")
+    @SaCheckPermission(IamPermissionCodes.PLATFORM_TENANT_CANCEL)
+    public ApiResponse<TenantSummaryVO> cancelTenant(
+            @Positive @PathVariable long tenantId,
+            @Valid @RequestBody PlatformTenantStatusRequest request
+    ) {
+        return ApiResponse.success(tenantGovernanceService.cancel(tenantId, request));
     }
 }

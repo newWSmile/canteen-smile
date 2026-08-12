@@ -66,4 +66,55 @@
         LIMIT #{limit}
         OFFSET #{offset}
     </select>
+
+    <update id="updateTenantName">
+        UPDATE public.iam_tenant
+        SET name = #{name}, updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{tenantId} AND version = #{version}
+          AND status &lt;&gt; 'CANCELLED' AND is_deleted = false
+    </update>
+
+    <update id="changeTenantStatus">
+        UPDATE public.iam_tenant
+        SET status = #{targetStatus}, security_version = security_version + 1,
+            updated_by = #{operatorId}, updated_time = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{tenantId} AND version = #{version} AND is_deleted = false
+          AND status IN
+          <foreach collection="sourceStatuses" item="sourceStatus" open="(" separator="," close=")">
+              #{sourceStatus}
+          </foreach>
+    </update>
+
+    <select id="selectSecurityVersion" resultType="long">
+        SELECT security_version
+        FROM public.iam_tenant
+        WHERE id = #{tenantId} AND is_deleted = false
+        LIMIT 1
+    </select>
+
+    <insert id="insertTenantStatusChangedEvents">
+        INSERT INTO public.iam_outbox_event (
+            event_id, aggregate_type, aggregate_id, tenant_id, event_type, payload_json,
+            status, created_by, updated_by
+        )
+        SELECT 'tls-' || md5(#{tenantId}::text || ':' || #{securityVersion}::text || ':' || account.id::text),
+               'TENANT_ACCOUNT', account.id::varchar, #{tenantId}, 'TENANT_STATUS_CHANGED',
+               jsonb_build_object(
+                   'tenantId', #{tenantId}::varchar,
+                   'accountId', account.id::varchar,
+                   'securityVersion', #{securityVersion}::varchar,
+                   'tenantStatus', #{targetStatus},
+                   'actionNameSnapshot', #{actionName},
+                   'usernameSnapshot', account.username,
+                   'displayNameSnapshot', COALESCE(account.display_name, account.username),
+                   'ipAddress', #{ipAddress}
+               ),
+               'PENDING', #{operatorId}, #{operatorId}
+        FROM public.iam_account account
+        WHERE account.tenant_id = #{tenantId}
+          AND account.status &lt;&gt; 'CANCELLED'
+          AND account.is_deleted = false
+    </insert>
 </mapper>

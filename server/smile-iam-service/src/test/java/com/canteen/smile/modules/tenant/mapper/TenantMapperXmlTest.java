@@ -28,6 +28,10 @@ class TenantMapperXmlTest {
 
         assertThat(configuration.hasStatement(TenantMapper.class.getName() + ".countActiveTenants")).isTrue();
         assertThat(configuration.hasStatement(TenantMapper.class.getName() + ".selectById")).isTrue();
+        assertThat(configuration.hasStatement(TenantMapper.class.getName() + ".updateTenantName")).isTrue();
+        assertThat(configuration.hasStatement(TenantMapper.class.getName() + ".changeTenantStatus")).isTrue();
+        assertThat(configuration.hasStatement(TenantMapper.class.getName()
+                + ".insertTenantStatusChangedEvents")).isTrue();
         assertThat(configuration.hasStatement(TenantProvisionMapper.class.getName() + ".insertTenant")).isTrue();
         assertThat(configuration.hasStatement(TenantProvisionMapper.class.getName() + ".insertProvisionOutbox")).isTrue();
         assertThat(configuration.hasStatement(AccountLifecycleMapper.class.getName()

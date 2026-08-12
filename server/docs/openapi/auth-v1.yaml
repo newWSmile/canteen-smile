@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Canteen Smile Auth API
-  version: 1.7.0
+  version: 1.8.0
   description: Auth 服务当前已经实现的首次引导、登录、短信挑战、密码恢复、手机号绑定与换绑解绑、平台恢复能力和设备会话契约。
 servers:
   - url: /api/auth/v1
@@ -647,7 +647,7 @@ components:
         passwordEnvelope: {$ref: '#/components/schemas/PasswordEnvelopeRequest'}
         allowedAction:
           type: string
-          enum: [TENANT_OWNER_PASSWORD_RESET, TENANT_USER_CREATE, TENANT_USER_ROLE_ASSIGN, TENANT_SECURITY_POLICY_UPDATE, MOBILE_CHANGE, MOBILE_UNBIND, PLATFORM_SMS_POLICY_UPDATE]
+          enum: [TENANT_OWNER_PASSWORD_RESET, TENANT_USER_CREATE, TENANT_USER_ROLE_ASSIGN, TENANT_SECURITY_POLICY_UPDATE, MOBILE_CHANGE, MOBILE_UNBIND, PLATFORM_SMS_POLICY_UPDATE, PLATFORM_TENANT_GOVERNANCE]
     SmsPasswordResetVerificationRequest:
       type: object
       additionalProperties: false

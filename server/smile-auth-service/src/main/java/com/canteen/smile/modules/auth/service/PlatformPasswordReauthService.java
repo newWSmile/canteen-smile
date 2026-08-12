@@ -87,6 +87,7 @@ public class PlatformPasswordReauthService {
     /** 校验身份类型只能签发自身允许的敏感动作。 */
     private void validateAllowedAction(String subjectType, ReauthAction action) {
         boolean platformAction = action == ReauthAction.TENANT_OWNER_PASSWORD_RESET
+                || action == ReauthAction.PLATFORM_TENANT_GOVERNANCE
                 || action == ReauthAction.PLATFORM_SMS_POLICY_UPDATE;
         if (platformAction != AuthConstants.PLATFORM_IDENTITY_SUBJECT.equals(subjectType)) {
             throw new BusinessException("AUTH_1202", "当前身份不能执行该敏感操作", 403);

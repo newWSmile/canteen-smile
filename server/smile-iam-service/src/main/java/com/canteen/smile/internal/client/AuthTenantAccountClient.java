@@ -169,6 +169,33 @@ public class AuthTenantAccountClient {
         }
     }
 
+    /**
+     * 原子消费当前平台身份绑定单一动作的再认证票据。
+     *
+     * @param identityId 当前平台身份 ID
+     * @param reauthTicket 五分钟一次性票据
+     * @param allowedAction 票据绑定动作
+     */
+    public void consumePlatformReauthTicket(long identityId, String reauthTicket, String allowedAction) {
+        try {
+            ApiResponse<Void> response = authRestClient.post()
+                    .uri(REAUTH_TICKET_CONSUME_PATH)
+                    .body(new ConsumeReauthTicketInternalRequest(
+                            reauthTicket, "PLATFORM_IDENTITY", Long.toString(identityId), allowedAction
+                    ))
+                    .retrieve().body(new ParameterizedTypeReference<>() { });
+            if (response == null || !"0".equals(response.code())) throw unavailable();
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() == 401) {
+                throw new BusinessException("IAM_2211", "平台管理员再认证已失效，请重新验证当前密码", 401);
+            }
+            throw authUnavailable();
+        } catch (RestClientException exception) {
+            log.warn("Auth platform reauth consume failed: {}", exception.getClass().getSimpleName());
+            throw authUnavailable();
+        }
+    }
+
     /** @return 不带错误编排语义的 Auth 暂时不可用异常 */
     private BusinessException authUnavailable() {
         return new BusinessException(AUTH_UNAVAILABLE_CODE, "认证服务暂时不可用，请稍后重试", 502);

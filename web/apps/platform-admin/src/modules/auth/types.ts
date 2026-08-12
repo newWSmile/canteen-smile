@@ -90,7 +90,10 @@ export interface PlatformBootstrapResult {
 }
 
 /** 平台敏感操作再认证允许的动作。 */
-export type ReauthAction = 'TENANT_OWNER_PASSWORD_RESET' | 'PLATFORM_SMS_POLICY_UPDATE'
+export type ReauthAction =
+  | 'TENANT_OWNER_PASSWORD_RESET'
+  | 'PLATFORM_SMS_POLICY_UPDATE'
+  | 'PLATFORM_TENANT_GOVERNANCE'
 
 /** 平台当前密码再认证请求。 */
 export interface PasswordReauthRequest {

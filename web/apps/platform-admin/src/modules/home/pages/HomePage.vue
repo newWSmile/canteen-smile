@@ -4,7 +4,17 @@ import { useRouter } from 'vue-router'
 import { usePlatformSessionStore } from '@/app/store/platformSession'
 import { reauthenticatePassword } from '@/modules/auth/api/authApi'
 import { encryptPassword, PasswordEnvelopeError } from '@/modules/auth/passwordEnvelope'
-import { createPlatformTenant, issueTenantOwnerActivationLink, issueTenantOwnerPasswordResetLink, listOrgTypeTemplates, pagePlatformTenants } from '@/modules/tenant/api/tenantApi'
+import {
+  cancelPlatformTenant,
+  createPlatformTenant,
+  issueTenantOwnerActivationLink,
+  issueTenantOwnerPasswordResetLink,
+  listOrgTypeTemplates,
+  pagePlatformTenants,
+  resumePlatformTenant,
+  suspendPlatformTenant,
+  updatePlatformTenant,
+} from '@/modules/tenant/api/tenantApi'
 import type { AccountStatus, CreateTenantRequest, OrgTypeTemplate, TenantStatus, TenantSummary } from '@/modules/tenant/types'
 import { useSingleFlight } from '@/shared/composables/useSingleFlight'
 import { feedback } from '@/shared/feedback'
@@ -34,6 +44,12 @@ const passwordResetPassword = ref('')
 const passwordResetReason = ref('')
 const passwordResetLink = ref('')
 const passwordResetExpiresAt = ref('')
+const governanceDialogVisible = ref(false)
+const governanceTenant = ref<TenantSummary | null>(null)
+const governanceAction = ref<'EDIT' | 'SUSPEND' | 'RESUME' | 'CANCEL'>('EDIT')
+const governanceName = ref('')
+const governanceReason = ref('')
+const governancePassword = ref('')
 
 const selectedTemplate = computed(() =>
   templates.value.find((item) => item.templateVersion === creation.value.templateVersion),
@@ -245,6 +261,85 @@ const passwordResetFlight = useSingleFlight(async () => {
   }
 })
 
+/** 打开租户资料或生命周期治理弹窗。 */
+function openGovernance(
+  tenant: TenantSummary,
+  action: 'EDIT' | 'SUSPEND' | 'RESUME' | 'CANCEL',
+): void {
+  governanceTenant.value = tenant
+  governanceAction.value = action
+  governanceName.value = tenant.name
+  governanceReason.value = ''
+  governancePassword.value = ''
+  governanceDialogVisible.value = true
+}
+
+const governanceTitle = computed(() => ({
+  EDIT: '修改租户资料',
+  SUSPEND: '暂停租户',
+  RESUME: '恢复租户',
+  CANCEL: '注销租户',
+}[governanceAction.value]))
+
+const governanceSubmitLabel = computed(() => ({
+  EDIT: '保存资料',
+  SUSPEND: '确认暂停',
+  RESUME: '确认恢复',
+  CANCEL: '确认永久注销',
+}[governanceAction.value]))
+
+/** 提交租户治理命令；生命周期动作统一先完成平台密码再认证。 */
+const governanceFlight = useSingleFlight(async () => {
+  const tenant = governanceTenant.value
+  if (!tenant) return
+  try {
+    if (governanceAction.value === 'EDIT') {
+      if (!governanceName.value.trim()) {
+        feedback.warning('请填写租户名称')
+        return
+      }
+      await updatePlatformTenant(tenant.id, {
+        name: governanceName.value.trim(),
+        version: tenant.version,
+      })
+      feedback.success('租户资料已更新')
+    } else {
+      if (!governanceReason.value.trim() || !governancePassword.value) {
+        feedback.warning('请填写操作原因和当前平台账号密码')
+        return
+      }
+      const passwordEnvelope = await encryptPassword(
+        governancePassword.value,
+        'PLATFORM_REAUTH_PASSWORD',
+      )
+      governancePassword.value = ''
+      const reauth = await reauthenticatePassword({
+        passwordEnvelope,
+        allowedAction: 'PLATFORM_TENANT_GOVERNANCE',
+      })
+      const request = {
+        reauthTicket: reauth.reauthTicket,
+        reason: governanceReason.value.trim(),
+        version: tenant.version,
+      }
+      if (governanceAction.value === 'SUSPEND') {
+        await suspendPlatformTenant(tenant.id, request)
+        feedback.success('租户已暂停，全部账号会话正在可靠失效')
+      } else if (governanceAction.value === 'RESUME') {
+        await resumePlatformTenant(tenant.id, request)
+        feedback.success('租户已恢复，历史会话不会恢复')
+      } else {
+        await cancelPlatformTenant(tenant.id, request)
+        feedback.success('租户已永久注销，全部账号会话正在可靠失效')
+      }
+    }
+    governanceDialogVisible.value = false
+    await loadTenants()
+  } catch (error) {
+    if (error instanceof PasswordEnvelopeError) feedback.error(error.message)
+  }
+})
+
 /** 复制只展示一次的密码恢复链接。 */
 async function copyPasswordResetLink(): Promise<void> {
   try {
@@ -366,7 +461,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', refreshTenantStatuses)
             <el-table-column label="创建时间" min-width="190">
               <template #default="scope">{{ new Date(scope.row.createdTime).toLocaleString() }}</template>
             </el-table-column>
-            <el-table-column label="所有者安全" width="230" fixed="right">
+            <el-table-column label="所有者安全" width="230">
               <template #default="scope">
                 <el-button
                   v-if="scope.row.ownerAccountStatus === 'PENDING_ACTIVATION'"
@@ -388,6 +483,35 @@ onBeforeUnmount(() => window.removeEventListener('focus', refreshTenantStatuses)
                     @click="openPasswordReset(scope.row)"
                   >{{ scope.row.ownerAccountStatus === 'ACTIVE' ? '找回密码' : '重发恢复链接' }}</el-button>
                 </template>
+              </template>
+            </el-table-column>
+            <el-table-column label="治理操作" width="245" fixed="right">
+              <template #default="scope">
+                <el-button
+                  v-if="scope.row.status !== 'CANCELLED'"
+                  type="primary"
+                  link
+                  @click="openGovernance(scope.row, 'EDIT')"
+                >编辑</el-button>
+                <el-button
+                  v-if="scope.row.status === 'ACTIVE'"
+                  type="warning"
+                  link
+                  @click="openGovernance(scope.row, 'SUSPEND')"
+                >暂停</el-button>
+                <el-button
+                  v-if="scope.row.status === 'SUSPENDED' || scope.row.status === 'EXPIRED'"
+                  type="success"
+                  link
+                  @click="openGovernance(scope.row, 'RESUME')"
+                >恢复</el-button>
+                <el-button
+                  v-if="scope.row.status === 'ACTIVE' || scope.row.status === 'SUSPENDED' || scope.row.status === 'EXPIRED'"
+                  type="danger"
+                  link
+                  @click="openGovernance(scope.row, 'CANCEL')"
+                >注销</el-button>
+                <span v-if="scope.row.status === 'CANCELLED'" class="governance-closed">已永久注销</span>
               </template>
             </el-table-column>
           </el-table>
@@ -553,6 +677,57 @@ onBeforeUnmount(() => window.removeEventListener('focus', refreshTenantStatuses)
         <el-button type="primary" @click="copyPasswordResetLink">复制链接</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="governanceDialogVisible"
+      :title="governanceTitle"
+      width="620px"
+      :close-on-click-modal="false"
+    >
+      <el-alert
+        v-if="governanceAction === 'CANCEL'"
+        type="error"
+        :closable="false"
+        title="租户注销不可恢复，租户内账号将禁止重新登录；请确认这是永久终止客户关系。"
+      />
+      <el-alert
+        v-else-if="governanceAction === 'SUSPEND'"
+        type="warning"
+        :closable="false"
+        title="暂停后租户内全部账号禁止登录，已有设备会话通过可靠事件强制失效。"
+      />
+      <el-alert
+        v-else-if="governanceAction === 'RESUME'"
+        type="info"
+        :closable="false"
+        title="恢复后账号可以重新登录，但暂停前的历史设备会话不会恢复。"
+      />
+      <el-form class="password-reset-form" label-position="top">
+        <el-form-item label="目标租户">
+          <el-input :model-value="`${governanceTenant?.name || ''} / ${governanceTenant?.tenantCode || ''}`" disabled />
+        </el-form-item>
+        <el-form-item v-if="governanceAction === 'EDIT'" label="租户名称">
+          <el-input v-model="governanceName" maxlength="200" />
+        </el-form-item>
+        <template v-else>
+          <el-form-item label="操作原因">
+            <el-input v-model="governanceReason" type="textarea" :rows="3" maxlength="500" show-word-limit />
+          </el-form-item>
+          <el-form-item label="当前平台账号密码（管理员再认证）">
+            <el-input v-model="governancePassword" type="password" show-password maxlength="128" autocomplete="current-password" />
+          </el-form-item>
+        </template>
+      </el-form>
+      <template #footer>
+        <el-button :disabled="governanceFlight.pending.value" @click="governanceDialogVisible = false">取消</el-button>
+        <el-button
+          :type="governanceAction === 'CANCEL' ? 'danger' : 'primary'"
+          :loading="governanceFlight.pending.value"
+          :disabled="governanceFlight.pending.value"
+          @click="governanceFlight.run()"
+        >{{ governanceSubmitLabel }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -575,6 +750,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', refreshTenantStatuses)
 .tenant-name div { display: grid; gap: 4px; }
 .tenant-name small { color: #918b96; }
 .owner-username { color: #3d3743; font-weight: 600; }
+.governance-closed { color: #96919a; font-size: 13px; }
 .pagination-row { padding: 20px 24px; display: flex; justify-content: flex-end; border-top: 1px solid #ecece8; }
 .wizard-body { min-height: 330px; padding: 34px 8px 4px; }
 .wizard-form { display: grid; gap: 2px 18px; }

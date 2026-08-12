@@ -10,6 +10,8 @@ import type {
   TenantOwnerActivationLink,
   TenantOwnerPasswordResetLink,
   TenantOwnerPasswordResetRequest,
+  UpdatePlatformTenantRequest,
+  PlatformTenantStatusRequest,
 } from '../types'
 
 const PLATFORM_TENANTS_PATH = '/iam/v1/platform/tenants'
@@ -72,6 +74,57 @@ export async function issueTenantOwnerPasswordResetLink(
 ): Promise<TenantOwnerPasswordResetLink> {
   const response = await http.post<ApiResponse<TenantOwnerPasswordResetLink>>(
     `${PLATFORM_TENANTS_PATH}/${tenantId}/owner/password-reset-links`,
+    request,
+  )
+  if (response.data.data === null) throw new Error('服务端成功响应缺少 data')
+  return response.data.data
+}
+
+/** 修改租户显示名称，租户业务编码保持永久不变。 */
+export async function updatePlatformTenant(
+  tenantId: string,
+  request: UpdatePlatformTenantRequest,
+): Promise<TenantSummary> {
+  const response = await http.put<ApiResponse<TenantSummary>>(
+    `${PLATFORM_TENANTS_PATH}/${tenantId}`,
+    request,
+  )
+  if (response.data.data === null) throw new Error('服务端成功响应缺少 data')
+  return response.data.data
+}
+
+/** 暂停租户并使租户内全部设备会话失效。 */
+export async function suspendPlatformTenant(
+  tenantId: string,
+  request: PlatformTenantStatusRequest,
+): Promise<TenantSummary> {
+  return changePlatformTenantStatus(tenantId, 'suspend', request)
+}
+
+/** 恢复租户；历史设备会话不会恢复。 */
+export async function resumePlatformTenant(
+  tenantId: string,
+  request: PlatformTenantStatusRequest,
+): Promise<TenantSummary> {
+  return changePlatformTenantStatus(tenantId, 'resume', request)
+}
+
+/** 不可恢复地注销租户。 */
+export async function cancelPlatformTenant(
+  tenantId: string,
+  request: PlatformTenantStatusRequest,
+): Promise<TenantSummary> {
+  return changePlatformTenantStatus(tenantId, 'cancel', request)
+}
+
+/** 调用统一的租户生命周期动作契约。 */
+async function changePlatformTenantStatus(
+  tenantId: string,
+  action: 'suspend' | 'resume' | 'cancel',
+  request: PlatformTenantStatusRequest,
+): Promise<TenantSummary> {
+  const response = await http.post<ApiResponse<TenantSummary>>(
+    `${PLATFORM_TENANTS_PATH}/${tenantId}/actions/${action}`,
     request,
   )
   if (response.data.data === null) throw new Error('服务端成功响应缺少 data')

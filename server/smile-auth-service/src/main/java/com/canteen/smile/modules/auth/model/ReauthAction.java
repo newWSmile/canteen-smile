@@ -8,6 +8,9 @@ public enum ReauthAction {
     /** 平台身份为租户根机构所有者发起密码恢复。 */
     TENANT_OWNER_PASSWORD_RESET,
 
+    /** 平台身份暂停、恢复或不可恢复注销租户。 */
+    PLATFORM_TENANT_GOVERNANCE,
+
     /** 租户管理员创建账号并授予初始角色。 */
     TENANT_USER_CREATE,
 

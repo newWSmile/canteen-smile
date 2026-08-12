@@ -20,7 +20,8 @@
 | `IAM_DML_0003` | IAM | DML | `iam/dml/IAM_DML_0003__publish_audit_view_permissions.sql` | `IAM_DML_0002` | `EXECUTED` | 用户已确认在 LOCAL 环境执行，已发布平台审计与租户审计菜单权限，并为已有租户补齐审计菜单显示配置 |
 | `IAM_DML_0004` | IAM | DML | `iam/dml/IAM_DML_0004__publish_sms_delivery_view_permission.sql` | `IAM_DML_0003` | `EXECUTED` | 用户已确认在 LOCAL 环境执行；发布平台短信发送记录菜单权限 |
 | `IAM_DML_0005` | IAM | DML | `iam/dml/IAM_DML_0005__publish_sms_management_permissions.sql` | `IAM_DML_0004` | `EXECUTED` | 用户已确认在 LOCAL 环境执行；发布短信管理目录、短信设置、短信安全及修改权限，并将现有短信记录菜单调整为短信列表 |
-| `IAM_DML_0006` | IAM | DML | `iam/dml/IAM_DML_0006__publish_tenant_security_policy_permissions.sql` | `IAM_DML_0005` | `READY` | 发布租户安全策略菜单与修改权限，并为已有租户补齐菜单显示配置 |
+| `IAM_DML_0006` | IAM | DML | `iam/dml/IAM_DML_0006__publish_tenant_security_policy_permissions.sql` | `IAM_DML_0005` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；发布租户安全策略菜单与修改权限，并为已有租户补齐菜单显示配置 |
+| `IAM_DML_0007` | IAM | DML | `iam/dml/IAM_DML_0007__publish_platform_tenant_governance_permissions.sql` | `IAM_DML_0006` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；正式发布平台租户治理菜单及创建、修改、状态、注销和所有者激活权限 |
 | `AUTH_DDL_0001` | AUTH | DDL | `auth/ddl/AUTH_DDL_0001__create_credential_config_core.sql` | 无 | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行 |
 | `AUTH_DDL_0002` | AUTH | DDL | `auth/ddl/AUTH_DDL_0002__create_challenge_ticket_core.sql` | `AUTH_DDL_0001` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行 |
 | `AUTH_DDL_0003` | AUTH | DDL | `auth/ddl/AUTH_DDL_0003__create_session_audit_core.sql` | `AUTH_DDL_0002` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行 |
@@ -30,7 +31,7 @@
 | `AUTH_DDL_0007` | AUTH | DDL | `auth/ddl/AUTH_DDL_0007__create_sms_delivery_record.sql` | `AUTH_DDL_0006` | `EXECUTED` | 用户已确认在 LOCAL 环境执行；创建短信投递记录，保留可读明文正文快照但不保存完整手机号、验证码、Token 或一次性链接，供本地日志策略和后续真实供应商策略统一使用 |
 | `AUTH_DDL_0008` | AUTH | DDL | `auth/ddl/AUTH_DDL_0008__allow_local_sms_challenge_config.sql` | `AUTH_DDL_0007` | `EXECUTED` | 用户已确认在 LOCAL 环境执行；允许本地数据库日志策略创建不关联真实供应商和模板配置的验证码挑战，两个配置外键必须同时为空或同时有值 |
 | `AUTH_DDL_0009` | AUTH | DDL | `auth/ddl/AUTH_DDL_0009__create_sms_runtime_policy.sql` | `AUTH_DDL_0008` | `EXECUTED` | 用户已确认在 LOCAL 环境执行；创建平台可维护的短信验证码限流和敏感正文留存策略，并标记投递记录是否保留敏感内容 |
-| `AUTH_DDL_0010` | AUTH | DDL | `auth/ddl/AUTH_DDL_0010__separate_account_selector_flows.sql` | `AUTH_DDL_0009` | `READY` | 为手机号多账号选择票据增加流程用途，禁止登录票据与密码找回票据交叉复用 |
+| `AUTH_DDL_0010` | AUTH | DDL | `auth/ddl/AUTH_DDL_0010__separate_account_selector_flows.sql` | `AUTH_DDL_0009` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；为手机号多账号选择票据增加流程用途，禁止登录票据与密码找回票据交叉复用 |
 | `AUTH_DDL_0011` | AUTH | DDL | `auth/ddl/AUTH_DDL_0011__add_generic_async_audit_metadata.sql` | `AUTH_DDL_0010` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；为注解驱动异步审计增加事件幂等 ID、端和任意层级分类快照、目标快照、原因与耗时字段 |
 | `AUTH_DDL_0012` | AUTH | DDL | `auth/ddl/AUTH_DDL_0012__add_audit_operator_organization_snapshot.sql` | `AUTH_DDL_0011` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；为注解异步审计补充操作人所属机构 ID 快照，确保认证安全事件可以追溯真实组织归属 |
 | `AUTH_DDL_0013` | AUTH | DDL | `auth/ddl/AUTH_DDL_0013__add_audit_ip_masked_snapshot.sql` | `AUTH_DDL_0012` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；为认证安全审计增加来源 IP 展示快照字段 |

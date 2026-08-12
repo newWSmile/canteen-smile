@@ -35,6 +35,19 @@ export interface TenantPageQuery {
   status?: TenantStatus
 }
 
+/** 平台修改租户显示名称的乐观锁请求。 */
+export interface UpdatePlatformTenantRequest {
+  name: string
+  version: number
+}
+
+/** 平台执行租户生命周期敏感操作的请求。 */
+export interface PlatformTenantStatusRequest {
+  reauthTicket: string
+  reason: string
+  version: number
+}
+
 /** 已发布机构类型模板条目。 */
 export interface OrgTypeTemplateItem {
   typeCode: string

@@ -52,6 +52,9 @@ public class IamStpInterface implements StpInterface {
             return List.of(
                         IamPermissionCodes.PLATFORM_TENANT_VIEW,
                         IamPermissionCodes.PLATFORM_TENANT_CREATE,
+                        IamPermissionCodes.PLATFORM_TENANT_UPDATE,
+                        IamPermissionCodes.PLATFORM_TENANT_STATUS,
+                        IamPermissionCodes.PLATFORM_TENANT_CANCEL,
                         IamPermissionCodes.PLATFORM_TENANT_OWNER_ACTIVATE,
                         IamPermissionCodes.IAM_USER_PASSWORD_RESET,
                         IamPermissionCodes.PLATFORM_ORG_TEMPLATE_MANAGE,
