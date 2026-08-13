@@ -41,6 +41,7 @@ class TenantNavigationMapperXmlTest {
         assertThat(sql).contains("permission.permission_code IN");
         assertThat(sql).contains("tenant_hidden_menu");
         assertThat(sql).contains("COALESCE(feature.enabled, false)=true");
+        assertThat(sql).contains("permission.permission_code='iam:tenant-navigation:view'");
 
         MappedStatement hiddenMenus = configuration.getMappedStatement(
                 namespace + "selectEffectiveHiddenMenuCodes"
@@ -51,5 +52,6 @@ class TenantNavigationMapperXmlTest {
                 "permissionCodes", java.util.List.of("iam:user:view")
         )).getSql();
         assertThat(hiddenSql).contains("permission.permission_code IN");
+        assertThat(hiddenSql).contains("permission.permission_code<>'iam:tenant-navigation:view'");
     }
 }

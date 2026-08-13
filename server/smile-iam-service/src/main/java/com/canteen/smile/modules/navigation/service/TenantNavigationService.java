@@ -12,6 +12,7 @@ import com.canteen.smile.modules.navigation.mapper.TenantNavigationMapper;
 import com.canteen.smile.modules.navigation.vo.TenantFeatureVO;
 import com.canteen.smile.modules.navigation.vo.TenantMenuSettingVO;
 import com.canteen.smile.modules.navigation.vo.TenantNavigationSettingsVO;
+import com.canteen.smile.modules.permission.model.IamPermissionCodes;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,10 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class TenantNavigationService {
+
+    /** 租户导航治理恢复入口；拥有查看权限的账号必须始终能够访问。 */
+    private static final String NAVIGATION_RECOVERY_PERMISSION =
+            IamPermissionCodes.IAM_TENANT_NAVIGATION_VIEW;
 
     /** 当前租户操作人服务。 */
     private final TenantActorService actorService;
@@ -63,6 +68,7 @@ public class TenantNavigationService {
                                                         UpdateTenantMenuVisibilityRequest request) {
         TenantActorContext actor = actorService.current();
         requireMenu(actor, permissionCode);
+        rejectRecoveryEntryHiding(permissionCode, request.hidden());
         authClient.consumeTenantReauthTicket(actor.accountId(), request.reauthTicket(),
                 "TENANT_NAVIGATION_UPDATE");
         commandService.updateTenantMenu(actor, permissionCode, request);
@@ -74,6 +80,7 @@ public class TenantNavigationService {
                                                       UpdateMenuPreferenceRequest request) {
         TenantActorContext actor = actorService.current();
         TenantNavigationMapper.MenuRow menu = requirePreferenceMenu(actor, permissionCode);
+        rejectRecoveryEntryHiding(permissionCode, request.hidden());
         commandService.updatePreference(actor, permissionCode, request, menu.preferenceVersion());
         return selectPreferenceMenus(actor);
     }
@@ -143,5 +150,12 @@ public class TenantNavigationService {
         List<String> permissionCodes = List.copyOf(StpUtil.getPermissionList());
         if (permissionCodes.isEmpty()) return List.of();
         return mapper.selectPreferenceMenus(actor.tenantId(), actor.accountId(), permissionCodes);
+    }
+
+    /** 拒绝隐藏治理恢复入口，避免租户通过配置将自身永久锁在治理页面之外。 */
+    private void rejectRecoveryEntryHiding(String permissionCode, boolean hidden) {
+        if (hidden && NAVIGATION_RECOVERY_PERMISSION.equals(permissionCode)) {
+            throw new BusinessException("IAM_2941", "功能与菜单是租户治理恢复入口，不能隐藏", 409);
+        }
     }
 }

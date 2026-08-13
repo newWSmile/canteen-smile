@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useTenantContextStore } from '@/app/store/tenantContext'
 import { store } from '@/app/store'
-import { getTenantAdminToken } from '@/shared/http/client'
+import { clearTenantAdminToken, getTenantAdminToken } from '@/shared/http/client'
 
 /** 租户管理端路由；受保护页面统一装配在后台布局的右侧内容区。 */
 export const router = createRouter({
@@ -124,6 +124,7 @@ router.beforeEach(async (to) => {
         await tenantContext.load()
       } catch {
         tenantContext.clear()
+        clearTenantAdminToken()
         return { name: 'login' }
       }
     }

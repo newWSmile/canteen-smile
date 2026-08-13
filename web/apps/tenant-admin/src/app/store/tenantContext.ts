@@ -31,6 +31,7 @@ export const useTenantContextStore = defineStore('tenantContext', () => {
 
   /** 判断菜单是否同时未被租户统一配置和当前账号个人偏好隐藏。 */
   function isMenuVisible(permission: string): boolean {
+    if (permission === 'iam:tenant-navigation:view') return true
     return !(context.value?.hiddenMenuPermissionCodes.includes(permission) ?? false)
   }
 

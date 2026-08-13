@@ -23,6 +23,7 @@
 | `IAM_DML_0006` | IAM | DML | `iam/dml/IAM_DML_0006__publish_tenant_security_policy_permissions.sql` | `IAM_DML_0005` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；发布租户安全策略菜单与修改权限，并为已有租户补齐菜单显示配置 |
 | `IAM_DML_0007` | IAM | DML | `iam/dml/IAM_DML_0007__publish_platform_tenant_governance_permissions.sql` | `IAM_DML_0006` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；正式发布平台租户治理菜单及创建、修改、状态、注销和所有者激活权限 |
 | `IAM_DML_0008` | IAM | DML | `iam/dml/IAM_DML_0008__publish_account_owner_navigation_permissions.sql` | `IAM_DML_0007` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；发布管理员密码重置、机构所有权和租户功能与菜单治理权限，并为既有租户补齐功能开关与菜单配置 |
+| `IAM_DML_0009` | IAM | DML | `iam/dml/IAM_DML_0009__restore_navigation_recovery_entry.sql` | `IAM_DML_0008` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行；恢复被隐藏的“功能与菜单”治理入口并清理个人隐藏状态，防止拥有治理权限的租户账号自锁死 |
 | `AUTH_DDL_0001` | AUTH | DDL | `auth/ddl/AUTH_DDL_0001__create_credential_config_core.sql` | 无 | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行 |
 | `AUTH_DDL_0002` | AUTH | DDL | `auth/ddl/AUTH_DDL_0002__create_challenge_ticket_core.sql` | `AUTH_DDL_0001` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行 |
 | `AUTH_DDL_0003` | AUTH | DDL | `auth/ddl/AUTH_DDL_0003__create_session_audit_core.sql` | `AUTH_DDL_0002` | `EXECUTED` | 用户确认已在 LOCAL PostgreSQL 手工执行 |

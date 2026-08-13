@@ -12,8 +12,11 @@
         SELECT permission.id AS permission_id, permission.parent_id, permission.permission_code,
           permission.name, permission.route_path, permission.feature_code,
           CASE WHEN permission.feature_code IS NULL THEN true ELSE COALESCE(feature.enabled, false) END AS feature_enabled,
-          config.hidden AS tenant_hidden, config.version AS tenant_version,
-          COALESCE(preference.hidden, false) AS personally_hidden, preference.version AS preference_version,
+          CASE WHEN permission.permission_code='iam:tenant-navigation:view' THEN false ELSE config.hidden END AS tenant_hidden,
+          config.version AS tenant_version,
+          CASE WHEN permission.permission_code='iam:tenant-navigation:view' THEN false
+            ELSE COALESCE(preference.hidden, false) END AS personally_hidden,
+          preference.version AS preference_version,
           permission.sort_order
         FROM public.iam_permission_resource permission
         JOIN public.iam_tenant_menu_config config ON config.tenant_id=#{tenantId}
@@ -43,7 +46,9 @@
           permission.name, permission.route_path, permission.feature_code,
           CASE WHEN permission.feature_code IS NULL THEN true ELSE COALESCE(feature.enabled, false) END AS feature_enabled,
           false AS tenant_hidden, config.version AS tenant_version,
-          COALESCE(preference.hidden, false) AS personally_hidden, preference.version AS preference_version,
+          CASE WHEN permission.permission_code='iam:tenant-navigation:view' THEN false
+            ELSE COALESCE(preference.hidden, false) END AS personally_hidden,
+          preference.version AS preference_version,
           permission.sort_order
         FROM public.iam_permission_resource permission
         JOIN public.iam_tenant_menu_config config ON config.tenant_id=#{tenantId}
@@ -59,7 +64,8 @@
           <foreach collection="permissionCodes" item="permissionCode" open="(" separator="," close=")">
             #{permissionCode}
           </foreach>
-          AND permission.id NOT IN (SELECT id FROM tenant_hidden_menu)
+          AND (permission.permission_code='iam:tenant-navigation:view'
+            OR permission.id NOT IN (SELECT id FROM tenant_hidden_menu))
           AND (permission.feature_code IS NULL OR COALESCE(feature.enabled, false)=true)
         ORDER BY permission.sort_order, permission.id
     </select>
@@ -83,6 +89,7 @@
         SELECT permission.permission_code
         FROM public.iam_permission_resource permission
         WHERE permission.id IN (SELECT id FROM hidden_menu)
+          AND permission.permission_code&lt;&gt;'iam:tenant-navigation:view'
           AND permission.permission_code IN
           <foreach collection="permissionCodes" item="permissionCode" open="(" separator="," close=")">
             #{permissionCode}
@@ -105,6 +112,7 @@
         WHERE config.tenant_id=#{tenantId} AND config.menu_permission_id=permission.id
           AND permission.permission_code=#{permissionCode} AND permission.app_code='TENANT_ADMIN'
           AND permission.resource_type IN ('DIRECTORY','MENU') AND permission.publish_status='PUBLISHED'
+          AND (permission.permission_code&lt;&gt;'iam:tenant-navigation:view' OR #{hidden}=false)
           AND permission.is_deleted=false AND config.version=#{version} AND config.is_deleted=false
     </update>
 
@@ -116,6 +124,7 @@
           AND preference.account_id=#{accountId} AND preference.menu_permission_id=permission.id
           AND permission.permission_code=#{permissionCode} AND permission.app_code='TENANT_ADMIN'
           AND permission.resource_type IN ('DIRECTORY','MENU') AND permission.publish_status='PUBLISHED'
+          AND (permission.permission_code&lt;&gt;'iam:tenant-navigation:view' OR #{hidden}=false)
           AND permission.is_deleted=false AND preference.version=#{version} AND preference.is_deleted=false
     </update>
 
@@ -128,6 +137,7 @@
         FROM public.iam_permission_resource permission
         WHERE permission.permission_code=#{permissionCode} AND permission.app_code='TENANT_ADMIN'
           AND permission.resource_type IN ('DIRECTORY','MENU') AND permission.publish_status='PUBLISHED'
+          AND (permission.permission_code&lt;&gt;'iam:tenant-navigation:view' OR #{hidden}=false)
           AND permission.is_deleted=false
     </insert>
 

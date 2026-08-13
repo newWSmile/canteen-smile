@@ -22,6 +22,11 @@ const settings = ref<TenantNavigationSettings>({ features: [], menus: [] })
 const dialogVisible = ref(false)
 const pendingChange = ref<PendingChange | null>(null)
 const form = reactive({ reason: '', currentPassword: '' })
+const navigationRecoveryPermission = 'iam:tenant-navigation:view'
+
+function isRecoveryMenu(menu: TenantMenuSetting): boolean {
+  return menu.permissionCode === navigationRecoveryPermission
+}
 
 async function load(): Promise<void> {
   loading.value = true
@@ -120,11 +125,12 @@ onMounted(load)
           <small>{{ menu.permissionCode }}<template v-if="menu.featureCode"> · {{ menu.featureCode }}</template></small>
         </div>
         <div class="row-control">
+          <el-tag v-if="isRecoveryMenu(menu)" type="info">恢复入口，始终显示</el-tag>
           <el-tag v-if="!menu.featureEnabled" type="warning">功能已停用</el-tag>
           <span>{{ menu.tenantHidden ? '已隐藏' : '显示' }}</span>
           <el-switch
             :model-value="!menu.tenantHidden"
-            :disabled="!tenantContext.hasPermission('iam:tenant-navigation:manage')"
+            :disabled="isRecoveryMenu(menu) || !tenantContext.hasPermission('iam:tenant-navigation:manage')"
             @change="openMenu(menu, !Boolean($event))"
           />
         </div>

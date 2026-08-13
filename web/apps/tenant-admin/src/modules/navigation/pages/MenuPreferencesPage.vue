@@ -9,6 +9,11 @@ import type { TenantMenuSetting } from '../types'
 const tenantContext = useTenantContextStore()
 const loading = ref(false)
 const menus = ref<TenantMenuSetting[]>([])
+const navigationRecoveryPermission = 'iam:tenant-navigation:view'
+
+function isRecoveryMenu(menu: TenantMenuSetting): boolean {
+  return menu.permissionCode === navigationRecoveryPermission
+}
 
 async function load(): Promise<void> {
   loading.value = true
@@ -35,11 +40,12 @@ onMounted(load)
       <div v-for="menu in menus" :key="menu.permissionCode" class="setting-row">
         <div><strong>{{ menu.name }}</strong><small>{{ menu.permissionCode }}</small></div>
         <div class="row-control">
+          <el-tag v-if="isRecoveryMenu(menu)" type="info">恢复入口，始终显示</el-tag>
           <el-tag v-if="menu.tenantHidden" type="info">租户已隐藏</el-tag>
           <el-tag v-else-if="!menu.featureEnabled" type="warning">功能已停用</el-tag>
           <el-switch
             :model-value="!menu.personallyHidden"
-            :disabled="menu.tenantHidden || !menu.featureEnabled || saveFlight.pending.value"
+            :disabled="isRecoveryMenu(menu) || menu.tenantHidden || !menu.featureEnabled || saveFlight.pending.value"
             @change="saveFlight.run(menu, Boolean($event))"
           />
         </div>

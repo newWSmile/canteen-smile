@@ -21,9 +21,18 @@ export function clearTenantAdminToken(): void {
   sessionStorage.removeItem(TOKEN_STORAGE_KEY)
 }
 
+/** 认证失效时清理本端状态并使用整页跳转终止所有在途页面请求。 */
+function handleUnauthorized(message: string): void {
+  clearTenantAdminToken()
+  feedback.error(message || '登录状态已失效，请重新登录')
+  const loginUrl = new URL(`${import.meta.env.BASE_URL}login`, window.location.origin)
+  if (window.location.pathname !== loginUrl.pathname) window.location.replace(loginUrl)
+}
+
 /** 租户管理端唯一 Axios 实例，Token 与租户业务端隔离。 */
 export const http = createHttpClient({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   getToken: getTenantAdminToken,
   feedback,
+  onUnauthorized: handleUnauthorized,
 })

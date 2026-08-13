@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
  *
  * @param hidden 是否对租户全部机构隐藏
  * @param version 当前乐观锁版本
- * @param reauthTicket 当前所有者再认证票据
+ * @param reauthTicket 当前管理员再认证票据
  * @param reason 修改原因
  */
 public record UpdateTenantMenuVisibilityRequest(
