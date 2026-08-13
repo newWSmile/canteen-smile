@@ -3,6 +3,7 @@ package com.canteen.smile.modules.account.controller;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.canteen.smile.modules.account.dto.ReplaceTenantUserRolesRequest;
 import com.canteen.smile.modules.account.dto.TenantUserStatusRequest;
+import com.canteen.smile.modules.account.dto.TenantUserPasswordResetRequest;
 import com.canteen.smile.modules.permission.model.IamPermissionCodes;
 import org.junit.jupiter.api.Test;
 
@@ -33,5 +34,16 @@ class TenantUserControllerPermissionTest {
         SaCheckPermission permission = method.getAnnotation(SaCheckPermission.class);
         assertThat(permission).isNotNull();
         assertThat(permission.value()).containsExactly(IamPermissionCodes.IAM_USER_CANCEL);
+    }
+
+    /** 验证管理员密码重置使用独立敏感权限码。 */
+    @Test
+    void shouldDeclarePasswordResetPermission() throws NoSuchMethodException {
+        Method method = TenantUserController.class.getMethod(
+                "issuePasswordResetLink", long.class, TenantUserPasswordResetRequest.class
+        );
+        SaCheckPermission permission = method.getAnnotation(SaCheckPermission.class);
+        assertThat(permission).isNotNull();
+        assertThat(permission.value()).containsExactly(IamPermissionCodes.IAM_USER_PASSWORD_RESET);
     }
 }

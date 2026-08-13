@@ -57,32 +57,36 @@ const logoutFlight = useSingleFlight(async () => {
       <div class="brand"><span>CS</span><strong>Canteen Smile</strong></div>
       <p class="workspace">租户管理</p>
       <nav aria-label="租户管理端主导航">
-        <RouterLink :class="{ active: route.name === 'home' }" :to="{ name: 'home' }">管理概览</RouterLink>
+        <RouterLink v-if="tenantContext.isMenuVisible('iam:home:view')" :class="{ active: route.name === 'home' }" :to="{ name: 'home' }">管理概览</RouterLink>
         <RouterLink
-          v-if="tenantContext.hasPermission('iam:org-type:view')"
+          v-if="tenantContext.hasPermission('iam:org-type:view') && tenantContext.isMenuVisible('iam:org-type:view')"
           :class="{ active: route.name === 'organization-types' }"
           :to="{ name: 'organization-types' }"
         >机构类型与关系</RouterLink>
         <RouterLink
-          v-if="tenantContext.hasPermission('iam:org:view')"
+          v-if="tenantContext.hasPermission('iam:org:view') && tenantContext.isMenuVisible('iam:org:view')"
           :class="{ active: route.name === 'organizations' }"
           :to="{ name: 'organizations' }"
         >机构树</RouterLink>
         <RouterLink
-          v-if="tenantContext.hasPermission('iam:role:view')"
+          v-if="tenantContext.hasPermission('iam:role:view') && tenantContext.isMenuVisible('iam:role:view')"
           :class="{ active: route.name === 'roles' }"
           :to="{ name: 'roles' }"
         >角色与授权</RouterLink>
         <RouterLink
-          v-if="tenantContext.hasPermission('iam:user:view')"
+          v-if="tenantContext.hasPermission('iam:user:view') && tenantContext.isMenuVisible('iam:user:view')"
           :class="{ active: route.name === 'users' }"
           :to="{ name: 'users' }"
         >用户管理</RouterLink>
         <RouterLink
-          v-if="tenantContext.hasPermission('iam:audit:view')"
+          v-if="tenantContext.hasPermission('iam:audit:view') && tenantContext.isMenuVisible('iam:audit:view')"
           :class="{ active: route.name === 'tenant-audit' }"
           :to="{ name: 'tenant-audit' }"
         >审计日志</RouterLink>
+        <RouterLink
+          :class="{ active: route.name === 'account-profile' }"
+          :to="{ name: 'account-profile' }"
+        >账号资料</RouterLink>
         <RouterLink
           :class="{ active: route.name === 'profile-security' }"
           :to="{ name: 'profile-security' }"
@@ -92,10 +96,19 @@ const logoutFlight = useSingleFlight(async () => {
           :to="{ name: 'device-sessions' }"
         >登录设备</RouterLink>
         <RouterLink
-          v-if="tenantContext.hasPermission('iam:tenant-security:view')"
+          v-if="tenantContext.hasPermission('iam:tenant-security:view') && tenantContext.isMenuVisible('iam:tenant-security:view')"
           :class="{ active: route.name === 'tenant-security-policy' }"
           :to="{ name: 'tenant-security-policy' }"
         >租户安全策略</RouterLink>
+        <RouterLink
+          v-if="tenantContext.hasPermission('iam:tenant-navigation:view') && tenantContext.isMenuVisible('iam:tenant-navigation:view')"
+          :class="{ active: route.name === 'tenant-navigation-settings' }"
+          :to="{ name: 'tenant-navigation-settings' }"
+        >功能与菜单</RouterLink>
+        <RouterLink
+          :class="{ active: route.name === 'menu-preferences' }"
+          :to="{ name: 'menu-preferences' }"
+        >菜单偏好</RouterLink>
       </nav>
       <div class="boundary">
         <strong>租户隔离边界</strong>

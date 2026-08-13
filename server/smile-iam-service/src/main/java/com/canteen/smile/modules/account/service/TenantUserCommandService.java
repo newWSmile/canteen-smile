@@ -33,6 +33,30 @@ public class TenantUserCommandService {
     /** 当前受信任客户端 IP 解析器。 */
     private final AuditClientIpResolver clientIpResolver;
 
+    /**
+     * 永久保留旧用户名、登记新用户名并写入强制下线事件。
+     *
+     * @param actor 当前账号
+     * @param username 新用户名
+     * @param normalizedUsername 归一化新用户名
+     */
+    @Transactional
+    public void changeUsername(TenantActorContext actor, String username, String normalizedUsername) {
+        try {
+            if (mapper.disableUsernameLogin(actor.accountId(), actor.accountId()) != 1) {
+                throw concurrentChange();
+            }
+            mapper.insertUsernameRegistry(actor.accountId(), username, normalizedUsername, actor.accountId());
+            if (mapper.updateUsername(actor.tenantId(), actor.organizationId(), actor.accountId(), username,
+                    normalizedUsername, actor.accountId()) != 1) {
+                throw concurrentChange();
+            }
+            insertAccountChangedEvent(actor, actor.accountId(), "ACCOUNT_USERNAME_CHANGED", "用户名已修改，强制会话失效");
+        } catch (DuplicateKeyException exception) {
+            throw new BusinessException("IAM_2001", "用户名已经被当前或历史账号占用", 409);
+        }
+    }
+
     /** @param actor 当前操作者 @param request 创建请求 @return 跨 Auth 编排上下文 */
     @Transactional
     public UserProvisionContext create(TenantActorContext actor, CreateTenantUserRequest request) {

@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * 租户根机构所有者修改安全策略的命令。
+ * 具备管理权限的租户管理员修改安全策略的命令。
  *
  * @param concurrentLoginEnabled 是否允许多设备同时登录
  * @param maxDevices 最大有效设备数

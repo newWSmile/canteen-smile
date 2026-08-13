@@ -24,7 +24,7 @@
 | 项目 | 当前状态 | 本方案要求 |
 | --- | --- | --- |
 | `web/apps/platform-admin` | 已实现平台身份、租户、权限资源、短信和审计主要治理页面 | 继续补齐低频平台恢复与运营能力 |
-| `web/apps/tenant-admin` | 已实现租户 IAM 管理、个人安全、设备和安全策略主要页面 | 继续补齐所有权转让、用户名修改和菜单偏好 |
+| `web/apps/tenant-admin` | 已实现租户 IAM 管理、个人安全、设备、安全策略、用户名修改、管理员密码重置、所有权转让、租户功能与菜单治理及个人菜单偏好 | 继续按真实业务模块发布租户业务端动态菜单 |
 | `web/apps/tenant-portal` | 已具备独立入口、认证与共享安全能力边界 | 在真实业务模块确认后挂载动态业务菜单 |
 | `smile-gateway` | 已按 Auth/IAM v1 静态地址路由并传递可信客户端 IP | 接入 Nacos 时只替换服务发现，不改变外部契约 |
 | `smile-auth-service` | 已拥有凭证、密码加密、短信、再认证、设备会话和认证审计 | 接入真实短信供应商与生产级密钥服务 |
@@ -134,7 +134,7 @@ com.canteen.smile
 | `/organization-types` | 机构类型 | 类型及允许关系维护 | 仅根所有者且 `iam:org-type:manage` |
 | `/users` | 用户列表 | 本机构分页查询、创建、停用、注销 | `iam:user:view/manage` |
 | `/users/:id` | 用户详情 | 资料、角色、有效期、会话、安全历史 | 按子动作拆权限 |
-| `/users/:id/reset` | 管理员重置 | 选择短信或一次性链接、再认证、原因 | `iam:user:password-reset` |
+| `/users/:id/reset` | 管理员重置 | 生成 30 分钟一次性链接、再认证、原因 | `iam:user:password-reset` |
 | `/owners` | 机构所有者 | 查看和受控转让 | `iam:org-owner:transfer` |
 | `/roles` | 角色列表 | 新增、复制、停用、删除 | `iam:role:view/manage` |
 | `/roles/:id/permissions` | 角色功能权限 | 只能分配操作者拥有且租户启用的权限 | `iam:role:grant` |
@@ -284,8 +284,8 @@ LoginResultVO
 | --- | --- |
 | `GET /api/iam/v1/me/bootstrap` | 资料、租户/机构、角色摘要、菜单树、功能权限、租户功能和版本 |
 | `PATCH /api/iam/v1/me/profile` | 修改显示名称 |
-| `POST /api/iam/v1/me/username/actions/change` | `newUsername, reason, reauthTicket, version` |
-| `PUT /api/iam/v1/me/menu-preferences/{menuId}` | 设置当前用户隐藏状态 |
+| `POST /api/iam/v1/me/username/actions/change` | `username, reason, reauthTicket` |
+| `PUT /api/iam/v1/me/menu-preferences/{permissionCode}` | 设置当前用户菜单隐藏状态 |
 
 ### 6.2 平台管理
 
@@ -336,7 +336,7 @@ LoginResultVO
 | `PUT /api/iam/v1/tenant/users/{accountId}/roles` | 替换角色集合并使全部会话失效 |
 | `POST /api/iam/v1/tenant/users/{accountId}/actions/{disable|enable|cancel}` | 状态命令 |
 | `POST /api/iam/v1/tenant/users/{accountId}/activation-links` | 生成一次性 24 小时激活链接 |
-| `POST /api/iam/v1/tenant/users/{accountId}/password-reset` | 选择 `SMS` 或 `ONE_TIME_LINK` |
+| `POST /api/iam/v1/tenant/users/{accountId}/password-reset-links` | 生成 30 分钟有效的一次性密码重置链接 |
 | `GET /api/iam/v1/tenant/users/{accountId}/security-events` | 脱敏安全事件分页 |
 
 创建用户 DTO 至少包含已确认字段：`username, displayName?, employeeNumber?, organizationId, roleIds, validityMode, effectiveAt?, expiresAt?, pendingMobile?`。`organizationId` 创建后禁止修改。创建时服务端校验至少一个有效角色、角色同机构、授权不越权。
@@ -793,7 +793,9 @@ HMAC v1、接口路径、表结构和权限码在本文中是建议冻结的开�
 
 当前实现状态：租户管理端已经具备所有者激活、用户名密码和手机号验证码登录、一次性密码恢复、个人手机号安全及设备会话页面。登录后的布局读取 IAM 最终权限上下文，机构类型与允许关系、按需分页机构树、本机构角色 CRUD、授权上限、功能权限整版替换、默认数据范围与模块覆盖已经连接真实接口；所有者角色受保护。用户管理覆盖真实分页、创建待激活账号、资料与有效期修改、角色整版分配、停用、恢复、不可恢复注销和一次性激活链接。敏感创建和授权要求原因与当前密码再认证；账号、角色、授权、有效期和生命周期变化提升授权版本并写入 Outbox，Auth 已在阶段 4 幂等消费并真正使全部设备会话失效。
 
-租户安全策略已经形成根机构所有者专用闭环：租户管理端可维护并发登录、最大设备数、记住我、普通与记住我会话双重时限、密码定期到期及审计保留时间。修改必须填写原因并消费绑定 `TENANT_SECURITY_POLICY_UPDATE` 的密码再认证票据；策略收紧时 IAM 在同一事务提升租户安全版本并按有效账号写入 Outbox，Auth 复用既有幂等消费链路使租户账号全部设备重新登录。`IAM_DML_0006` 已由用户确认在 LOCAL 环境执行，菜单和按钮权限已经正式发布。
+本阶段账号和租户治理闭环已经继续补齐：当前账号可在密码再认证后修改全平台唯一用户名，旧用户名永久保留且停止登录，成功后写入 Outbox 并清理当前前端登录态；具备独立权限的同机构管理员可为规则允许的账号生成三十分钟一次性密码重置链接，普通管理员不能重置机构所有者或其它管理账号，机构所有者可处理本机构全部账号。机构所有权转让校验唯一关系、目标账号状态和双方自定义角色，原/新所有者授权版本提升并使双方全部设备会话失效。具备对应查看或管理权限的租户管理员可维护功能启停与统一菜单隐藏；功能停用进入后端最终权限过滤并使租户全部账号重新登录，菜单隐藏和父子级联只影响导航显示。每个账号只能对本人当前真实拥有权限、功能已启用且租户未统一隐藏的菜单维护个人偏好，禁止通过偏好接口暴露未授权菜单。已发布租户端权限进入普通角色授权池，功能准入只认最终权限码，不再叠加租户超管或根机构所有者身份；敏感变更继续要求原因、密码再认证、乐观锁和中文审计。
+
+租户安全策略已经形成可授权治理闭环：具备 `iam:tenant-security:view` 的账号可查看策略，具备 `iam:tenant-security:manage` 的账号可维护并发登录、最大设备数、记住我、普通与记住我会话双重时限、密码定期到期及审计保留时间。修改必须填写原因并消费绑定 `TENANT_SECURITY_POLICY_UPDATE` 的密码再认证票据；策略收紧时 IAM 在同一事务提升租户安全版本并按有效账号写入 Outbox，Auth 复用既有幂等消费链路使租户账号全部设备重新登录。`IAM_DML_0006` 已由用户确认在 LOCAL 环境执行，菜单和按钮权限已经正式发布。
 
 ### 阶段 4：授权失效和审计
 
@@ -818,10 +820,9 @@ HMAC v1、接口路径、表结构和权限码在本文中是建议冻结的开�
 ### 20.1 当前剩余优先级（2026-08-12）
 
 1. 完成平台租户资料修改、暂停、恢复、注销的端到端验收，并验证 XXL-JOB 投递后受影响账号全部设备失效；`IAM_DML_0007` 已执行，无需重复执行。
-2. 完成用户名修改（旧用户名永久保留、强制重新登录）与管理员密码重置的一次性链接流程。
-3. 完成机构所有权转让（每机构唯一所有者、原因与再认证、旧所有者会话失效）。
-4. 完成租户功能停用、租户菜单隐藏和用户个人菜单偏好，并让三个前端入口消费真实动态菜单。
-5. 接入真实短信供应商、Nacos 服务发现、生产密钥服务、监控告警与故障演练；业务模块只有在真实数据归属字段确认后再接入数据权限。
+2. `IAM_DML_0008` 已在 LOCAL 执行；继续完成用户名修改、管理员密码重置、机构所有权转让、功能启停、菜单隐藏和个人菜单偏好的端到端验收，并验证相关 Outbox 经 XXL-JOB 投递后会话确实失效。
+3. 租户业务端继续保持契约优先；待首个真实业务模块发布 `TENANT_PORTAL` 菜单和权限资源后，再复用同一套租户菜单配置与个人偏好上下文，禁止提前伪造业务菜单。
+4. 接入真实短信供应商、Nacos 服务发现、生产密钥服务、监控告警与故障演练；业务模块只有在真实数据归属字段确认后再接入数据权限。
 
 ## 21. 测试矩阵
 

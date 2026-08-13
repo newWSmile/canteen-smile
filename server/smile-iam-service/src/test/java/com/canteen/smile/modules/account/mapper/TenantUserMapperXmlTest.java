@@ -26,6 +26,8 @@ class TenantUserMapperXmlTest {
         assertThat(configuration.hasStatement(namespace + "countAssignableRoles")).isTrue();
         assertThat(configuration.hasStatement(namespace + "updateUserProfile")).isTrue();
         assertThat(configuration.hasStatement(namespace + "changeUserStatus")).isTrue();
+        assertThat(configuration.hasStatement(namespace + "updateUsername")).isTrue();
+        assertThat(configuration.hasStatement(namespace + "countManagementPermissions")).isTrue();
         assertThat(configuration.hasStatement(namespace + "insertAccountChangedOutbox")).isTrue();
     }
 }

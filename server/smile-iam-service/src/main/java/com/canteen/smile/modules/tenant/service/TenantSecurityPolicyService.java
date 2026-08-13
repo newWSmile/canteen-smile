@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 租户根机构所有者查询和修改租户安全策略的应用服务。 */
+/** 具备授权的租户管理员查询和修改租户安全策略的应用服务。 */
 @Service
 @RequiredArgsConstructor
 public class TenantSecurityPolicyService {
@@ -27,10 +27,10 @@ public class TenantSecurityPolicyService {
     /** Auth 再认证票据消费 Client。 */
     private final AuthTenantAccountClient authTenantAccountClient;
 
-    /** @return 当前租户根机构所有者可维护的安全策略。 */
+    /** @return 当前操作人所在租户的安全策略。 */
     @Transactional(readOnly = true)
     public TenantSecurityPolicyVO current() {
-        TenantActorContext actor = actorService.requireRootOwner();
+        TenantActorContext actor = actorService.current();
         return toVO(actor, requirePolicy(actor.tenantId()));
     }
 
@@ -51,7 +51,7 @@ public class TenantSecurityPolicyService {
             reason = "#request.reason"
     )
     public TenantSecurityPolicyVO update(UpdateTenantSecurityPolicyRequest request) {
-        TenantActorContext actor = actorService.requireRootOwner();
+        TenantActorContext actor = actorService.current();
         authTenantAccountClient.consumeTenantReauthTicket(
                 actor.accountId(), request.reauthTicket(), "TENANT_SECURITY_POLICY_UPDATE"
         );

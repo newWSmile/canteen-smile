@@ -163,6 +163,10 @@ export type ReauthAction =
   | 'MOBILE_CHANGE'
   | 'MOBILE_UNBIND'
   | 'TENANT_SECURITY_POLICY_UPDATE'
+  | 'TENANT_USERNAME_CHANGE'
+  | 'TENANT_USER_PASSWORD_RESET'
+  | 'TENANT_ORG_OWNER_TRANSFER'
+  | 'TENANT_NAVIGATION_UPDATE'
 
 /** 当前密码再认证请求。 */
 export interface PasswordReauthRequest {

@@ -13,8 +13,10 @@ import java.util.List;
  * @param organizationId 当前所属机构 ID
  * @param organizationName 当前所属机构名称
  * @param rootOrganizationId 租户根机构 ID
+ * @param organizationOwner 是否当前所属机构所有者
  * @param rootOwner 是否根机构所有者
  * @param permissions 当前后端最终权限码
+ * @param hiddenMenuPermissionCodes 租户配置和个人偏好共同决定的隐藏菜单权限码
  */
 public record TenantManagementContextVO(
         String accountId,
@@ -25,11 +27,14 @@ public record TenantManagementContextVO(
         String organizationId,
         String organizationName,
         String rootOrganizationId,
+        boolean organizationOwner,
         boolean rootOwner,
-        List<String> permissions
+        List<String> permissions,
+        List<String> hiddenMenuPermissionCodes
 ) {
     /** 对权限集合创建不可变副本。 */
     public TenantManagementContextVO {
         permissions = List.copyOf(permissions);
+        hiddenMenuPermissionCodes = List.copyOf(hiddenMenuPermissionCodes);
     }
 }

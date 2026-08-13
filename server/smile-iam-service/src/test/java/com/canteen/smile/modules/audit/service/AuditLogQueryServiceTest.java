@@ -148,7 +148,7 @@ class AuditLogQueryServiceTest {
     private TenantActorContext actor(boolean rootOwner) {
         return new TenantActorContext(
                 200L, 2L, "测试租户", 20L, "测试机构", 20L,
-                "audit_admin", "审计管理员", rootOwner
+                "audit_admin", "审计管理员", rootOwner, rootOwner
         );
     }
 }

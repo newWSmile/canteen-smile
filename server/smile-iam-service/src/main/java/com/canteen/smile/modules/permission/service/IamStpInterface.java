@@ -69,12 +69,10 @@ public class IamStpInterface implements StpInterface {
         }
         AccountLifecycleMapper.TenantPermissionContextRow context = activeTenantContext(loginId);
         if (context == null) return List.of();
-        if (!context.rootOwner()) {
+        if (!context.organizationOwner()) {
             return roleMapper.selectEffectivePermissionCodes(context.tenantId(), context.accountId());
         }
         LinkedHashSet<String> permissions = new LinkedHashSet<>(List.of(
-                        IamPermissionCodes.IAM_ORG_TYPE_VIEW,
-                        IamPermissionCodes.IAM_ORG_TYPE_MANAGE,
                         IamPermissionCodes.IAM_ORG_VIEW,
                         IamPermissionCodes.IAM_ORG_CREATE,
                         IamPermissionCodes.IAM_ORG_UPDATE,
@@ -95,11 +93,15 @@ public class IamStpInterface implements StpInterface {
                         IamPermissionCodes.IAM_USER_CANCEL,
                         IamPermissionCodes.IAM_USER_ROLE_ASSIGN,
                         IamPermissionCodes.IAM_USER_PASSWORD_RESET,
-                        IamPermissionCodes.IAM_AUDIT_VIEW
+                        IamPermissionCodes.IAM_AUDIT_VIEW,
+                        IamPermissionCodes.IAM_ORG_OWNER_VIEW,
+                        IamPermissionCodes.IAM_ORG_OWNER_TRANSFER
                 ));
-        roleMapper.selectGrantablePermissions(context.tenantId(), context.accountId(), true)
+        roleMapper.selectGrantablePermissions(context.tenantId(), context.accountId(), context.rootOwner())
                 .forEach(resource -> permissions.add(resource.permissionCode()));
-        return List.copyOf(permissions);
+        return permissions.isEmpty()
+                ? List.of()
+                : roleMapper.selectEnabledPermissionCodes(context.tenantId(), List.copyOf(permissions));
     }
 
     /**
@@ -119,7 +121,7 @@ public class IamStpInterface implements StpInterface {
         LinkedHashSet<String> roles = new LinkedHashSet<>(roleMapper.selectEffectiveRoleCodes(
                 context.tenantId(), context.organizationId(), context.accountId()
         ));
-        if (context.rootOwner()) roles.add(ORGANIZATION_OWNER_ROLE);
+        if (context.organizationOwner()) roles.add(ORGANIZATION_OWNER_ROLE);
         return List.copyOf(roles);
     }
 

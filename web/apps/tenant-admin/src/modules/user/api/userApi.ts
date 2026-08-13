@@ -5,6 +5,8 @@ import type {
   ReplaceTenantUserRolesRequest,
   TenantUser,
   TenantUserActivationLink,
+  TenantUserPasswordResetLink,
+  OrganizationOwner,
   TenantUserStatus,
   UpdateTenantUserRequest,
 } from '../types'
@@ -71,6 +73,36 @@ export async function cancelTenantUser(user: TenantUser, reason: string): Promis
 export async function issueTenantUserActivationLink(accountId: string): Promise<TenantUserActivationLink> {
   const response = await http.post<ApiResponse<TenantUserActivationLink>>(
     `${USERS_PATH}/${accountId}/activation-links`,
+  )
+  return requireData(response.data)
+}
+
+/** 为授权范围内账号生成三十分钟一次性密码重置票据。 */
+export async function issueTenantUserPasswordResetLink(
+  accountId: string,
+  request: { reauthTicket: string; reason: string },
+): Promise<TenantUserPasswordResetLink> {
+  const response = await http.post<ApiResponse<TenantUserPasswordResetLink>>(
+    `${USERS_PATH}/${accountId}/password-reset-links`, request,
+  )
+  return requireData(response.data)
+}
+
+/** 查询当前机构唯一所有者。 */
+export async function getOrganizationOwner(): Promise<OrganizationOwner> {
+  const response = await http.get<ApiResponse<OrganizationOwner>>('/iam/v1/tenant/organization-owner')
+  return requireData(response.data)
+}
+
+/** 当前所有者经再认证转让机构所有权。 */
+export async function transferOrganizationOwner(request: {
+  targetAccountId: string
+  reauthTicket: string
+  reason: string
+  version: number
+}): Promise<OrganizationOwner> {
+  const response = await http.post<ApiResponse<OrganizationOwner>>(
+    '/iam/v1/tenant/organization-owner/actions/transfer', request,
   )
   return requireData(response.data)
 }

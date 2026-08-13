@@ -27,8 +27,7 @@ const form = reactive({
 })
 
 const canManage = computed(
-  () => tenantContext.context?.rootOwner
-    && tenantContext.hasPermission('iam:tenant-security:manage'),
+  () => tenantContext.hasPermission('iam:tenant-security:manage'),
 )
 
 /** 加载当前租户真实安全策略。 */
@@ -66,7 +65,7 @@ function durationText(seconds: number): string {
 const saveFlight = useSingleFlight(async () => {
   if (!current.value) return
   if (!canManage.value) {
-    feedback.warning('只有租户根机构所有者可以修改安全策略')
+    feedback.warning('当前账号没有修改租户安全策略的权限')
     return
   }
   if (!form.currentPassword || !form.reason.trim()) {

@@ -93,6 +93,18 @@ public interface TenantUserMapper {
                          @Param("operatorId") long operatorId);
     /** 注销时永久关闭当前用户名的登录入口。 */
     int disableUsernameLogin(@Param("accountId") long accountId, @Param("operatorId") long operatorId);
+    /** 修改账号当前用户名并提升资料与授权版本。 */
+    int updateUsername(@Param("tenantId") long tenantId, @Param("organizationId") long organizationId,
+                       @Param("accountId") long accountId, @Param("username") String username,
+                       @Param("normalizedUsername") String normalizedUsername,
+                       @Param("operatorId") long operatorId);
+    /** @return 目标账号是否拥有有效自定义角色 */
+    long countCustomRoles(@Param("tenantId") long tenantId, @Param("organizationId") long organizationId,
+                          @Param("accountId") long accountId);
+    /** @return 目标账号是否拥有管理型功能权限 */
+    long countManagementPermissions(@Param("tenantId") long tenantId,
+                                    @Param("organizationId") long organizationId,
+                                    @Param("accountId") long accountId);
     /** 写入等待 Auth 消费的账号授权或状态变化事件。 */
     int insertAccountChangedOutbox(@Param("outboxId") long outboxId, @Param("eventId") String eventId,
                                    @Param("tenantId") long tenantId, @Param("accountId") long accountId,

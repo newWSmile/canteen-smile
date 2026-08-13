@@ -49,17 +49,9 @@ public class TenantActorService {
                 row.rootOrganizationId(),
                 row.username(),
                 row.displayName() == null ? row.username() : row.displayName(),
+                row.organizationOwner(),
                 row.rootOwner()
         );
-    }
-
-    /** @return 当前有效租户根机构所有者 */
-    public TenantActorContext requireRootOwner() {
-        TenantActorContext actor = current();
-        if (!actor.rootOwner()) {
-            throw new BusinessException("IAM_2402", "只有租户根机构所有者可以执行当前操作", 403);
-        }
-        return actor;
     }
 
     /** @return 无效租户身份异常 */

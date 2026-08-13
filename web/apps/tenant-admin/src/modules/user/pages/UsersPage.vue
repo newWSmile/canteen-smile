@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTenantContextStore } from '@/app/store/tenantContext'
 import { reauthenticatePassword } from '@/modules/auth/api/authApi'
 import { encryptPassword } from '@/modules/auth/passwordEnvelope'
@@ -7,18 +8,23 @@ import { pageRoles } from '@/modules/role/api/roleApi'
 import type { Role } from '@/modules/role/types'
 import { feedback } from '@/shared/feedback'
 import { useSingleFlight } from '@/shared/composables/useSingleFlight'
+import { clearTenantAdminToken } from '@/shared/http/client'
 import {
   createTenantUser,
   cancelTenantUser,
   changeTenantUserStatus,
   issueTenantUserActivationLink,
+  issueTenantUserPasswordResetLink,
+  getOrganizationOwner,
+  transferOrganizationOwner,
   pageTenantUsers,
   replaceTenantUserRoles,
   updateTenantUser,
 } from '../api/userApi'
-import type { TenantUser, TenantUserStatus } from '../types'
+import type { OrganizationOwner, TenantUser, TenantUserStatus } from '../types'
 
 const tenantContext = useTenantContextStore()
+const router = useRouter()
 const loading = ref(false)
 const users = ref<TenantUser[]>([])
 const total = ref(0)
@@ -38,6 +44,14 @@ const operationVisible = ref(false)
 const operationUser = ref<TenantUser | null>(null)
 const operationAction = ref<'status' | 'cancel'>('status')
 const operationReason = ref('')
+const resetVisible = ref(false)
+const resetUser = ref<TenantUser | null>(null)
+const resetForm = reactive({ reason: '', currentPassword: '' })
+const resetLink = ref('')
+const resetExpiresAt = ref('')
+const owner = ref<OrganizationOwner | null>(null)
+const ownerVisible = ref(false)
+const ownerForm = reactive({ targetAccountId: '', reason: '', currentPassword: '' })
 
 const createForm = reactive({
   username: '',
@@ -71,6 +85,8 @@ const canAssignRole = computed(() => tenantContext.hasPermission('iam:user:role-
 const canUpdate = computed(() => tenantContext.hasPermission('iam:user:update'))
 const canStatus = computed(() => tenantContext.hasPermission('iam:user:status'))
 const canCancel = computed(() => tenantContext.hasPermission('iam:user:cancel'))
+const canResetPassword = computed(() => tenantContext.hasPermission('iam:user:password-reset'))
+const canTransferOwner = computed(() => tenantContext.hasPermission('iam:org-owner:transfer'))
 
 const statusLabels: Record<TenantUserStatus, string> = {
   PENDING_ACTIVATION: '待激活',
@@ -84,7 +100,7 @@ const statusLabels: Record<TenantUserStatus, string> = {
 async function load(): Promise<void> {
   loading.value = true
   try {
-    const [page, rolePage] = await Promise.all([
+    const [page, rolePage, ownerResult] = await Promise.all([
       pageTenantUsers({
         pageNo: pageNo.value,
         pageSize: 20,
@@ -92,10 +108,12 @@ async function load(): Promise<void> {
         status: status.value || undefined,
       }),
       pageRoles(1, 100),
+      tenantContext.hasPermission('iam:org-owner:view') ? getOrganizationOwner() : Promise.resolve(null),
     ])
     users.value = page.items
     total.value = page.total
     roleOptions.value = rolePage.items.filter((role) => role.roleType === 'CUSTOM' && role.status === 'ACTIVE')
+    owner.value = ownerResult
   } finally {
     loading.value = false
   }
@@ -121,7 +139,7 @@ function openCreate(): void {
 
 /** 通过加密密码签发只能执行指定动作的一次性票据。 */
 async function getReauthTicket(
-  action: 'TENANT_USER_CREATE' | 'TENANT_USER_ROLE_ASSIGN',
+  action: 'TENANT_USER_CREATE' | 'TENANT_USER_ROLE_ASSIGN' | 'TENANT_USER_PASSWORD_RESET' | 'TENANT_ORG_OWNER_TRANSFER',
   currentPassword: string,
 ): Promise<string> {
   const passwordEnvelope = await encryptPassword(currentPassword, 'TENANT_REAUTH_PASSWORD')
@@ -277,6 +295,69 @@ async function copyActivationLink(): Promise<void> {
   feedback.success('激活链接已复制，请通过可信渠道交付给本人')
 }
 
+function openPasswordReset(user: TenantUser): void {
+  resetUser.value = user
+  resetLink.value = ''
+  resetExpiresAt.value = ''
+  Object.assign(resetForm, { reason: '', currentPassword: '' })
+  resetVisible.value = true
+}
+
+const resetFlight = useSingleFlight(async () => {
+  if (!resetUser.value || !resetForm.reason.trim() || !resetForm.currentPassword) {
+    feedback.warning('请填写重置原因并输入当前登录密码')
+    return
+  }
+  try {
+    const reauthTicket = await getReauthTicket('TENANT_USER_PASSWORD_RESET', resetForm.currentPassword)
+    const result = await issueTenantUserPasswordResetLink(resetUser.value.id, {
+      reauthTicket,
+      reason: resetForm.reason.trim(),
+    })
+    const url = new URL('/reset-password', window.location.origin)
+    url.searchParams.set('ticket', result.resetTicket)
+    resetLink.value = url.toString()
+    resetExpiresAt.value = result.expiresAt
+    feedback.success('一次性密码重置链接已生成，目标账号全部设备将下线')
+    await load()
+  } finally {
+    resetForm.currentPassword = ''
+  }
+})
+
+async function copyResetLink(): Promise<void> {
+  await navigator.clipboard.writeText(resetLink.value)
+  feedback.success('密码重置链接已复制，请通过可信渠道线下交付')
+}
+
+function openOwnerTransfer(): void {
+  Object.assign(ownerForm, { targetAccountId: '', reason: '', currentPassword: '' })
+  ownerVisible.value = true
+}
+
+const ownerFlight = useSingleFlight(async () => {
+  if (!owner.value || !ownerForm.targetAccountId || !ownerForm.reason.trim() || !ownerForm.currentPassword) {
+    feedback.warning('请选择新所有者，并填写原因和当前登录密码')
+    return
+  }
+  try {
+    const reauthTicket = await getReauthTicket('TENANT_ORG_OWNER_TRANSFER', ownerForm.currentPassword)
+    owner.value = await transferOrganizationOwner({
+      targetAccountId: ownerForm.targetAccountId,
+      reauthTicket,
+      reason: ownerForm.reason.trim(),
+      version: owner.value.version,
+    })
+    ownerVisible.value = false
+    tenantContext.clear()
+    clearTenantAdminToken()
+    feedback.success('机构所有权已转让，请使用普通账号权限重新登录')
+    await router.replace({ name: 'login' })
+  } finally {
+    ownerForm.currentPassword = ''
+  }
+})
+
 function statusTagType(value: TenantUserStatus): 'success' | 'warning' | 'info' | 'danger' {
   if (value === 'ACTIVE') return 'success'
   if (value === 'PENDING_ACTIVATION' || value === 'PASSWORD_RESET_REQUIRED') return 'warning'
@@ -299,7 +380,10 @@ onMounted(load)
         <h2>账号只属于当前机构，角色决定功能与数据边界。</h2>
         <p>管理员创建待激活账号但不知道最终密码；创建和角色分配均需要填写原因并用当前密码再认证。</p>
       </div>
-      <el-button v-if="canCreate" class="management-primary-action" type="primary" @click="openCreate">新增用户</el-button>
+      <div class="lead-actions">
+        <el-button v-if="canTransferOwner" @click="openOwnerTransfer">转让机构所有权</el-button>
+        <el-button v-if="canCreate" class="management-primary-action" type="primary" @click="openCreate">新增用户</el-button>
+      </div>
     </div>
 
     <div class="management-query-toolbar">
@@ -343,6 +427,7 @@ onMounted(load)
             <el-button v-if="canCreate && scope.row.status === 'PENDING_ACTIVATION'" link type="success" :loading="activationFlight.pending.value" :disabled="activationFlight.pending.value" @click="activationFlight.run(scope.row)">生成激活链接</el-button>
             <el-button v-if="canStatus && !scope.row.owner && (scope.row.status === 'ACTIVE' || scope.row.status === 'DISABLED')" link :type="scope.row.status === 'ACTIVE' ? 'warning' : 'success'" @click="openOperation(scope.row, 'status')">{{ scope.row.status === 'ACTIVE' ? '停用' : '恢复' }}</el-button>
             <el-button v-if="canCancel && !scope.row.owner && scope.row.status !== 'CANCELLED'" link type="danger" @click="openOperation(scope.row, 'cancel')">注销</el-button>
+            <el-button v-if="canResetPassword && (scope.row.status === 'ACTIVE' || scope.row.status === 'PASSWORD_RESET_REQUIRED')" link type="warning" @click="openPasswordReset(scope.row)">重置密码</el-button>
             <span v-if="scope.row.owner" class="protected">所有者受保护</span>
           </template>
         </el-table-column>
@@ -414,9 +499,32 @@ onMounted(load)
       <p class="expiry">失效时间：{{ formatTime(activationExpiresAt) }}</p>
       <template #footer><el-button @click="activationVisible=false">关闭</el-button><el-button type="primary" @click="copyActivationLink">复制链接</el-button></template>
     </el-dialog>
+
+    <el-dialog v-model="resetVisible" title="生成一次性密码重置链接" width="650px" :close-on-click-modal="false">
+      <el-alert type="warning" :closable="false" title="链接三十分钟有效且只能使用一次；生成后目标账号全部设备立即下线。" />
+      <template v-if="!resetLink">
+        <el-form label-position="top" class="dialog-form">
+          <el-form-item label="目标账号"><el-input :model-value="resetUser?.username" disabled /></el-form-item>
+          <el-form-item label="重置原因"><el-input v-model="resetForm.reason" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+          <el-form-item label="当前登录密码"><el-input v-model="resetForm.currentPassword" type="password" show-password autocomplete="current-password" /></el-form-item>
+        </el-form>
+      </template>
+      <template v-else><el-input :model-value="resetLink" readonly type="textarea" :rows="3" /><p class="expiry">失效时间：{{ formatTime(resetExpiresAt) }}</p></template>
+      <template #footer><el-button @click="resetVisible=false">关闭</el-button><el-button v-if="!resetLink" type="primary" :loading="resetFlight.pending.value" :disabled="resetFlight.pending.value" @click="resetFlight.run()">生成重置链接</el-button><el-button v-else type="primary" @click="copyResetLink">复制链接</el-button></template>
+    </el-dialog>
+
+    <el-dialog v-model="ownerVisible" title="转让机构所有权" width="620px" :close-on-click-modal="false">
+      <el-alert type="error" :closable="false" title="每个机构只能有一位所有者。转让后你将立即失去所有者权限，双方全部设备下线。" />
+      <el-form label-position="top" class="dialog-form">
+        <el-form-item label="新所有者"><el-select v-model="ownerForm.targetAccountId" filterable><el-option v-for="user in users.filter(item => !item.owner && item.status === 'ACTIVE' && item.roles.length > 0)" :key="user.id" :label="`${user.displayName || user.username}（${user.username}）`" :value="user.id" /></el-select></el-form-item>
+        <el-form-item label="转让原因"><el-input v-model="ownerForm.reason" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+        <el-form-item label="当前登录密码"><el-input v-model="ownerForm.currentPassword" type="password" show-password autocomplete="current-password" /></el-form-item>
+      </el-form>
+      <template #footer><el-button @click="ownerVisible=false">取消</el-button><el-button type="danger" :loading="ownerFlight.pending.value" :disabled="ownerFlight.pending.value" @click="ownerFlight.run()">确认转让</el-button></template>
+    </el-dialog>
   </section>
 </template>
 
 <style scoped>
-.page{padding:36px}.page-lead{display:flex;justify-content:space-between;align-items:flex-end;gap:24px}.eyebrow{margin:0 0 10px;color:#168f89;font-size:11px;font-weight:700;letter-spacing:.14em}.page-lead h2{margin:0;font-size:34px}.page-lead p:last-child{color:#748281}.panel{overflow:hidden;border:1px solid #dce5e1;border-radius:16px;background:#fff}.panel strong,.panel small{display:block}.panel small{margin-top:4px;color:#82908f}.role-tags{display:flex;flex-wrap:wrap;gap:6px}.pagination{padding:18px 22px;display:flex;justify-content:flex-end;border-top:1px solid #e8eeeb}.protected{color:#8b9795;font-size:13px}.dialog-form{margin-top:18px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}.activation-link{margin-top:18px}.expiry{color:#778785}.el-select{width:100%}@media(max-width:760px){.page{padding:20px}.page-lead{align-items:flex-start;flex-direction:column}.form-grid{grid-template-columns:1fr}}
+.page{padding:36px}.page-lead{display:flex;justify-content:space-between;align-items:flex-end;gap:24px}.lead-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px}.eyebrow{margin:0 0 10px;color:#168f89;font-size:11px;font-weight:700;letter-spacing:.14em}.page-lead h2{margin:0;font-size:34px}.page-lead p:last-child{color:#748281}.panel{overflow:hidden;border:1px solid #dce5e1;border-radius:16px;background:#fff}.panel strong,.panel small{display:block}.panel small{margin-top:4px;color:#82908f}.role-tags{display:flex;flex-wrap:wrap;gap:6px}.pagination{padding:18px 22px;display:flex;justify-content:flex-end;border-top:1px solid #e8eeeb}.protected{color:#8b9795;font-size:13px}.dialog-form{margin-top:18px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}.activation-link{margin-top:18px}.expiry{color:#778785}.el-select{width:100%}@media(max-width:760px){.page{padding:20px}.page-lead{align-items:flex-start;flex-direction:column}.lead-actions{justify-content:flex-start}.form-grid{grid-template-columns:1fr}}
 </style>

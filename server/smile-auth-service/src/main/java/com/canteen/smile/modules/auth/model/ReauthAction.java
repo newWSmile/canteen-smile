@@ -17,6 +17,18 @@ public enum ReauthAction {
     /** 租户管理员替换账号角色集合。 */
     TENANT_USER_ROLE_ASSIGN,
 
+    /** 租户账号本人修改全局登录用户名。 */
+    TENANT_USERNAME_CHANGE,
+
+    /** 租户管理员为授权范围内账号发起一次性密码重置。 */
+    TENANT_USER_PASSWORD_RESET,
+
+    /** 当前机构所有者将机构所有权转让给本机构其他账号。 */
+    TENANT_ORG_OWNER_TRANSFER,
+
+    /** 租户根机构所有者调整功能停用或租户菜单隐藏配置。 */
+    TENANT_NAVIGATION_UPDATE,
+
     /** 租户账号更换本人已验证手机号。 */
     MOBILE_CHANGE,
 

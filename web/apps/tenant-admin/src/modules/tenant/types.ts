@@ -8,6 +8,8 @@ export interface TenantManagementContext {
   organizationId: string
   organizationName: string
   rootOrganizationId: string
+  organizationOwner: boolean
   rootOwner: boolean
   permissions: string[]
+  hiddenMenuPermissionCodes: string[]
 }

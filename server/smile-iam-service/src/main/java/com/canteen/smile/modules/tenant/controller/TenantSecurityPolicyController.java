@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 租户根机构所有者维护登录、会话、密码和审计保留策略的接口。 */
+/** 具备租户安全策略权限的管理员维护登录、会话、密码和审计保留策略的接口。 */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(IamApiPaths.TENANT_SECURITY_POLICY)

@@ -27,7 +27,7 @@ class TenantOrganizationServiceTest {
         /** 审计服务替身。 */
         IamAuditLogService audit = mock(IamAuditLogService.class);
         when(actorService.current()).thenReturn(new TenantActorContext(
-                21L, 11L, "测试租户", 31L, "根机构", 31L, "owner", "Owner", true
+                21L, 11L, "测试租户", 31L, "根机构", 31L, "owner", "Owner", true, true
         ));
         when(mapper.selectOrganization(11L, 41L)).thenReturn(organization(41L, 31L, 1L));
         when(mapper.selectOrganization(11L, 51L)).thenReturn(organization(51L, 41L, 2L));

@@ -85,7 +85,7 @@ public class TenantOrganizationTypeService {
     /** @param request 新类型参数 @return 新增类型 */
     @Transactional
     public OrganizationTypeVO create(CreateOrganizationTypeRequest request) {
-        TenantActorContext actor = actorService.requireRootOwner();
+        TenantActorContext actor = actorService.current();
         OrganizationTypeEntity entity = new OrganizationTypeEntity();
         entity.setTenantId(actor.tenantId());
         entity.setTypeCode(request.typeCode().strip().toUpperCase(Locale.ROOT));
@@ -106,7 +106,7 @@ public class TenantOrganizationTypeService {
     /** @param typeId 类型 ID @param request 修改参数 @return 修改后的类型 */
     @Transactional
     public OrganizationTypeVO update(long typeId, UpdateOrganizationTypeRequest request) {
-        TenantActorContext actor = actorService.requireRootOwner();
+        TenantActorContext actor = actorService.current();
         requireType(actor.tenantId(), typeId);
         if (mapper.updateOrganizationType(
                 actor.tenantId(), typeId, request.name().strip(), request.sortOrder(),
@@ -120,7 +120,7 @@ public class TenantOrganizationTypeService {
     /** @param typeId 类型 ID @param request 状态参数 @return 修改后的类型 */
     @Transactional
     public OrganizationTypeVO changeStatus(long typeId, ChangeOrganizationTypeStatusRequest request) {
-        TenantActorContext actor = actorService.requireRootOwner();
+        TenantActorContext actor = actorService.current();
         TenantOrganizationMapper.OrganizationTypeRow current = requireType(actor.tenantId(), typeId);
         if (request.status().equals(current.status())) {
             return toVO(current);
@@ -147,7 +147,7 @@ public class TenantOrganizationTypeService {
     public List<OrganizationTypeRelationVO> replaceRelations(
             ReplaceOrganizationTypeRelationsRequest request
     ) {
-        TenantActorContext actor = actorService.requireRootOwner();
+        TenantActorContext actor = actorService.current();
         List<TenantOrganizationMapper.OrganizationTypeRow> activeTypes =
                 mapper.selectActiveOrganizationTypes(actor.tenantId());
         Set<Long> activeTypeIds = activeTypes.stream()

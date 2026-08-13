@@ -1,6 +1,7 @@
 package com.canteen.smile.modules.account.service;
 
 import com.canteen.smile.common.api.PageResult;
+import com.canteen.smile.audit.annotation.AuditOperation;
 import com.canteen.smile.common.exception.BusinessException;
 import com.canteen.smile.internal.client.AuthTenantAccountClient;
 import com.canteen.smile.internal.client.dto.TenantActivationTicketInternalResponse;
@@ -8,11 +9,14 @@ import com.canteen.smile.modules.account.dto.CreateTenantUserRequest;
 import com.canteen.smile.modules.account.dto.ReplaceTenantUserRolesRequest;
 import com.canteen.smile.modules.account.dto.TenantUserPageQuery;
 import com.canteen.smile.modules.account.dto.TenantUserStatusRequest;
+import com.canteen.smile.modules.account.dto.TenantUserPasswordResetRequest;
 import com.canteen.smile.modules.account.dto.UpdateTenantUserRequest;
 import com.canteen.smile.modules.account.mapper.TenantUserMapper;
 import com.canteen.smile.modules.account.vo.TenantUserActivationLinkVO;
 import com.canteen.smile.modules.account.vo.TenantUserRoleVO;
 import com.canteen.smile.modules.account.vo.TenantUserVO;
+import com.canteen.smile.modules.account.vo.TenantUserPasswordResetLinkVO;
+import com.canteen.smile.internal.client.dto.TenantPasswordResetTicketInternalResponse;
 import com.canteen.smile.modules.platform.service.UsernameNormalizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,6 +40,8 @@ public class TenantUserService {
     private final TenantUserCommandService commandService;
     /** IAM → Auth 账号 Client。 */
     private final AuthTenantAccountClient authClient;
+    /** 密码重置状态服务。 */
+    private final AccountPasswordResetService passwordResetService;
 
     /** @param query 查询条件 @return 本机构用户分页 */
     @Transactional(readOnly = true)
@@ -111,6 +117,42 @@ public class TenantUserService {
         authClient.provision(accountId, actor.tenantId(), actor.organizationId());
         TenantActivationTicketInternalResponse result = authClient.issueActivationTicket(accountId);
         return new TenantUserActivationLinkVO(result.activationTicket(), result.expiresAt());
+    }
+
+    /**
+     * 为授权范围内本机构用户生成三十分钟一次性密码重置票据。
+     *
+     * @param accountId 目标账号 ID
+     * @param request 重置请求
+     * @return 一次性重置票据
+     */
+    @AuditOperation(
+            source = "IAM", categoryPath = {"租户端", "用户管理", "密码重置"},
+            actionCode = "iam:user:password-reset", actionName = "管理员发起密码重置",
+            targetType = "TENANT_ACCOUNT", targetId = "#accountId", reason = "#request.reason"
+    )
+    public TenantUserPasswordResetLinkVO issuePasswordResetLink(
+            long accountId,
+            TenantUserPasswordResetRequest request
+    ) {
+        TenantActorContext actor = actorService.current();
+        TenantUserMapper.UserRow user = requireUser(actor, accountId);
+        if (!("ACTIVE".equals(user.status()) || "PASSWORD_RESET_REQUIRED".equals(user.status()))) {
+            throw new BusinessException("IAM_2811", "目标账号当前不能发起密码重置", 409);
+        }
+        if (user.owner() && !actor.organizationOwner()) {
+            throw new BusinessException("IAM_2812", "普通管理员不能重置机构所有者密码", 403);
+        }
+        if (!actor.organizationOwner() && mapper.countManagementPermissions(
+                actor.tenantId(), actor.organizationId(), accountId) > 0) {
+            throw new BusinessException("IAM_2813", "普通管理员之间默认不能互相重置密码", 403);
+        }
+        TenantPasswordResetTicketInternalResponse result = authClient.issuePasswordResetTicket(
+                accountId, "TENANT_ACCOUNT", actor.accountId(), request.reauthTicket(),
+                "TENANT_USER_PASSWORD_RESET"
+        );
+        passwordResetService.requirePasswordReset(accountId, actor.accountId());
+        return new TenantUserPasswordResetLinkVO(result.resetTicket(), result.expiresAt());
     }
 
     /** @return 当前机构用户，不存在则抛错 */

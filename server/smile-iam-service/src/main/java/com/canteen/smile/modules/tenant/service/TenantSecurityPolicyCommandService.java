@@ -23,7 +23,7 @@ public class TenantSecurityPolicyCommandService {
     /**
      * 修改策略；只有收紧策略时才提升安全版本并使已有会话失效。
      *
-     * @param actor 已完成数据库最终校验的租户根机构所有者
+     * @param actor 已完成数据库最终校验且具备策略管理权限的租户操作人
      * @param request 修改命令
      * @return 修改后的策略
      */

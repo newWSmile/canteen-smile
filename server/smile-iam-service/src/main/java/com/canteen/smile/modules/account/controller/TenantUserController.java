@@ -8,10 +8,12 @@ import com.canteen.smile.modules.account.dto.CreateTenantUserRequest;
 import com.canteen.smile.modules.account.dto.ReplaceTenantUserRolesRequest;
 import com.canteen.smile.modules.account.dto.TenantUserPageQuery;
 import com.canteen.smile.modules.account.dto.TenantUserStatusRequest;
+import com.canteen.smile.modules.account.dto.TenantUserPasswordResetRequest;
 import com.canteen.smile.modules.account.dto.UpdateTenantUserRequest;
 import com.canteen.smile.modules.account.service.TenantUserService;
 import com.canteen.smile.modules.account.vo.TenantUserActivationLinkVO;
 import com.canteen.smile.modules.account.vo.TenantUserVO;
+import com.canteen.smile.modules.account.vo.TenantUserPasswordResetLinkVO;
 import com.canteen.smile.modules.permission.model.IamPermissionCodes;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -106,5 +108,15 @@ public class TenantUserController {
     @SaCheckPermission(IamPermissionCodes.IAM_USER_CREATE)
     public ApiResponse<TenantUserActivationLinkVO> issueActivationLink(@Positive @PathVariable long accountId) {
         return ApiResponse.success(service.issueActivationLink(accountId));
+    }
+
+    /** @param accountId 目标账号 ID @param request 密码重置请求 @return 一次性重置票据 */
+    @PostMapping("/{accountId}/password-reset-links")
+    @SaCheckPermission(IamPermissionCodes.IAM_USER_PASSWORD_RESET)
+    public ApiResponse<TenantUserPasswordResetLinkVO> issuePasswordResetLink(
+            @Positive @PathVariable long accountId,
+            @Valid @RequestBody TenantUserPasswordResetRequest request
+    ) {
+        return ApiResponse.success(service.issuePasswordResetLink(accountId, request));
     }
 }

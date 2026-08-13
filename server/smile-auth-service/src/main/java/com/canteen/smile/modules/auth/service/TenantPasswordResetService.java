@@ -82,15 +82,20 @@ public class TenantPasswordResetService {
             long accountId,
             TenantPasswordResetTicketRequest request
     ) {
-        if (request.allowedAction() != ReauthAction.TENANT_OWNER_PASSWORD_RESET) {
+        if (request.allowedAction() != ReauthAction.TENANT_OWNER_PASSWORD_RESET
+                && request.allowedAction() != ReauthAction.TENANT_USER_PASSWORD_RESET) {
             throw invalidReauth();
         }
         /** 发起平台身份 ID。 */
         long initiatorId = Long.parseLong(request.initiatorId());
         /** 匹配原始票据摘要的再认证记录。 */
         ReauthTicketEntity reauthTicket = reauthTicketMapper.selectByHash(hash(request.reauthTicket()));
-        if (reauthTicket == null
-                || !AuthConstants.PLATFORM_IDENTITY_SUBJECT.equals(reauthTicket.getSubjectType())
+        String expectedSubjectType = request.allowedAction() == ReauthAction.TENANT_OWNER_PASSWORD_RESET
+                ? AuthConstants.PLATFORM_IDENTITY_SUBJECT
+                : AuthConstants.TENANT_ACCOUNT_SUBJECT;
+        if (!expectedSubjectType.equals(request.initiatorType())
+                || reauthTicket == null
+                || !expectedSubjectType.equals(reauthTicket.getSubjectType())
                 || reauthTicket.getSubjectId() == null
                 || reauthTicket.getSubjectId().longValue() != initiatorId
                 || !request.allowedAction().name().equals(reauthTicket.getAllowedAction())

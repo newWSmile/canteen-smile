@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.navigation.mapper.TenantNavigationMapper">
+    <select id="selectFeatures" resultType="com.canteen.smile.modules.navigation.mapper.TenantNavigationMapper$FeatureRow">
+        SELECT feature_code, enabled, version
+        FROM public.iam_tenant_feature
+        WHERE tenant_id=#{tenantId} AND is_deleted=false
+        ORDER BY feature_code
+    </select>
+
+    <select id="selectMenus" resultType="com.canteen.smile.modules.navigation.mapper.TenantNavigationMapper$MenuRow">
+        SELECT permission.id AS permission_id, permission.parent_id, permission.permission_code,
+          permission.name, permission.route_path, permission.feature_code,
+          CASE WHEN permission.feature_code IS NULL THEN true ELSE COALESCE(feature.enabled, false) END AS feature_enabled,
+          config.hidden AS tenant_hidden, config.version AS tenant_version,
+          COALESCE(preference.hidden, false) AS personally_hidden, preference.version AS preference_version,
+          permission.sort_order
+        FROM public.iam_permission_resource permission
+        JOIN public.iam_tenant_menu_config config ON config.tenant_id=#{tenantId}
+          AND config.menu_permission_id=permission.id AND config.is_deleted=false
+        LEFT JOIN public.iam_tenant_feature feature ON feature.tenant_id=config.tenant_id
+          AND feature.feature_code=permission.feature_code AND feature.is_deleted=false
+        LEFT JOIN public.iam_account_menu_preference preference ON preference.tenant_id=config.tenant_id
+          AND preference.account_id=#{accountId} AND preference.menu_permission_id=permission.id
+          AND preference.is_deleted=false
+        WHERE permission.app_code='TENANT_ADMIN' AND permission.resource_type IN ('DIRECTORY','MENU')
+          AND permission.publish_status='PUBLISHED' AND permission.is_deleted=false
+        ORDER BY permission.sort_order, permission.id
+    </select>
+
+    <select id="selectPreferenceMenus" resultType="com.canteen.smile.modules.navigation.mapper.TenantNavigationMapper$MenuRow">
+        WITH RECURSIVE tenant_hidden_menu(id) AS (
+          SELECT config.menu_permission_id
+          FROM public.iam_tenant_menu_config config
+          WHERE config.tenant_id=#{tenantId} AND config.hidden=true AND config.is_deleted=false
+          UNION
+          SELECT child.id
+          FROM public.iam_permission_resource child
+          JOIN tenant_hidden_menu parent ON child.parent_id=parent.id
+          WHERE child.is_deleted=false
+        )
+        SELECT permission.id AS permission_id, permission.parent_id, permission.permission_code,
+          permission.name, permission.route_path, permission.feature_code,
+          CASE WHEN permission.feature_code IS NULL THEN true ELSE COALESCE(feature.enabled, false) END AS feature_enabled,
+          false AS tenant_hidden, config.version AS tenant_version,
+          COALESCE(preference.hidden, false) AS personally_hidden, preference.version AS preference_version,
+          permission.sort_order
+        FROM public.iam_permission_resource permission
+        JOIN public.iam_tenant_menu_config config ON config.tenant_id=#{tenantId}
+          AND config.menu_permission_id=permission.id AND config.is_deleted=false
+        LEFT JOIN public.iam_tenant_feature feature ON feature.tenant_id=config.tenant_id
+          AND feature.feature_code=permission.feature_code AND feature.is_deleted=false
+        LEFT JOIN public.iam_account_menu_preference preference ON preference.tenant_id=config.tenant_id
+          AND preference.account_id=#{accountId} AND preference.menu_permission_id=permission.id
+          AND preference.is_deleted=false
+        WHERE permission.app_code='TENANT_ADMIN' AND permission.resource_type IN ('DIRECTORY','MENU')
+          AND permission.publish_status='PUBLISHED' AND permission.is_deleted=false
+          AND permission.permission_code IN
+          <foreach collection="permissionCodes" item="permissionCode" open="(" separator="," close=")">
+            #{permissionCode}
+          </foreach>
+          AND permission.id NOT IN (SELECT id FROM tenant_hidden_menu)
+          AND (permission.feature_code IS NULL OR COALESCE(feature.enabled, false)=true)
+        ORDER BY permission.sort_order, permission.id
+    </select>
+
+    <select id="selectEffectiveHiddenMenuCodes" resultType="string">
+        WITH RECURSIVE hidden_menu(id) AS (
+          SELECT config.menu_permission_id
+          FROM public.iam_tenant_menu_config config
+          WHERE config.tenant_id=#{tenantId} AND config.hidden=true AND config.is_deleted=false
+          UNION
+          SELECT preference.menu_permission_id
+          FROM public.iam_account_menu_preference preference
+          WHERE preference.tenant_id=#{tenantId} AND preference.account_id=#{accountId}
+            AND preference.hidden=true AND preference.is_deleted=false
+          UNION
+          SELECT child.id
+          FROM public.iam_permission_resource child
+          JOIN hidden_menu parent ON child.parent_id=parent.id
+          WHERE child.is_deleted=false
+        )
+        SELECT permission.permission_code
+        FROM public.iam_permission_resource permission
+        WHERE permission.id IN (SELECT id FROM hidden_menu)
+          AND permission.permission_code IN
+          <foreach collection="permissionCodes" item="permissionCode" open="(" separator="," close=")">
+            #{permissionCode}
+          </foreach>
+        ORDER BY permission.permission_code
+    </select>
+
+    <update id="updateFeature">
+        UPDATE public.iam_tenant_feature
+        SET enabled=#{enabled}, changed_by=#{operatorId}, updated_by=#{operatorId},
+          updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE tenant_id=#{tenantId} AND feature_code=#{featureCode} AND version=#{version} AND is_deleted=false
+    </update>
+
+    <update id="updateTenantMenu">
+        UPDATE public.iam_tenant_menu_config config
+        SET hidden=#{hidden}, changed_by=#{operatorId}, updated_by=#{operatorId},
+          updated_time=CURRENT_TIMESTAMP, version=config.version+1
+        FROM public.iam_permission_resource permission
+        WHERE config.tenant_id=#{tenantId} AND config.menu_permission_id=permission.id
+          AND permission.permission_code=#{permissionCode} AND permission.app_code='TENANT_ADMIN'
+          AND permission.resource_type IN ('DIRECTORY','MENU') AND permission.publish_status='PUBLISHED'
+          AND permission.is_deleted=false AND config.version=#{version} AND config.is_deleted=false
+    </update>
+
+    <update id="updatePreference">
+        UPDATE public.iam_account_menu_preference preference
+        SET hidden=#{hidden}, updated_by=#{accountId}, updated_time=CURRENT_TIMESTAMP, version=preference.version+1
+        FROM public.iam_permission_resource permission
+        WHERE preference.tenant_id=#{tenantId} AND preference.organization_id=#{organizationId}
+          AND preference.account_id=#{accountId} AND preference.menu_permission_id=permission.id
+          AND permission.permission_code=#{permissionCode} AND permission.app_code='TENANT_ADMIN'
+          AND permission.resource_type IN ('DIRECTORY','MENU') AND permission.publish_status='PUBLISHED'
+          AND permission.is_deleted=false AND preference.version=#{version} AND preference.is_deleted=false
+    </update>
+
+    <insert id="insertPreference">
+        INSERT INTO public.iam_account_menu_preference (
+          id,tenant_id,organization_id,account_id,menu_permission_id,hidden,created_by,updated_by
+        )
+        SELECT nextval('public.iam_account_menu_preference_seq'),#{tenantId},#{organizationId},#{accountId},
+          permission.id,#{hidden},#{accountId},#{accountId}
+        FROM public.iam_permission_resource permission
+        WHERE permission.permission_code=#{permissionCode} AND permission.app_code='TENANT_ADMIN'
+          AND permission.resource_type IN ('DIRECTORY','MENU') AND permission.publish_status='PUBLISHED'
+          AND permission.is_deleted=false
+    </insert>
+
+    <update id="bumpTenantAccountAuthzVersions">
+        UPDATE public.iam_account
+        SET authz_version=authz_version+1, updated_by=#{operatorId}, updated_time=CURRENT_TIMESTAMP,
+          version=version+1
+        WHERE tenant_id=#{tenantId} AND status IN ('ACTIVE','PASSWORD_RESET_REQUIRED') AND is_deleted=false
+    </update>
+
+    <insert id="insertTenantSessionInvalidationOutbox">
+        INSERT INTO public.iam_outbox_event (
+          id,event_id,aggregate_type,aggregate_id,tenant_id,event_type,payload_json,status,created_by,updated_by
+        )
+        SELECT nextval('public.iam_outbox_event_seq'),
+          md5(random()::text || clock_timestamp()::text || account.id::text),
+          'TENANT_ACCOUNT',CAST(account.id AS varchar),#{tenantId},'SESSION_INVALIDATION_REQUESTED',
+          jsonb_build_object('accountId',CAST(account.id AS varchar),'tenantId',CAST(#{tenantId} AS varchar),
+            'actionNameSnapshot',#{actionName},'usernameSnapshot',account.username,
+            'displayNameSnapshot',COALESCE(account.display_name,account.username),'ipAddress',#{ipAddress}),
+          'PENDING',#{operatorId},#{operatorId}
+        FROM public.iam_account account
+        WHERE account.tenant_id=#{tenantId} AND account.status IN ('ACTIVE','PASSWORD_RESET_REQUIRED')
+          AND account.is_deleted=false
+    </insert>
+</mapper>

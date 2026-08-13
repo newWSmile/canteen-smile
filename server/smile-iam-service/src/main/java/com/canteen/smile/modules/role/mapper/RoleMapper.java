@@ -107,6 +107,9 @@ public interface RoleMapper {
     /** @return 普通租户账号当前有效权限码 */
     List<String> selectEffectivePermissionCodes(@Param("tenantId") long tenantId,
                                                 @Param("accountId") long accountId);
+    /** @return 请求权限码中未被租户功能开关停用的已发布权限码 */
+    List<String> selectEnabledPermissionCodes(@Param("tenantId") long tenantId,
+                                              @Param("permissionCodes") List<String> permissionCodes);
     /** @return 普通租户账号当前有效角色编码 */
     List<String> selectEffectiveRoleCodes(@Param("tenantId") long tenantId,
                                           @Param("organizationId") long organizationId,

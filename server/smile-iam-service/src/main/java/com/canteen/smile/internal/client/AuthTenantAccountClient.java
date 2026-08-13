@@ -109,13 +109,35 @@ public class AuthTenantAccountClient {
             long initiatorId,
             String reauthTicket
     ) {
+        return issuePasswordResetTicket(
+                accountId, "PLATFORM_IDENTITY", initiatorId, reauthTicket, "TENANT_OWNER_PASSWORD_RESET"
+        );
+    }
+
+    /**
+     * 校验指定发起身份的再认证票据并生成租户账号一次性密码恢复票据。
+     *
+     * @param accountId 目标租户账号 ID
+     * @param initiatorType 发起身份类型
+     * @param initiatorId 发起身份 ID
+     * @param reauthTicket 五分钟一次性再认证票据
+     * @param allowedAction 再认证票据绑定动作
+     * @return 只展示一次的密码恢复票据
+     */
+    public TenantPasswordResetTicketInternalResponse issuePasswordResetTicket(
+            long accountId,
+            String initiatorType,
+            long initiatorId,
+            String reauthTicket,
+            String allowedAction
+    ) {
         try {
             TenantPasswordResetTicketInternalRequest request =
                     new TenantPasswordResetTicketInternalRequest(
-                            "PLATFORM_IDENTITY",
+                            initiatorType,
                             Long.toString(initiatorId),
                             reauthTicket,
-                            "TENANT_OWNER_PASSWORD_RESET"
+                            allowedAction
                     );
             ApiResponse<TenantPasswordResetTicketInternalResponse> response = authRestClient.post()
                     .uri(PASSWORD_RESET_TICKETS_PATH, accountId)

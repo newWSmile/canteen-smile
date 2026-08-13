@@ -140,6 +140,26 @@
         ORDER BY permission.app_code, permission.sort_order, permission.id
     </select>
 
+    <select id="selectEnabledPermissionCodes" resultType="string">
+        SELECT permission.permission_code
+        FROM public.iam_permission_resource permission
+        WHERE permission.permission_code IN
+        <foreach collection="permissionCodes" item="permissionCode" open="(" separator="," close=")">
+            #{permissionCode}
+        </foreach>
+          AND permission.publish_status = 'PUBLISHED'
+          AND permission.is_deleted = false
+          AND (permission.feature_code IS NULL OR EXISTS (
+              SELECT 1
+              FROM public.iam_tenant_feature feature
+              WHERE feature.tenant_id = #{tenantId}
+                AND feature.feature_code = permission.feature_code
+                AND feature.enabled = true
+                AND feature.is_deleted = false
+          ))
+        ORDER BY permission.sort_order, permission.id
+    </select>
+
     <select id="selectRolePermissionIds" resultType="long">
         SELECT permission_id FROM public.iam_role_permission
         WHERE tenant_id = #{tenantId} AND organization_id = #{organizationId}

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Canteen Smile IAM API
-  version: 1.3.0
+  version: 1.4.0
   description: IAM 服务已经实现并冻结的外部 REST 契约；未实现接口不得提前写入本文件。
 servers:
   - url: /api/iam/v1
@@ -818,6 +818,96 @@ paths:
       responses:
         '200': {description: 票据仅在本次响应展示。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantUserActivationLinkApiResponse'}}}}
         '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/users/{accountId}/password-reset-links:
+    post:
+      operationId: issueTenantUserPasswordResetLink
+      summary: 管理员为本机构账号生成一次性密码重置链接
+      description: 要求 iam:user:password-reset 权限、操作原因及绑定 TENANT_USER_PASSWORD_RESET 的密码再认证票据；普通管理员不能重置机构所有者或其它管理账号。
+      tags: [TenantUser]
+      parameters: [{$ref: '#/components/parameters/AccountId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TenantUserPasswordResetRequest'}}}}
+      responses:
+        '200': {description: 票据三十分钟有效且仅展示一次，目标账号全部设备将失效。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantUserPasswordResetLinkApiResponse'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /me/username/actions/change:
+    post:
+      operationId: changeCurrentTenantUsername
+      summary: 当前账号修改用户名
+      description: 新用户名全平台唯一且不区分大小写，旧用户名永久保留并停止登录；要求密码再认证，成功后全部设备会话失效。
+      tags: [TenantAccount]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeUsernameRequest'}}}}
+      responses:
+        '200': {description: 用户名已修改。, content: {application/json: {schema: {$ref: '#/components/schemas/ChangedUsernameApiResponse'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/organization-owner:
+    get:
+      operationId: getCurrentOrganizationOwner
+      summary: 查询当前机构唯一所有者
+      tags: [TenantOrganizationOwner]
+      responses:
+        '200': {description: 查询成功。, content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationOwnerApiResponse'}}}}
+  /tenant/organization-owner/actions/transfer:
+    post:
+      operationId: transferCurrentOrganizationOwner
+      summary: 转让当前机构所有权
+      description: 仅当前所有者可执行；目标必须是本机构正常账号且已分配自定义角色，要求原因、密码再认证和乐观锁，双方全部设备会话失效。
+      tags: [TenantOrganizationOwner]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TransferOrganizationOwnerRequest'}}}}
+      responses:
+        '200': {description: 所有权已转让。, content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationOwnerApiResponse'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/navigation-settings:
+    get:
+      operationId: getTenantNavigationSettings
+      summary: 查询租户功能启停和统一菜单配置
+      tags: [TenantNavigation]
+      responses:
+        '200': {description: 查询成功。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantNavigationSettingsApiResponse'}}}}
+  /tenant/navigation-settings/features/{featureCode}:
+    put:
+      operationId: updateTenantFeature
+      summary: 启用或停用租户功能
+      description: 功能停用进入后端最终权限过滤并使租户账号全部设备会话失效；仅根机构所有者可执行。
+      tags: [TenantNavigation]
+      parameters:
+        - {name: featureCode, in: path, required: true, schema: {type: string, pattern: '^[A-Z][A-Z0-9_]{2,127}$'}}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UpdateTenantFeatureRequest'}}}}
+      responses:
+        '200': {description: 配置已更新。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantNavigationSettingsApiResponse'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/navigation-settings/menus/{permissionCode}:
+    put:
+      operationId: updateTenantMenuVisibility
+      summary: 修改租户统一菜单显示
+      description: 只改变显示，不改变后端权限；父节点隐藏时其子菜单一并隐藏。
+      tags: [TenantNavigation]
+      parameters:
+        - {name: permissionCode, in: path, required: true, schema: {type: string, maxLength: 128}}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UpdateTenantMenuVisibilityRequest'}}}}
+      responses:
+        '200': {description: 配置已更新。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantNavigationSettingsApiResponse'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /me/menu-preferences:
+    get:
+      operationId: getCurrentMenuPreferences
+      summary: 查询当前账号个人菜单偏好
+      tags: [TenantAccount]
+      responses:
+        '200': {description: 查询成功。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantMenuSettingListApiResponse'}}}}
+  /me/menu-preferences/{permissionCode}:
+    put:
+      operationId: updateCurrentMenuPreference
+      summary: 修改当前账号个人菜单偏好
+      description: 只影响本人导航显示，不改变功能、接口或数据权限。
+      tags: [TenantAccount]
+      parameters:
+        - {name: permissionCode, in: path, required: true, schema: {type: string, maxLength: 128}}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UpdateMenuPreferenceRequest'}}}}
+      responses:
+        '200': {description: 偏好已保存。, content: {application/json: {schema: {$ref: '#/components/schemas/TenantMenuSettingListApiResponse'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
   /tenant/roles:
     get:
       operationId: pageTenantRoles
@@ -1308,7 +1398,7 @@ components:
     TenantManagementContext:
       type: object
       additionalProperties: false
-      required: [accountId, username, tenantId, tenantName, organizationId, organizationName, rootOrganizationId, rootOwner, permissions]
+      required: [accountId, username, tenantId, tenantName, organizationId, organizationName, rootOrganizationId, organizationOwner, rootOwner, permissions, hiddenMenuPermissionCodes]
       properties:
         accountId: {$ref: '#/components/schemas/BigintId'}
         username: {type: string}
@@ -1318,8 +1408,13 @@ components:
         organizationId: {$ref: '#/components/schemas/BigintId'}
         organizationName: {type: string}
         rootOrganizationId: {$ref: '#/components/schemas/BigintId'}
+        organizationOwner: {type: boolean}
         rootOwner: {type: boolean}
         permissions:
+          type: array
+          uniqueItems: true
+          items: {type: string}
+        hiddenMenuPermissionCodes:
           type: array
           uniqueItems: true
           items: {type: string}
@@ -2152,6 +2247,113 @@ components:
       properties:
         activationTicket: {type: string, writeOnly: true}
         expiresAt: {type: string, format: date-time}
+    TenantUserPasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [reauthTicket, reason]
+      properties:
+        reauthTicket: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    TenantUserPasswordResetLink:
+      type: object
+      additionalProperties: false
+      required: [resetTicket, expiresAt]
+      properties:
+        resetTicket: {type: string, writeOnly: true}
+        expiresAt: {type: string, format: date-time}
+    ChangeUsernameRequest:
+      type: object
+      additionalProperties: false
+      required: [username, reauthTicket, reason]
+      properties:
+        username: {type: string, minLength: 3, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$'}
+        reauthTicket: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    ChangedUsername:
+      type: object
+      additionalProperties: false
+      required: [accountId, username]
+      properties:
+        accountId: {$ref: '#/components/schemas/BigintId'}
+        username: {type: string}
+    OrganizationOwner:
+      type: object
+      additionalProperties: false
+      required: [organizationId, accountId, username, displayName, effectiveTime, version]
+      properties:
+        organizationId: {$ref: '#/components/schemas/BigintId'}
+        accountId: {$ref: '#/components/schemas/BigintId'}
+        username: {type: string}
+        displayName: {type: string}
+        effectiveTime: {type: string, format: date-time}
+        version: {type: integer, format: int64, minimum: 0}
+    TransferOrganizationOwnerRequest:
+      type: object
+      additionalProperties: false
+      required: [targetAccountId, reauthTicket, reason, version]
+      properties:
+        targetAccountId: {$ref: '#/components/schemas/BigintId'}
+        reauthTicket: {type: string, minLength: 1, maxLength: 128, writeOnly: true}
+        reason: {type: string, minLength: 1, maxLength: 500}
+        version: {type: integer, format: int64, minimum: 0}
+    TenantFeature:
+      type: object
+      additionalProperties: false
+      required: [featureCode, name, description, enabled, version]
+      properties:
+        featureCode: {type: string}
+        name: {type: string}
+        description: {type: string}
+        enabled: {type: boolean}
+        version: {type: integer, format: int64, minimum: 0}
+    TenantMenuSetting:
+      type: object
+      additionalProperties: false
+      required: [permissionCode, name, featureEnabled, tenantHidden, tenantVersion, personallyHidden, preferenceVersion, sortOrder]
+      properties:
+        permissionCode: {type: string}
+        parentPermissionCode: {type: [string, 'null']}
+        name: {type: string}
+        routePath: {type: [string, 'null']}
+        featureCode: {type: [string, 'null']}
+        featureEnabled: {type: boolean}
+        tenantHidden: {type: boolean}
+        tenantVersion: {type: integer, format: int64, minimum: 0}
+        personallyHidden: {type: boolean}
+        preferenceVersion: {type: integer, format: int64, minimum: 0}
+        sortOrder: {type: integer, minimum: 0}
+    TenantNavigationSettings:
+      type: object
+      additionalProperties: false
+      required: [features, menus]
+      properties:
+        features: {type: array, items: {$ref: '#/components/schemas/TenantFeature'}}
+        menus: {type: array, items: {$ref: '#/components/schemas/TenantMenuSetting'}}
+    UpdateTenantFeatureRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled, version, reauthTicket, reason]
+      properties:
+        enabled: {type: boolean}
+        version: {type: integer, format: int64, minimum: 0}
+        reauthTicket: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    UpdateTenantMenuVisibilityRequest:
+      type: object
+      additionalProperties: false
+      required: [hidden, version, reauthTicket, reason]
+      properties:
+        hidden: {type: boolean}
+        version: {type: integer, format: int64, minimum: 0}
+        reauthTicket: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    UpdateMenuPreferenceRequest:
+      type: object
+      additionalProperties: false
+      required: [hidden, version]
+      properties:
+        hidden: {type: boolean}
+        version: {type: integer, format: int64, minimum: 0}
     TenantUserPage:
       type: object
       additionalProperties: false
@@ -2186,6 +2388,51 @@ components:
         code: {type: string, const: '0'}
         message: {type: string}
         data: {$ref: '#/components/schemas/TenantUserActivationLink'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    TenantUserPasswordResetLinkApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/TenantUserPasswordResetLink'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    ChangedUsernameApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/ChangedUsername'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    OrganizationOwnerApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/OrganizationOwner'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    TenantNavigationSettingsApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {$ref: '#/components/schemas/TenantNavigationSettings'}
+        timestamp: {type: string, format: date-time}
+        traceId: {type: [string, 'null']}
+    TenantMenuSettingListApiResponse:
+      type: object
+      required: [code, message, data, timestamp]
+      properties:
+        code: {type: string, const: '0'}
+        message: {type: string}
+        data: {type: array, items: {$ref: '#/components/schemas/TenantMenuSetting'}}
         timestamp: {type: string, format: date-time}
         traceId: {type: [string, 'null']}
     SmsRuntimePolicy:

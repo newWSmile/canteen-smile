@@ -29,6 +29,11 @@ export const useTenantContextStore = defineStore('tenantContext', () => {
     return context.value?.permissions.includes(permission) ?? false
   }
 
+  /** 判断菜单是否同时未被租户统一配置和当前账号个人偏好隐藏。 */
+  function isMenuVisible(permission: string): boolean {
+    return !(context.value?.hiddenMenuPermissionCodes.includes(permission) ?? false)
+  }
+
   return {
     context,
     loading,
@@ -37,5 +42,6 @@ export const useTenantContextStore = defineStore('tenantContext', () => {
     load,
     clear,
     hasPermission,
+    isMenuVisible,
   }
 })

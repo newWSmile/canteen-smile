@@ -191,9 +191,46 @@
     </update>
     <update id="disableUsernameLogin">
         UPDATE public.iam_username_registry
-        SET login_enabled=false, updated_by=#{operatorId}, updated_time=CURRENT_TIMESTAMP, version=version+1
+        SET login_enabled=false, disabled_time=CURRENT_TIMESTAMP, updated_by=#{operatorId},
+          updated_time=CURRENT_TIMESTAMP, version=version+1
         WHERE subject_type='TENANT_ACCOUNT' AND subject_id=#{accountId} AND login_enabled=true AND is_deleted=false
     </update>
+    <update id="updateUsername">
+        UPDATE public.iam_account
+        SET username=#{username}, normalized_username=#{normalizedUsername},
+          profile_version=profile_version+1, authz_version=authz_version+1,
+          updated_by=#{operatorId}, updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE tenant_id=#{tenantId} AND organization_id=#{organizationId} AND id=#{accountId}
+          AND status='ACTIVE' AND is_deleted=false
+    </update>
+    <select id="countCustomRoles" resultType="long">
+        SELECT COUNT(*)
+        FROM public.iam_account_role binding
+        JOIN public.iam_role role ON role.tenant_id=binding.tenant_id
+          AND role.organization_id=binding.organization_id AND role.id=binding.role_id
+          AND role.role_type='CUSTOM' AND role.status='ACTIVE' AND role.is_deleted=false
+        WHERE binding.tenant_id=#{tenantId} AND binding.organization_id=#{organizationId}
+          AND binding.account_id=#{accountId} AND binding.is_deleted=false
+    </select>
+    <select id="countManagementPermissions" resultType="long">
+        SELECT COUNT(DISTINCT permission.id)
+        FROM public.iam_account_role binding
+        JOIN public.iam_role role ON role.tenant_id=binding.tenant_id
+          AND role.organization_id=binding.organization_id AND role.id=binding.role_id
+          AND role.status='ACTIVE' AND role.is_deleted=false
+        JOIN public.iam_role_permission role_permission ON role_permission.tenant_id=role.tenant_id
+          AND role_permission.organization_id=role.organization_id AND role_permission.role_id=role.id
+          AND role_permission.is_deleted=false
+        JOIN public.iam_permission_resource permission ON permission.id=role_permission.permission_id
+          AND permission.publish_status='PUBLISHED' AND permission.is_deleted=false
+        WHERE binding.tenant_id=#{tenantId} AND binding.organization_id=#{organizationId}
+          AND binding.account_id=#{accountId} AND binding.is_deleted=false
+          AND permission.permission_code IN (
+            'iam:org-type:manage','iam:org:create','iam:org:update','iam:org:move','iam:org:status','iam:org:delete',
+            'iam:role:create','iam:role:update','iam:role:status','iam:role:delete','iam:role:grant','iam:role:data-scope',
+            'iam:user:create','iam:user:update','iam:user:status','iam:user:cancel','iam:user:role-assign','iam:user:password-reset'
+          )
+    </select>
     <insert id="insertAccountChangedOutbox">
         INSERT INTO public.iam_outbox_event (id,event_id,aggregate_type,aggregate_id,tenant_id,event_type,
           payload_json,status,created_by,updated_by)

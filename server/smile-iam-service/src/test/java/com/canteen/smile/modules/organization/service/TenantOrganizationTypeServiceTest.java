@@ -29,7 +29,7 @@ class TenantOrganizationTypeServiceTest {
         TenantOrganizationMapper mapper = mock(TenantOrganizationMapper.class);
         /** 审计服务替身。 */
         IamAuditLogService audit = mock(IamAuditLogService.class);
-        when(actorService.requireRootOwner()).thenReturn(actor());
+        when(actorService.current()).thenReturn(actor());
         when(mapper.selectActiveOrganizationTypes(11L)).thenReturn(types());
         /** 被测服务。 */
         TenantOrganizationTypeService service = new TenantOrganizationTypeService(actorService, mapper, audit);
@@ -54,7 +54,7 @@ class TenantOrganizationTypeServiceTest {
         TenantOrganizationMapper mapper = mock(TenantOrganizationMapper.class);
         /** 审计服务替身。 */
         IamAuditLogService audit = mock(IamAuditLogService.class);
-        when(actorService.requireRootOwner()).thenReturn(actor());
+        when(actorService.current()).thenReturn(actor());
         when(mapper.selectActiveOrganizationTypes(11L)).thenReturn(types());
         when(mapper.selectUsedOrganizationTypeRelations(11L)).thenReturn(List.of(
                 new TenantOrganizationMapper.OrganizationTypePairRow(1L, 2L)
@@ -72,7 +72,7 @@ class TenantOrganizationTypeServiceTest {
 
     /** @return 根机构所有者测试上下文 */
     private TenantActorContext actor() {
-        return new TenantActorContext(21L, 11L, "测试租户", 31L, "根机构", 31L, "owner", "Owner", true);
+        return new TenantActorContext(21L, 11L, "测试租户", 31L, "根机构", 31L, "owner", "Owner", true, true);
     }
 
     /** @return CITY 和 SCHOOL 两个有效机构类型 */

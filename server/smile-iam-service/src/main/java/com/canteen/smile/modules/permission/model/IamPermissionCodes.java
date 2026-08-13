@@ -24,6 +24,18 @@ public final class IamPermissionCodes {
     /** 重置授权范围内租户账号密码。 */
     public static final String IAM_USER_PASSWORD_RESET = "iam:user:password-reset";
 
+    /** 查看当前机构所有者。 */
+    public static final String IAM_ORG_OWNER_VIEW = "iam:org-owner:view";
+
+    /** 转让当前机构所有权。 */
+    public static final String IAM_ORG_OWNER_TRANSFER = "iam:org-owner:transfer";
+
+    /** 查看租户功能与菜单配置。 */
+    public static final String IAM_TENANT_NAVIGATION_VIEW = "iam:tenant-navigation:view";
+
+    /** 修改租户功能与菜单配置。 */
+    public static final String IAM_TENANT_NAVIGATION_MANAGE = "iam:tenant-navigation:manage";
+
     /** 查看本机构用户。 */
     public static final String IAM_USER_VIEW = "iam:user:view";
 

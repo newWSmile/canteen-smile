@@ -218,6 +218,13 @@
                tenant.status AS tenant_status,
                organization.own_status AS organization_status,
                EXISTS (
+                   SELECT 1 FROM public.iam_org_owner current_owner
+                   WHERE current_owner.tenant_id = account.tenant_id
+                     AND current_owner.organization_id = account.organization_id
+                     AND current_owner.account_id = account.id
+                     AND current_owner.is_deleted = false
+               ) AS organization_owner,
+               EXISTS (
                    SELECT 1
                    FROM public.iam_org_owner owner
                    WHERE owner.tenant_id = account.tenant_id

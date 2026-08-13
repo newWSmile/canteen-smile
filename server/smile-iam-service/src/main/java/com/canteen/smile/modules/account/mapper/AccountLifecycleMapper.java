@@ -181,6 +181,7 @@ public interface AccountLifecycleMapper {
      * @param accountStatus 账号状态
      * @param tenantStatus 租户状态
      * @param organizationStatus 机构自身状态
+     * @param organizationOwner 是否当前所属机构所有者
      * @param rootOwner 是否租户根机构所有者
      */
     record TenantPermissionContextRow(
@@ -195,6 +196,7 @@ public interface AccountLifecycleMapper {
             String accountStatus,
             String tenantStatus,
             String organizationStatus,
+            boolean organizationOwner,
             boolean rootOwner
     ) {
     }

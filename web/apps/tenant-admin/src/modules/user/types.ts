@@ -69,3 +69,19 @@ export interface TenantUserActivationLink {
   activationTicket: string
   expiresAt: string
 }
+
+/** 管理员生成的一次性密码重置票据。 */
+export interface TenantUserPasswordResetLink {
+  resetTicket: string
+  expiresAt: string
+}
+
+/** 当前机构所有者摘要。 */
+export interface OrganizationOwner {
+  organizationId: string
+  accountId: string
+  username: string
+  displayName: string
+  effectiveTime: string
+  version: number
+}

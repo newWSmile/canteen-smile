@@ -63,8 +63,17 @@ public final class IamApiPaths {
     /** 租户管理端当前身份与租户上下文。 */
     public static final String TENANT_CONTEXT = EXTERNAL_V1 + "/tenant/context";
 
-    /** 租户根机构所有者维护登录、会话、密码和审计保留策略的资源路径。 */
+    /** 当前租户账号自助资料资源。 */
+    public static final String CURRENT_ACCOUNT = EXTERNAL_V1 + "/me";
+
+    /** 租户管理员按权限维护登录、会话、密码和审计保留策略的资源路径。 */
     public static final String TENANT_SECURITY_POLICY = EXTERNAL_V1 + "/tenant/security-policy";
+
+    /** 租户功能启停和统一菜单显示配置资源。 */
+    public static final String TENANT_NAVIGATION_SETTINGS = EXTERNAL_V1 + "/tenant/navigation-settings";
+
+    /** 当前账号个人菜单偏好资源。 */
+    public static final String CURRENT_MENU_PREFERENCES = EXTERNAL_V1 + "/me/menu-preferences";
 
     /** 租户独立机构类型资源。 */
     public static final String TENANT_ORGANIZATION_TYPES = EXTERNAL_V1 + "/tenant/organization-types";
@@ -75,6 +84,9 @@ public final class IamApiPaths {
 
     /** 租户机构树资源。 */
     public static final String TENANT_ORGANIZATIONS = EXTERNAL_V1 + "/tenant/organizations";
+
+    /** 当前机构所有权资源。 */
+    public static final String TENANT_ORGANIZATION_OWNER = EXTERNAL_V1 + "/tenant/organization-owner";
 
     /** 租户本机构角色资源路径。 */
     public static final String TENANT_ROLES = EXTERNAL_V1 + "/tenant/roles";

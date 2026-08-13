@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canteen.smile.modules.organization.mapper.OrganizationOwnerMapper">
+    <select id="selectOwner" resultType="com.canteen.smile.modules.organization.mapper.OrganizationOwnerMapper$OwnerRow">
+        SELECT owner.organization_id, owner.account_id, owner.protected_role_id,
+          account.username, COALESCE(account.display_name, account.username) AS display_name,
+          owner.effective_time, owner.version
+        FROM public.iam_org_owner owner
+        JOIN public.iam_account account ON account.tenant_id=owner.tenant_id
+          AND account.organization_id=owner.organization_id AND account.id=owner.account_id
+          AND account.is_deleted=false
+        WHERE owner.tenant_id=#{tenantId} AND owner.organization_id=#{organizationId}
+          AND owner.is_deleted=false LIMIT 1
+    </select>
+    <update id="transferOwner">
+        UPDATE public.iam_org_owner
+        SET account_id=#{toAccountId}, effective_time=CURRENT_TIMESTAMP, updated_by=#{operatorId},
+          updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE tenant_id=#{tenantId} AND organization_id=#{organizationId} AND account_id=#{fromAccountId}
+          AND version=#{version} AND is_deleted=false
+    </update>
+    <update id="deactivateOwnerRole">
+        UPDATE public.iam_account_role
+        SET is_deleted=true, updated_by=#{operatorId}, updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE tenant_id=#{tenantId} AND organization_id=#{organizationId} AND account_id=#{accountId}
+          AND role_id=#{roleId} AND is_deleted=false
+    </update>
+    <insert id="insertOwnerRole">
+        INSERT INTO public.iam_account_role (id, tenant_id, organization_id, account_id, role_id,
+          assigned_by, created_by, updated_by)
+        VALUES (nextval('public.iam_account_role_seq'),#{tenantId},#{organizationId},#{accountId},#{roleId},
+          #{operatorId},#{operatorId},#{operatorId})
+    </insert>
+    <insert id="insertHistory">
+        INSERT INTO public.iam_org_owner_history (id,tenant_id,organization_id,from_account_id,to_account_id,
+          reason,operator_id,changed_time,created_by,updated_by)
+        VALUES (nextval('public.iam_org_owner_history_seq'),#{tenantId},#{organizationId},#{fromAccountId},
+          #{toAccountId},#{reason},#{operatorId},CURRENT_TIMESTAMP,#{operatorId},#{operatorId})
+    </insert>
+    <update id="bumpAccountVersion">
+        UPDATE public.iam_account SET authz_version=authz_version+1, updated_by=#{operatorId},
+          updated_time=CURRENT_TIMESTAMP, version=version+1
+        WHERE tenant_id=#{tenantId} AND organization_id=#{organizationId} AND id=#{accountId}
+          AND status='ACTIVE' AND is_deleted=false
+    </update>
+</mapper>
